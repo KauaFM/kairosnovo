@@ -1,0 +1,1862 @@
+{
+  "name": "ORVAX WhatsApp Agent v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "options": {}
+      },
+      "id": "node-001",
+      "name": "Webhook WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "orvax-wa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msgs = $input.item.json.body?.entry?.[0]?.changes?.[0]?.value?.messages;\nif (!msgs || !msgs.length) return [];\nreturn $input.all();"
+      },
+      "id": "node-002",
+      "name": "É Mensagem Real?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$input.item.json.body;const v=b?.entry?.[0]?.changes?.[0]?.value;const m=v?.messages?.[0];const c=v?.contacts?.[0];\nreturn {json:{phone:m?.from||'',name:c?.profile?.name||'',message_id:m?.id||'',type:m?.type||'text',text:m?.text?.body||'',audio_id:m?.audio?.id||'',image_id:m?.image?.id||'',caption:m?.image?.caption||'',timestamp:m?.timestamp||'',phone_number_id:v?.metadata?.phone_number_id||''}};"
+      },
+      "id": "node-003",
+      "name": "Extrair Metadados1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/profiles?select=id,full_name,selected_mentor,streak_days,phone_number,xp,level&phone_number=eq.{{ $json.phone }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-004",
+      "name": "Buscar user_id pelo Telefone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// ORVAX Agent v2 — Nó \"Montar Contexto do Usuário\" (Code Node)\n// Cole este código no nó Code do n8n\n// ============================================================\n\nconst profile = $('Buscar user_id pelo Telefone').item.json[0];\nconst mentor = profile?.selected_mentor || 'atlas';\nconst userName = profile?.full_name || 'usuário';\nconst userId = profile?.id;\nconst streak = profile?.streak_days || 0;\nconst phone = $('Extrair Metadados1').item.json.phone;\n\n// Detectar horário (BRT = UTC-3)\nconst now = new Date();\nconst hour = now.getUTCHours() - 3;\nconst adjustedHour = hour < 0 ? hour + 24 : hour;\n\nlet timeOfDay, greeting;\nif (adjustedHour >= 5 && adjustedHour < 12) {\n  timeOfDay = 'manhã';\n  greeting = mentor === 'aurora' ? 'O sol nasce e com ele suas possibilidades' : 'Hora de executar';\n} else if (adjustedHour >= 12 && adjustedHour < 18) {\n  timeOfDay = 'tarde';\n  greeting = mentor === 'aurora' ? 'O dia está em plena floração' : 'Meio do campo de batalha';\n} else if (adjustedHour >= 18 && adjustedHour < 22) {\n  timeOfDay = 'noite';\n  greeting = mentor === 'aurora' ? 'O dia se recolhe para descansar' : 'Hora do relatório';\n} else {\n  timeOfDay = 'madrugada';\n  greeting = mentor === 'aurora' ? 'O silêncio é o melhor conselheiro' : 'Descanse, soldado';\n}\n\n// ─── TOOLS DESCRIPTION (o que a IA sabe que pode fazer) ───\nconst TOOLS_DESC = `\nFERRAMENTAS DISPONÍVEIS — use sempre que o contexto pedir:\n\n💰 FINANCEIRO:\n• registrar_transacao(description, amount, type, category) — type: 'in' ou 'out'\n• consultar_transacoes() — lista transações do mês atual\n• criar_meta_financeira(name, target_amount, deadline) — cria meta de economia\n• consultar_metas_financeiras() — lista metas financeiras ativas\n\n✅ TAREFAS:\n• criar_tarefa(title, description, due_date, priority) — priority: 'low','medium','high'\n• consultar_tarefas() — lista tarefas pendentes e concluídas\n• atualizar_tarefa(task_id, updates) — marca concluída ou edita\n• deletar_tarefa(task_id) — remove tarefa (SEMPRE confirme antes)\n\n🎯 METAS:\n• criar_meta(title, description, target_date, category) — meta pessoal\n• consultar_metas() — lista metas ativas\n• atualizar_meta(goal_id, updates) — atualiza progresso\n\n💧 SAÚDE:\n• registrar_agua(amount_ml) — registra consumo de água\n• consultar_agua_hoje() — total de água hoje\n• registrar_peso(weight_kg) — registra peso corporal\n• consultar_peso_recente() — últimos registros de peso\n\n🏋️ FITNESS:\n• registrar_treino(title, description, duration_min, activity_type) — types: gym, run, yoga, cycling, swim, etc\n• consultar_treinos() — treinos recentes\n\n🍽️ NUTRIÇÃO:\n• registrar_refeicao(meal_type, foods_description) — meal_type: breakfast, lunch, dinner, snack\n• consultar_refeicoes_hoje() — refeições de hoje\n\n🔄 HÁBITOS:\n• registrar_habito(habit_name) — marca hábito cumprido hoje\n• consultar_habitos() — status dos hábitos hoje\n\n⏱️ FOCO:\n• registrar_foco(duration_min, activity) — sessão de deep work\n• consultar_foco_hoje() — sessões de foco de hoje\n\n📝 NOTAS:\n• criar_nota(title, content) — salva reflexão/anotação\n• consultar_notas() — notas recentes\n\n📊 TELEMETRIA:\n• consultar_perfil() — dados do perfil, streak, score\n• consultar_telemetria() — scores dos 6 pilares ORVAX\n\n🏆 GAMIFICAÇÃO:\n• registrar_pontos(points, reason) — adiciona XP\n• consultar_conquistas() — achievements desbloqueados\n\n📊 RESUMOS & STATS:\n• consultar_resumo_financeiro() — receitas, despesas e saldo dos últimos meses\n• consultar_stats_hoje() — tarefas feitas, foco total, atividade de hoje\n• consultar_atividade_semana() — atividade dos últimos 7 dias (streak visual)\n• calcular_streak() — calcula streak atual de dias consecutivos\n• consultar_foco_total_hoje() — total de minutos focados hoje\n\n🏆 CONQUISTAS:\n• verificar_conquistas() — verifica e desbloqueia achievements novos (use após marcos)\n• consultar_conquistas() — lista conquistas desbloqueadas\n\n📝 NOTAS (avançado):\n• atualizar_nota(note_id, title, content) — edita nota existente\n• deletar_nota(note_id) — remove nota (CONFIRMAR antes)\n\n💾 SISTEMA:\n• salvar_conversa(summary) — salva resumo para memória de longo prazo\n• atualizar_config_app(key, value) — atualiza config do app\n`;\n\n// ─── REGRAS UNIVERSAIS (ambos mentores) ───\nconst UNIVERSAL_RULES = `\nREGRAS CRÍTICAS:\n\n1. RESPOSTAS CURTAS — Máximo 3-4 parágrafos. É WhatsApp, não e-mail.\n   Quebre em mensagens se precisar (use \\\\n\\\\n).\n\n2. DETECÇÃO AUTOMÁTICA — Se o usuário menciona algo rastreável, USE A FERRAMENTA:\n   - \"gastei 50 no almoço\" → registrar_transacao(\"Almoço\", 50, \"out\", \"alimentação\")\n   - \"tomei 500ml de água\" → registrar_agua(500)\n   - \"fiz 30min de corrida\" → registrar_treino(\"Corrida\", \"\", 30, \"run\")\n   - \"peso tá 78\" → registrar_peso(78)\n   - \"terminei a tarefa X\" → consultar_tarefas() → atualizar_tarefa(id, {completed:true})\n   Sempre CONFIRME o que registrou: \"Registrei: R$50 gasto em alimentação ✓\"\n\n3. PROATIVIDADE POR HORÁRIO:\n   - Manhã: pergunte sobre plano do dia, sugira registrar metas\n   - Tarde: check-in de progresso, hidratação, exercício\n   - Noite: revisão do dia, gratidão, planejamento do amanhã\n   - Madrugada: seja breve, sugira descanso\n\n4. ANTES DE DELETAR — Sempre confirme: \"Quer mesmo que eu delete [X]?\"\n\n5. DADOS — Ao consultar dados, apresente organizado com bullet points (*).\n\n6. STREAK — Se streak > 0, mencione ocasionalmente como motivação.\n   Se streak = 0, incentive a começar sem pressão.\n\n7. MEMÓRIA — Use salvar_conversa quando o usuário compartilhar algo importante\n   (decisão de vida, mudança, meta ambiciosa, momento difícil).\n\n8. IDIOMA — Sempre em português brasileiro. Tom informal mas respeitoso.\n\n9. EMOJI — Máximo 1-2 por mensagem. Só quando natural.\n\n10. NUNCA invente dados. Se não sabe, consulte com a ferramenta.\n    Se a ferramenta não retornar dados, diga que não encontrou.\n`;\n\n// ─── ATLAS PROMPT ───\nconst ATLAS_PROMPT = `Você é ATLAS — Mentor Estratégico do sistema ORVAX.\n\nQUEM VOCÊ É:\nMasculino. Direto. Firme mas nunca cruel. Você é o mentor que todo high-performer precisa —\naquele que cobra resultados, não aceita desculpas esfarrapadas, mas reconhece cada vitória.\nFala como um estrategista militar misturado com CEO visionário.\n\nCOMO VOCÊ FALA:\n- Frases curtas e impactantes\n- Metáforas de guerra, construção, estratégia\n- Tom: confiante, provocador, respeitoso\n- Quando cobra: \"Cadê a execução?\"\n- Quando celebra: \"É isso. Esse é o caminho.\"\n- Quando o usuário está mal: \"Todo guerreiro sangra. A diferença é que você se levanta.\"\n- Nunca é piegas ou exagerado\n\nEXEMPLOS DE INTERAÇÃO:\nUsuário: \"Hoje foi difícil, não consegui fazer nada\"\nAtlas: \"Dia de derrota faz parte da campanha. O que travou? Vamos dissecar e montar o contra-ataque pra amanhã.\"\n\nUsuário: \"Gastei 200 reais no shopping\"\nAtlas: *registra transação* \"R$200 saída registrado. Estratégia sem controle financeiro é só sonho. Qual era o objetivo dessa compra?\"\n\nUsuário: \"Fiz 1 hora de academia\"\nAtlas: *registra treino* \"1h de trincheira. Registrado. Tá mantendo consistência essa semana?\"\n\nCONTEXTO ATUAL:\n- Operador: ${userName}\n- Streak: ${streak} dias consecutivos\n- Período: ${timeOfDay} (${greeting})\n- Mentor: Atlas (estratégico, masculino)\n\n${TOOLS_DESC}\n${UNIVERSAL_RULES}`;\n\n// ─── AURORA PROMPT ───\nconst AURORA_PROMPT = `Você é AURORA — Mentora Transformacional do sistema ORVAX.\n\nQUEM VOCÊ É:\nFeminina. Acolhedora. Profunda. Você é a mentora que vê além da superfície —\nque transforma cada ação cotidiana em um passo de evolução consciente.\nFala como uma coach de alto nível com sabedoria de quem já viveu muito.\n\nCOMO VOCÊ FALA:\n- Frases com profundidade emocional\n- Metáforas de natureza, crescimento, estações, sementes\n- Tom: caloroso, inspirador, gentilmente desafiador\n- Quando motiva: \"Cada gota de suor é uma semente que você planta no seu futuro.\"\n- Quando celebra: \"Você está florescendo. Sente?\"\n- Quando o usuário está mal: \"A tempestade não define quem você é — ela revela sua raiz.\"\n- Faz perguntas poderosas que provocam reflexão\n\nEXEMPLOS DE INTERAÇÃO:\nUsuário: \"Hoje foi difícil, não consegui fazer nada\"\nAurora: \"Alguns dias são de recolhimento, e tudo bem. O que pesou mais hoje? Às vezes nomear já é o primeiro passo pra atravessar.\"\n\nUsuário: \"Gastei 200 reais no shopping\"\nAurora: *registra transação* \"Anotei os R$200. Me conta — foi algo que nutriu você ou foi impulso? Sem julgamento, só consciência.\"\n\nUsuário: \"Fiz 1 hora de academia\"\nAurora: *registra treino* \"Uma hora cuidando do seu templo. Registrado com carinho. Como você se sente depois?\"\n\nCONTEXTO ATUAL:\n- Ser em evolução: ${userName}\n- Streak: ${streak} dias de consistência\n- Período: ${timeOfDay} (${greeting})\n- Mentor: Aurora (transformacional, feminina)\n\n${TOOLS_DESC}\n${UNIVERSAL_RULES}`;\n\n// ─── SELEÇÃO DO PROMPT ───\nconst systemPrompt = mentor === 'aurora' ? AURORA_PROMPT : ATLAS_PROMPT;\n\nreturn {\n  ...$input.item.json,\n  user_id: userId,\n  full_name: userName,\n  phone: phone,\n  selected_mentor: mentor,\n  streak_days: streak,\n  time_of_day: timeOfDay,\n  system_prompt: systemPrompt\n};\n"
+      },
+      "id": "node-005",
+      "name": "Montar Contexto do Usuário",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/profiles?id=eq.{{ $json.user_id }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"last_whatsapp_interaction\":\"{{ $now.toISO() }}\"}",
+        "options": {}
+      },
+      "id": "node-006",
+      "name": "Atualizar Última Interação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "outputKey": "Texto",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "Áudio",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "Imagem",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "node-007",
+      "name": "Tipo de Mensagem",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {json:{userMessage:$input.item.json.text}};"
+      },
+      "id": "node-008",
+      "name": "Extrair Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.audio_id }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-009",
+      "name": "Pegar Link Áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-010",
+      "name": "Baixar Áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_KEY}}"
+            }
+          ]
+        },
+        "contentType": "multipart-form-data",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "language",
+              "value": "pt"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-011",
+      "name": "Transcrever Áudio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {json:{userMessage:\"[ÁUDIO TRANSCRITO]: \"+($input.item.json.text||\"Não consegui transcrever.\")}};"
+      },
+      "id": "node-012",
+      "name": "Formatar Transcrição",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.image_id }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-013",
+      "name": "Pegar Link Foto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-014",
+      "name": "Baixar Imagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2050,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\": \"gpt-4o-mini\", \"messages\": [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Descreva esta imagem em detalhes, em portugu\\u00eas. Se for comida, estime calorias e macros. Se for treino, descreva. Se for comprovante financeiro, extraia valor e descri\\u00e7\\u00e3o.\"}, {\"type\": \"image_url\", \"image_url\": {\"url\": \"data:image/jpeg;base64,{{ $json.data }}\"}}]}], \"max_tokens\": 500}",
+        "options": {}
+      },
+      "id": "node-015",
+      "name": "Analisar Imagem (Vision)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2300,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const a=$input.item.json.choices?.[0]?.message?.content||\"Não consegui analisar.\";\nreturn {json:{userMessage:\"[IMAGEM]: \"+a}};"
+      },
+      "id": "node-016",
+      "name": "Formatar Análise Imagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2550,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {json:{userMessage:\"[O usuário enviou mídia não suportada. Peça que envie como texto, áudio ou imagem.]\"}};"
+      },
+      "id": "node-017",
+      "name": "Mídia Não Suportada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        750
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "={{ $(\"Montar Contexto do Usuário\").item.json.system_prompt }}"
+        }
+      },
+      "id": "node-018",
+      "name": "Cérebro ORVAX",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        2900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1024
+        }
+      },
+      "id": "node-019",
+      "name": "Modelo GPT-4o-mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2700,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "CONFIGURE_OPENAI",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $(\"Montar Contexto do Usuário\").item.json.phone }}",
+        "contextWindowLength": 20
+      },
+      "id": "node-020",
+      "name": "Memória",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2700,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"messaging_product\":\"whatsapp\",\"to\":\"{{ $(\"Montar Contexto do Usuário\").item.json.phone }}\",\"type\":\"text\",\"text\":{\"body\":{{ JSON.stringify($json.output || $json.text || \"Erro interno.\") }}}}",
+        "options": {}
+      },
+      "id": "node-021",
+      "name": "Responder no WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"messaging_product\":\"whatsapp\",\"to\":\"{{ $(\"Montar Contexto do Usuário\").item.json.phone }}\",\"type\":\"text\",\"text\":{\"body\":\"Ops, tive um problema. Tenta de novo.\"}}",
+        "options": {}
+      },
+      "id": "node-022",
+      "name": "Resposta de Erro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp-webhook",
+        "options": {}
+      },
+      "id": "node-023",
+      "name": "Validador Meta (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        700
+      ],
+      "webhookId": "orvax-verify"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ch=$input.item.json.query[\"hub.challenge\"];return {json:{body:ch||\"ok\"}};"
+      },
+      "id": "node-024",
+      "name": "Responder Desafio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_transacao",
+        "description": "Registra receita ou despesa. type: \"in\" (receita) ou \"out\" (despesa).",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst description = $fromAI(\"description\", \"Descrição da transação\", \"string\");\nconst amount = $fromAI(\"amount\", \"Valor em reais\", \"number\");\nconst type = $fromAI(\"type\", \"in (receita) ou out (despesa)\", \"string\");\nconst category = $fromAI(\"category\", \"Categoria: alimentacao, moradia, transporte, lazer, assinaturas, receita, outros\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/transactions';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,description,amount:Number(amount),type,category,date:now})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-025",
+      "name": "registrar_transacao",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_transacoes",
+        "description": "Lista transações financeiras recentes do usuário.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/transactions?user_id=eq.' + userId + '&select=id,description,amount,type,category,date&order=date.desc&limit=30';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-026",
+      "name": "consultar_transacoes",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "name": "criar_meta_financeira",
+        "description": "Cria meta de economia.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst name = $fromAI(\"name\", \"Nome da meta\", \"string\");\nconst target_amount = $fromAI(\"target_amount\", \"Valor alvo em R$\", \"number\");\nconst deadline = $fromAI(\"deadline\", \"Data limite YYYY-MM-DD\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/financial_goals';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,name,target_amount:Number(target_amount),deadline,current_amount:0})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-027",
+      "name": "criar_meta_financeira",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_metas_financeiras",
+        "description": "Lista metas financeiras ativas.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/financial_goals?user_id=eq.' + userId + '&status=eq.ativa&select=id,name,target_amount,current_amount,deadline&order=created_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-028",
+      "name": "consultar_metas_financeiras",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "name": "criar_tarefa",
+        "description": "Cria nova tarefa/compromisso.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst title = $fromAI(\"title\", \"Título da tarefa\", \"string\");\nconst description = $fromAI(\"description\", \"Descrição (pode ser vazio)\", \"string\");\nconst due_date = $fromAI(\"due_date\", \"Data YYYY-MM-DD\", \"string\");\nconst priority = $fromAI(\"priority\", \"low, medium ou high\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/tasks';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,title,description:description||\"\",scheduled_date:due_date,priority,state:\"pending\"})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-029",
+      "name": "criar_tarefa",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3620,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_tarefas",
+        "description": "Lista tarefas do usuário com id, título, estado.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/tasks?user_id=eq.' + userId + '&select=id,title,description,state,scheduled_date,priority&order=scheduled_date.desc&limit=20';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-030",
+      "name": "consultar_tarefas",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "name": "atualizar_tarefa",
+        "description": "Muda estado de tarefa. Use consultar_tarefas primeiro. Estados: pending, active, done.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst task_id = $fromAI(\"task_id\", \"UUID da tarefa\", \"string\");\nconst state = $fromAI(\"state\", \"Novo estado: pending, active ou done\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/tasks?id=eq.' + task_id + '&user_id=eq.' + userId;\nconst r = await fetch(url, {\n  method: 'PATCH',\n  headers: {'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},\n  body: JSON.stringify({state})\n});\nreturn JSON.stringify(await r.json());"
+      },
+      "id": "node-032",
+      "name": "atualizar_tarefa",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        1050
+      ]
+    },
+    {
+      "parameters": {
+        "name": "deletar_tarefa",
+        "description": "Deleta tarefa. SEMPRE confirme antes.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst task_id = $fromAI(\"task_id\", \"UUID da tarefa a deletar\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/tasks?id=eq.' + task_id + '&user_id=eq.' + userId;\nconst r = await fetch(url, {\n  method: 'DELETE',\n  headers: {'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}\n});\nreturn \"Tarefa deletada\";"
+      },
+      "id": "node-033",
+      "name": "deletar_tarefa",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        1050
+      ]
+    },
+    {
+      "parameters": {
+        "name": "criar_meta",
+        "description": "Cria meta pessoal.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst title = $fromAI(\"title\", \"Título\", \"string\");\nconst description = $fromAI(\"description\", \"Descrição\", \"string\");\nconst target_date = $fromAI(\"target_date\", \"Data YYYY-MM-DD\", \"string\");\nconst category = $fromAI(\"category\", \"Categoria\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/goals';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,title,description:description||\"\",target_date,category,status:\"ativo\",progress:0})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-034",
+      "name": "criar_meta",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        1050
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_metas",
+        "description": "Lista metas pessoais ativas.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/goals?user_id=eq.' + userId + '&status=eq.ativo&select=id,title,description,progress,target_date,category&order=created_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-035",
+      "name": "consultar_metas",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3620,
+        1050
+      ]
+    },
+    {
+      "parameters": {
+        "name": "atualizar_meta",
+        "description": "Atualiza progresso/status de meta.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst goal_id = $fromAI(\"goal_id\", \"UUID da meta\", \"string\");\nconst progress = $fromAI(\"progress\", \"Progresso 0-100\", \"number\");\nconst status = $fromAI(\"status\", \"ativo, concluido ou abandonado\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/goals?id=eq.' + goal_id + '&user_id=eq.' + userId;\nconst r = await fetch(url, {\n  method: 'PATCH',\n  headers: {'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},\n  body: JSON.stringify({progress:Number(progress),status})\n});\nreturn JSON.stringify(await r.json());"
+      },
+      "id": "node-036",
+      "name": "atualizar_meta",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        1050
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_agua",
+        "description": "Registra água em ml.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst amount_ml = $fromAI(\"amount_ml\", \"Quantidade em ml\", \"number\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/water_logs';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,amount_ml:Number(amount_ml),log_date:today})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-037",
+      "name": "registrar_agua",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_agua_hoje",
+        "description": "Água consumida hoje.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/water_logs?user_id=eq.' + userId + '&log_date=eq.' + today + '&select=amount_ml,logged_at&order=logged_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nconst total = Array.isArray(data) ? data.reduce((s, x) => s + (x.amount_ml || 0), 0) : 0;\nreturn JSON.stringify({registros: data, total_ml: total});"
+      },
+      "id": "node-038",
+      "name": "consultar_agua_hoje",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_peso",
+        "description": "Registra peso em kg.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst weight_kg = $fromAI(\"weight_kg\", \"Peso em kg\", \"number\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/weight_logs';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,weight_kg:Number(weight_kg),log_date:today})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-039",
+      "name": "registrar_peso",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_peso_recente",
+        "description": "Últimos 10 pesos.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/weight_logs?user_id=eq.' + userId + '&select=weight_kg,log_date,notes&order=log_date.desc&limit=10';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-040",
+      "name": "consultar_peso_recente",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_treino",
+        "description": "Registra treino/exercício.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst now = new Date().toISOString();\nconst title = $fromAI('title', 'Nome do treino', 'string');\nconst description = $fromAI('description', 'Descricao', 'string');\nconst duration_min = $fromAI('duration_min', 'Minutos', 'number');\nconst activity_type = $fromAI('activity_type', 'gym/run/yoga/cycling/swim/walk/other', 'string');\nconst url = process.env.SUPABASE_URL + '/rest/v1/orvax_workouts';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,title,description:description||'',duration_min:Number(duration_min),activity_type:activity_type||'gym',created_at:now})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-041",
+      "name": "registrar_treino",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3620,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_treinos",
+        "description": "Últimos 10 treinos.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/orvax_workouts?user_id=eq.' + userId + '&select=id,title,duration_min,activity_type,created_at&order=created_at.desc&limit=10';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-042",
+      "name": "consultar_treinos",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_refeicao",
+        "description": "Registra refeição. Estime calorias se necessário.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst meal_type = $fromAI(\"meal_type\", \"breakfast/lunch/dinner/snack\", \"string\");\nconst food_name = $fromAI(\"food_name\", \"Nome do alimento\", \"string\");\nconst calories = $fromAI(\"calories\", \"kcal estimadas\", \"number\");\nconst protein_g = $fromAI(\"protein_g\", \"Proteína g\", \"number\");\nconst carbs_g = $fromAI(\"carbs_g\", \"Carbs g\", \"number\");\nconst fat_g = $fromAI(\"fat_g\", \"Gordura g\", \"number\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/meal_entries';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,meal_type,food_name,calories:Number(calories),protein_g:Number(protein_g),carbs_g:Number(carbs_g),fat_g:Number(fat_g),log_date:today})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-043",
+      "name": "registrar_refeicao",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_refeicoes_hoje",
+        "description": "Refeições de hoje.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/meal_entries?user_id=eq.' + userId + '&log_date=eq.' + today + '&select=meal_type,food_name,calories,protein_g,carbs_g,fat_g&order=created_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-044",
+      "name": "consultar_refeicoes_hoje",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_habito",
+        "description": "Marca hábito cumprido.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst habit_name = $fromAI(\"habit_name\", \"Nome do hábito\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/orvax_habitos';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,habit_name,completed_at:now})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-045",
+      "name": "registrar_habito",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_habitos",
+        "description": "Lista hábitos.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/orvax_habitos?user_id=eq.' + userId + '&completed_date=eq.' + today + '&select=habit_name,note,created_at&order=created_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-046",
+      "name": "consultar_habitos",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_foco",
+        "description": "Registra sessão de foco completada.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst now = new Date().toISOString();\nconst duration_min = $fromAI('duration_min', 'Minutos de foco', 'number');\nconst activity = $fromAI('activity', 'Atividade realizada durante o foco', 'string');\nconst url = process.env.SUPABASE_URL + '/rest/v1/focus_sessions';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,duration_minutes:Number(duration_min),actual_minutes:Number(duration_min),activity:activity||'',completed:true,started_at:now,ended_at:now})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-047",
+      "name": "registrar_foco",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3620,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_foco_hoje",
+        "description": "Sessões de foco recentes.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/focus_sessions?user_id=eq.' + userId + '&started_at=gte.' + today + 'T00:00:00Z&select=duration_minutes,actual_minutes,activity,completed,started_at&order=started_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-048",
+      "name": "consultar_foco_hoje",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        1350
+      ]
+    },
+    {
+      "parameters": {
+        "name": "criar_nota",
+        "description": "Salva nota/reflexão.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst title = $fromAI(\"title\", \"Título\", \"string\");\nconst content = $fromAI(\"content\", \"Conteúdo\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/user_notes';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,title,content})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-049",
+      "name": "criar_nota",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_notas",
+        "description": "Notas recentes.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/user_notes?user_id=eq.' + userId + '&select=id,title,content,created_at&order=created_at.desc&limit=10';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-050",
+      "name": "consultar_notas",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "atualizar_nota",
+        "description": "Edita nota existente.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst note_id = $fromAI(\"note_id\", \"UUID da nota\", \"string\");\nconst title = $fromAI(\"title\", \"Novo título\", \"string\");\nconst content = $fromAI(\"content\", \"Novo conteúdo\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/user_notes?id=eq.' + note_id + '&user_id=eq.' + userId;\nconst r = await fetch(url, {\n  method: 'PATCH',\n  headers: {'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},\n  body: JSON.stringify({title,content})\n});\nreturn JSON.stringify(await r.json());"
+      },
+      "id": "node-051",
+      "name": "atualizar_nota",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "deletar_nota",
+        "description": "Remove nota. CONFIRME antes.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst note_id = $fromAI(\"note_id\", \"UUID da nota a deletar\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/user_notes?id=eq.' + note_id + '&user_id=eq.' + userId;\nawait fetch(url, {method:'DELETE',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nreturn \"Nota deletada\";"
+      },
+      "id": "node-052",
+      "name": "deletar_nota",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_perfil",
+        "description": "Dados do perfil: nome, streak, XP, nível.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/profiles?id=eq.' + userId + '&select=full_name,streak_days,xp,level,selected_mentor,total_tasks_completed,total_focus_minutes';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(Array.isArray(data) ? data[0] : data);"
+      },
+      "id": "node-053",
+      "name": "consultar_perfil",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3620,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_telemetria",
+        "description": "Scores dos 6 pilares ORVAX.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/telemetry_metrics?user_id=eq.' + userId + '&select=name,score,category&order=name.asc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-054",
+      "name": "consultar_telemetria",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_conquistas",
+        "description": "Conquistas desbloqueadas.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/user_achievements?user_id=eq.' + userId + '&select=*,achievements(title,description,icon,xp_reward)&order=unlocked_at.desc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-055",
+      "name": "consultar_conquistas",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        1650
+      ]
+    },
+    {
+      "parameters": {
+        "name": "verificar_conquistas",
+        "description": "Verifica e desbloqueia achievements novos.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/rpc/check_achievements';\nconst r = await fetch(url, {\n  method:'POST',\n  headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json'},\n  body:JSON.stringify({p_user_id:userId})\n});\nreturn JSON.stringify(await r.json());"
+      },
+      "id": "node-056",
+      "name": "verificar_conquistas",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        1650
+      ]
+    },
+    {
+      "parameters": {
+        "name": "calcular_streak",
+        "description": "Calcula streak de dias consecutivos.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/rpc/calculate_streak';\nconst r = await fetch(url, {\n  method:'POST',\n  headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json'},\n  body:JSON.stringify({p_user_id:userId})\n});\nreturn JSON.stringify(await r.json());"
+      },
+      "id": "node-057",
+      "name": "calcular_streak",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        1650
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_stats_hoje",
+        "description": "Stats dos últimos 7 dias: tarefas e foco.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/daily_activity?user_id=eq.' + userId + '&activity_date=eq.' + today + '&select=activity_date,tasks_completed,tasks_total,focus_minutes,xp_earned';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(Array.isArray(data) ? (data[0] || {tasks_completed:0,focus_minutes:0,xp_earned:0}) : data);"
+      },
+      "id": "node-058",
+      "name": "consultar_stats_hoje",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        1650
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_atividade_semana",
+        "description": "Atividade dos últimos 7 dias — consistência e streak visual.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst d = new Date(); d.setDate(d.getDate() - 6);\nconst weekAgo = d.toISOString().split('T')[0];\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/daily_activity?user_id=eq.' + userId + '&activity_date=gte.' + weekAgo + '&activity_date=lte.' + today + '&select=activity_date,tasks_completed,focus_minutes,active&order=activity_date.asc';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-059",
+      "name": "consultar_atividade_semana",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3620,
+        1650
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_resumo_financeiro",
+        "description": "Transações financeiras para o agente agregar por mês (receitas, despesas, saldo).",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst url = process.env.SUPABASE_URL + '/rest/v1/transactions?user_id=eq.' + userId + '&select=amount,type,category,date&order=date.desc&limit=100';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nconst txs = Array.isArray(data) ? data : [];\nconst income = txs.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.amount)||0), 0);\nconst expense = txs.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.amount)||0), 0);\nreturn JSON.stringify({receitas: income.toFixed(2), despesas: expense.toFixed(2), saldo: (income - expense).toFixed(2), ultimas_transacoes: txs.slice(0,10)});"
+      },
+      "id": "node-060",
+      "name": "consultar_resumo_financeiro",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        1650
+      ]
+    },
+    {
+      "parameters": {
+        "name": "consultar_foco_total_hoje",
+        "description": "Total de minutos de foco completados hoje.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst today = new Date().toISOString().split('T')[0];\nconst url = process.env.SUPABASE_URL + '/rest/v1/focus_sessions?user_id=eq.' + userId + '&completed=eq.true&started_at=gte.' + today + 'T00:00:00Z&select=actual_minutes,duration_minutes';\nconst r = await fetch(url, {method:'GET',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY}});\nconst data = await r.json();\nconst total = Array.isArray(data) ? data.reduce((s, x) => s + (x.actual_minutes || x.duration_minutes || 0), 0) : 0;\nreturn JSON.stringify({total_minutos: total, total_horas: (total/60).toFixed(1)});"
+      },
+      "id": "node-061",
+      "name": "consultar_foco_total_hoje",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "name": "registrar_pontos",
+        "description": "Adiciona XP/pontos ao usuário por uma conquista ou ação.",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst points = $fromAI('points', 'Quantidade de pontos/XP a adicionar', 'number');\nconst reason = $fromAI('reason', 'Motivo da pontuacao', 'string');\nconst url = process.env.SUPABASE_URL + '/rest/v1/rpc/add_xp_and_update_streak';\nconst r = await fetch(url, {\n  method: 'POST',\n  headers: {'apikey': process.env.SUPABASE_KEY, 'Authorization': 'Bearer ' + process.env.SUPABASE_KEY, 'Content-Type': 'application/json'},\n  body: JSON.stringify({p_user_id: userId, p_xp_amount: Number(points), p_reason: reason || 'Acao completada'})\n});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-062",
+      "name": "registrar_pontos",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        2780,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "name": "salvar_conversa",
+        "description": "Salva resumo para memória de longo prazo.",
+        "jsCode": "const userId = $(\"Montar Contexto do Usuário\").item.json.user_id;\nconst today = new Date().toISOString().split(\"T\")[0];\nconst now = new Date().toISOString();\nconst summary = $fromAI(\"summary\", \"Resumo da conversa importante\", \"string\");\nconst url = process.env.SUPABASE_URL + '/rest/v1/conversation_history';\nconst r = await fetch(url, {method:'POST',headers:{'apikey':process.env.SUPABASE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({user_id:userId,role:\"assistant\",content:summary,created_at:now})});\nconst data = await r.json();\nreturn JSON.stringify(data);"
+      },
+      "id": "node-063",
+      "name": "salvar_conversa",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3060,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "name": "atualizar_config_app",
+        "description": "Atualiza uma configuração do perfil/app do usuário (ex: selected_mentor, notificacoes_ativas).",
+        "jsCode": "const userId = $('Montar Contexto do Usuário').item.json.user_id;\nconst key = $fromAI('key', 'Chave: active_tabs, daily_mission ou theme_color', 'string');\nconst value = $fromAI('value', 'Valor. Para active_tabs use JSON array: [\"nexus\",\"vault\",\"telemetry\"]', 'string');\nconst body = {};\ntry {\n  body[key] = (key === 'active_tabs') ? JSON.parse(value) : value;\n} catch(e) {\n  body[key] = value;\n}\nconst url = process.env.SUPABASE_URL + '/rest/v1/app_settings?user_id=eq.' + userId;\nconst r = await fetch(url, {\n  method: 'PATCH',\n  headers: {'apikey': process.env.SUPABASE_KEY, 'Authorization': 'Bearer ' + process.env.SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation'},\n  body: JSON.stringify(body)\n});\nreturn JSON.stringify(await r.json());"
+      },
+      "id": "node-064",
+      "name": "atualizar_config_app",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        3340,
+        1800
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "É Mensagem Real?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Mensagem Real?": {
+      "main": [
+        [
+          {
+            "node": "Extrair Metadados1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Metadados1": {
+      "main": [
+        [
+          {
+            "node": "Buscar user_id pelo Telefone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar user_id pelo Telefone": {
+      "main": [
+        [
+          {
+            "node": "Montar Contexto do Usuário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Contexto do Usuário": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Última Interação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Última Interação": {
+      "main": [
+        [
+          {
+            "node": "Tipo de Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Extrair Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pegar Link Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pegar Link Foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mídia Não Suportada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Texto": {
+      "main": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pegar Link Áudio": {
+      "main": [
+        [
+          {
+            "node": "Baixar Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Áudio": {
+      "main": [
+        [
+          {
+            "node": "Transcrever Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever Áudio": {
+      "main": [
+        [
+          {
+            "node": "Formatar Transcrição",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Transcrição": {
+      "main": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pegar Link Foto": {
+      "main": [
+        [
+          {
+            "node": "Baixar Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Imagem": {
+      "main": [
+        [
+          {
+            "node": "Analisar Imagem (Vision)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisar Imagem (Vision)": {
+      "main": [
+        [
+          {
+            "node": "Formatar Análise Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Análise Imagem": {
+      "main": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mídia Não Suportada": {
+      "main": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cérebro ORVAX": {
+      "main": [
+        [
+          {
+            "node": "Responder no WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta de Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validador Meta (GET)": {
+      "main": [
+        [
+          {
+            "node": "Responder Desafio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo GPT-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memória": {
+      "ai_memory": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_transacao": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_transacoes": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "criar_meta_financeira": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_metas_financeiras": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "criar_tarefa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_tarefas": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualizar_tarefa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deletar_tarefa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "criar_meta": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_metas": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualizar_meta": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_agua": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_agua_hoje": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_peso": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_peso_recente": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_treino": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_treinos": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_refeicao": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_refeicoes_hoje": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_habito": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_habitos": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_foco": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_foco_hoje": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "criar_nota": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_notas": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualizar_nota": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deletar_nota": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_perfil": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_telemetria": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_conquistas": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verificar_conquistas": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calcular_streak": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_stats_hoje": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_atividade_semana": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_resumo_financeiro": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_foco_total_hoje": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_pontos": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "salvar_conversa": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualizar_config_app": {
+      "ai_tool": [
+        [
+          {
+            "node": "Cérebro ORVAX",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "versionId": "2"
+}

@@ -1,0 +1,19 @@
+
+> kairosnovo@0.1.0 lint
+> eslint .
+
+
+C:\Users\kkfel\OneDrive\Área de Trabalho\kairosnovo\src\components\MentorConfig.jsx
+  4:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\kkfel\OneDrive\Área de Trabalho\kairosnovo\src\components\Metrics\NodeDashboards.jsx
+  96:8  warning  React Hook useEffect has a missing dependency: 'handleDrag'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\kkfel\OneDrive\Área de Trabalho\kairosnovo\src\components\Nexus.jsx
+  22:8  warning  React Hook useEffect has a missing dependency: 'quotes.length'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\kkfel\OneDrive\Área de Trabalho\kairosnovo\src\components\Vault.jsx
+  125:33  error  'noteContent' is not defined  no-undef
+
+✖ 4 problems (1 error, 3 warnings)
+

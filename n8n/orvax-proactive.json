@@ -1,0 +1,253 @@
+{
+  "name": "ORVAX Proativo — Manter Janela 24h",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "A cada 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/profiles",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,full_name,phone_number,selected_mentor,streak_days,last_whatsapp_interaction"
+            },
+            {
+              "name": "phone_number",
+              "value": "not.is.null"
+            },
+            {
+              "name": "last_whatsapp_interaction",
+              "value": "not.is.null"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-profiles",
+      "name": "Buscar Perfis com WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrar usuários cuja última interação foi entre 20h e 24h atrás\nconst now = new Date();\nconst profiles = $input.all().map(i => i.json);\nconst flat = Array.isArray(profiles[0]) ? profiles[0] : profiles;\n\nconst needsNudge = flat.filter(p => {\n  if (!p.last_whatsapp_interaction || !p.phone_number) return false;\n  const last = new Date(p.last_whatsapp_interaction);\n  const hoursAgo = (now - last) / (1000 * 60 * 60);\n  // Entre 20h e 23.5h — ainda dentro da janela de 24h (grátis)\n  return hoursAgo >= 20 && hoursAgo < 23.5;\n});\n\nif (needsNudge.length === 0) {\n  return []; // Nenhum usuário para engajar\n}\n\nreturn needsNudge.map(p => ({ json: p }));"
+      },
+      "id": "filter-users",
+      "name": "Filtrar Janela 20-24h",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.item.json;\nconst mentor = p.selected_mentor || 'atlas';\nconst name = p.full_name || 'campeão';\nconst streak = p.streak_days || 0;\n\n// Detectar horário BRT\nconst hour = new Date().getUTCHours() - 3;\nconst h = hour < 0 ? hour + 24 : hour;\n\nlet message;\n\nif (mentor === 'aurora') {\n  if (h >= 5 && h < 12) {\n    message = `${name}, bom dia! 🌅 Como você está se sentindo hoje? Que intenção quer plantar nessa manhã?`;\n  } else if (h >= 12 && h < 18) {\n    message = `${name}, como está fluindo seu dia? Me conta uma coisa boa que aconteceu até agora 💛`;\n  } else if (h >= 18 && h < 22) {\n    message = `${name}, o dia está se recolhendo. O que ele te ensinou? Vamos fazer uma reflexão juntas? ✨`;\n  } else {\n    message = `${name}, tudo bem por aí? Se precisar de mim, estou aqui 🌙`;\n  }\n  if (streak > 3) message += `\\n\\nSeu streak de ${streak} dias está lindo, não deixe a chama apagar!`;\n} else {\n  if (h >= 5 && h < 12) {\n    message = `${name}, cadê o relatório de hoje? O dia não espera. Qual o plano de ataque? 🎯`;\n  } else if (h >= 12 && h < 18) {\n    message = `${name}, meio do dia. Me atualiza — o que já executou hoje?`;\n  } else if (h >= 18 && h < 22) {\n    message = `${name}, hora do debrief. O que conquistou hoje? Vamos revisar e planejar o amanhã.`;\n  } else {\n    message = `${name}, descanse bem. Amanhã tem mais batalha.`;\n  }\n  if (streak > 3) message += `\\n\\n${streak} dias de streak. Não quebre a corrente, soldado. 🔥`;\n}\n\nreturn {\n  json: {\n    phone: p.phone_number,\n    message: message,\n    user_id: p.id\n  }\n};"
+      },
+      "id": "generate-message",
+      "name": "Gerar Mensagem Proativa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.phone }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": {{ JSON.stringify($json.message) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "send-whatsapp",
+      "name": "Enviar no WhatsApp (Grátis)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 0]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/profiles",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $json.user_id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"last_whatsapp_interaction\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "update-interaction",
+      "name": "Atualizar Última Interação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $('Gerar Mensagem Proativa').item.json.phone }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"orvax_checkin\",\n    \"language\": { \"code\": \"pt_BR\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $('Gerar Mensagem Proativa').item.json.phone }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "send-template",
+      "name": "Enviar Template (Fallback Pago)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 250],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "A cada 30 min": {
+      "main": [
+        [
+          {
+            "node": "Buscar Perfis com WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Perfis com WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Janela 20-24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Janela 20-24h": {
+      "main": [
+        [
+          {
+            "node": "Gerar Mensagem Proativa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Mensagem Proativa": {
+      "main": [
+        [
+          {
+            "node": "Enviar no WhatsApp (Grátis)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar no WhatsApp (Grátis)": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Última Interação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "pinData": {}
+}

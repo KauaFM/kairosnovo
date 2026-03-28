@@ -1,0 +1,14 @@
+[
+  {
+    "id": "9b162d0f-e23c-48b1-9a91-0a3c23e88082",
+    "created_at": "2026-03-05T12:33:31.487469+00:00",
+    "telefone_usuario": "Sistema",
+    "nome_modulo": "Estudos"
+  },
+  {
+    "id": "995a2e9c-beab-4d10-96ba-136a83b7dab6",
+    "created_at": "2026-03-06T03:30:13.953973+00:00",
+    "telefone_usuario": "Sistema",
+    "nome_modulo": "Agenda"
+  }
+]
