@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, CheckCircle2, X, Activity, Brain, Target, Zap, ChevronRight, Plus, Dumbbell, BookOpen, Users, Timer, Flame, Trash2, BellRing, Repeat, CheckSquare } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import { Clock, CheckCircle2, X, Activity, Target, Zap, Plus, Timer, Flame, Trash2, BellRing, Repeat, CheckSquare } from 'lucide-react';
 import { getTasks, updateTaskState, createTask, deleteTask } from '../../../services/db';
 import { listHabitsWithTodayStatus, checkInHabit, deleteHabit, undoCheckInHabit, createHabit } from '../../../services/habits';
+import { ASPECT_TO_PILLAR } from '../../../services/lifeOs';
+import { PILLARS } from '../../lifeOs/pillars';
 import { toLocalDateStr } from '../../../utils/dateUtils';
 import { appEvents } from '../../../lib/events';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Vetor do form → pilar legado (o que os triggers SQL entendem)
-const CATEGORY_TO_PILLAR: Record<string, string> = {
-  FOCO: 'foco', TREINO: 'energia', ESTUDO: 'evolucao', SOCIAL: 'social',
+// Vetores = os mesmos 10 pilares da vida do resto do sistema
+// (CreationHub, Compass). category grava o rótulo curto; o pilar
+// legado (PT) vai pro banco pra cair na área da vida certa.
+const IconOf = (n: string) => (Icons as any)[n] || Icons.Circle;
+const vectorToPillar = (short: string): string => {
+  const p = PILLARS.find((x) => x.short === short);
+  return p ? ((ASPECT_TO_PILLAR as Record<string, string>)[p.aspectKey] || 'disciplina') : 'disciplina';
 };
 
 interface ExecutionItem {
@@ -25,7 +32,7 @@ export function ExecutionBoard() {
   const [items, setItems] = useState<ExecutionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', time_start: '09:00', category: 'FOCO', duration: '1h', is_important: false });
+  const [newTask, setNewTask] = useState({ title: '', time_start: '09:00', category: 'EXEC', duration: '1h', is_important: false });
   // 'task' = diretriz única (hoje) · 'habit' = rotina recorrente
   const [mode, setMode] = useState<'task' | 'habit'>('task');
   const [habitFreq, setHabitFreq] = useState<'daily' | 'weekly'>('daily');
@@ -110,7 +117,7 @@ export function ExecutionBoard() {
   };
 
   const resetForm = () => {
-    setNewTask({ title: '', time_start: '09:00', category: 'FOCO', duration: '1h', is_important: false });
+    setNewTask({ title: '', time_start: '09:00', category: 'EXEC', duration: '1h', is_important: false });
     setHabitFreq('daily');
     setHabitTimes(3);
     setFormErr(null);
@@ -124,7 +131,7 @@ export function ExecutionBoard() {
     setSaving(true);
     setFormErr(null);
     try {
-      const pillar = CATEGORY_TO_PILLAR[newTask.category] || 'disciplina';
+      const pillar = vectorToPillar(newTask.category);
 
       if (mode === 'habit') {
         // Rotina recorrente → habits (XP estimado por IA no serviço).
@@ -312,28 +319,37 @@ export function ExecutionBoard() {
                         <Flame size={12} className="opacity-40" />
                         <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Vetor (Categoria)</label>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'FOCO', icon: Brain },
-                          { id: 'TREINO', icon: Dumbbell },
-                          { id: 'ESTUDO', icon: BookOpen },
-                          { id: 'SOCIAL', icon: Users }
-                        ].map((cat) => (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => setNewTask({...newTask, category: cat.id})}
-                            className={`flex flex-col items-start gap-2 p-3 md:p-4 text-[9px] font-syncopate font-bold rounded-[20px] transition-all duration-300 tracking-widest border ${
-                              newTask.category === cat.id 
-                              ? 'shadow-lg scale-[1.02] bg-[var(--text-main)] text-[var(--bg-color)] border-[var(--text-main)]' 
-                              : 'bg-current/[0.02] border-current/10 opacity-60 hover:opacity-100 hover:bg-current/10 text-current'
-                            }`}
-                          >
-                            <cat.icon size={16} className={newTask.category === cat.id ? 'opacity-100' : 'opacity-40'} />
-                            <span>{cat.id}</span>
-                          </button>
-                        ))}
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {PILLARS.map((p) => {
+                          const Icon = IconOf(p.icon);
+                          const active = newTask.category === p.short;
+                          return (
+                            <button
+                              key={p.key}
+                              type="button"
+                              title={p.label}
+                              aria-label={p.label}
+                              onClick={() => setNewTask({...newTask, category: p.short})}
+                              className={`aspect-square rounded-[16px] border flex items-center justify-center transition-all duration-300 active:scale-95 ${
+                                active
+                                ? 'shadow-lg bg-[var(--text-main)] text-[var(--bg-color)] border-[var(--text-main)]'
+                                : 'bg-current/[0.02] border-current/10 opacity-50 hover:opacity-100 hover:bg-current/10 text-current'
+                              }`}
+                            >
+                              <Icon size={16} strokeWidth={active ? 2.4 : 1.8} />
+                            </button>
+                          );
+                        })}
                       </div>
+                      {(() => {
+                        const sel = PILLARS.find((p) => p.short === newTask.category);
+                        return sel ? (
+                          <p className="text-[8px] font-mono uppercase tracking-widest leading-relaxed px-1">
+                            <span className="font-bold opacity-90">{sel.short}</span>
+                            <span className="opacity-40"> · {sel.description}</span>
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
 
                     {/* Cronograma & Duração */}
