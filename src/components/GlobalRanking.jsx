@@ -1,60 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { Trophy, Star, Users, Globe, Gem } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Trophy, Star, Users, Globe, Gem, UserPlus } from 'lucide-react';
 import UserProfile from './UserProfile';
+import FriendsManager from './FriendsManager';
 import { supabase } from '../lib/supabase';
+import { listFriends, listFriendRequests } from '../services/db';
 
 const GlobalRanking = () => {
     const [rankMode, setRankMode] = useState('global'); // 'global' | 'friends'
     const [selectedUser, setSelectedUser] = useState(null);
     const [globalUsers, setGlobalUsers] = useState([]);
     const [friendUsers, setFriendUsers] = useState([]);
+    const [pendingCount, setPendingCount] = useState(0);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [showManager, setShowManager] = useState(false);
 
-    useEffect(() => {
-        const fetchRankings = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) setCurrentUserId(session.user.id);
+    const formatProfile = (p, index) => {
+        const xp = p.xp || 0;
+        let badgeText = 'RECRUTA';
+        if (xp >= 10000)      badgeText = 'OMEGA';
+        else if (xp >= 5000)  badgeText = 'MESTRE';
+        else if (xp >= 2000)  badgeText = 'ELITE';
+        else if (xp >= 1000)  badgeText = 'SENIOR';
+        else if (xp >= 500)   badgeText = 'ALPHA';
 
-            const { data: profiles, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('xp', { ascending: false });
+        const streakDays = p.streak_days || 0;
+        const delta = streakDays > 0 ? `+${streakDays}` : '0';
 
-            if (!error && profiles) {
-                const formattedUsers = profiles.map((p, index) => {
-                    const xp = p.xp || 0;
-                    let badgeText = 'RECRUTA';
-                    let badgeColor = '#ff8a65';
-
-                    if (xp >= 10000) { badgeText = 'OMEGA'; badgeColor = '#38bdf8'; }
-                    else if (xp >= 5000) { badgeText = 'MESTRE'; badgeColor = '#ffca28'; }
-                    else if (xp >= 2000) { badgeText = 'ELITE'; badgeColor = '#e0e0e0'; }
-                    else if (xp >= 1000) { badgeText = 'SENIOR'; badgeColor = '#a855f7'; }
-                    else if (xp >= 500) { badgeText = 'ALPHA'; badgeColor = '#22c55e'; }
-
-                    // Calculate delta from streak/activity
-                    const streakDays = p.streak_days || 0;
-                    const delta = streakDays > 0 ? `+${streakDays}` : '0';
-
-                    return {
-                        id: p.id,
-                        rank: index + 1,
-                        name: p.full_name || 'Agente Orvax',
-                        handle: `@${(p.full_name || 'user').toLowerCase().replace(/\s/g, '')}`,
-                        avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`,
-                        score: xp,
-                        delta,
-                        badgeText: badgeText,
-                        badgeColor: badgeColor
-                    };
-                });
-                setGlobalUsers(formattedUsers);
-                setFriendUsers(formattedUsers.slice(0, 5));
-            }
+        return {
+            id: p.id,
+            rank: index + 1,
+            name: p.full_name || 'Agente Orvax',
+            handle: `@${(p.full_name || 'user').toLowerCase().replace(/\s/g, '')}`,
+            avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`,
+            score: xp,
+            delta,
+            badgeText,
+            // Paleta preto-branco: badge só com borda, sem cor fora da paleta
+            badgeColor: 'var(--text-main)',
         };
+    };
 
-        fetchRankings();
+    const fetchRankings = useCallback(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const myId = session?.user?.id || null;
+        setCurrentUserId(myId);
+
+        const [{ data: profiles }, friends, requests] = await Promise.all([
+            supabase.from('profiles').select('*').order('xp', { ascending: false }),
+            listFriends(),
+            listFriendRequests(),
+        ]);
+
+        if (profiles) {
+            setGlobalUsers(profiles.map(formatProfile));
+        }
+
+        // Para o tab "Amigos" — inclui o próprio usuário para ele se ver no ranking
+        const myProfile = profiles?.find(p => p.id === myId);
+        const friendProfiles = (friends || []).map(f => ({
+            id: f.friend_id,
+            full_name: f.full_name,
+            avatar_url: f.avatar_url,
+            xp: f.xp,
+            streak_days: f.streak_days,
+        }));
+        const friendCircle = myProfile ? [myProfile, ...friendProfiles] : friendProfiles;
+        friendCircle.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+        setFriendUsers(friendCircle.map(formatProfile));
+
+        setPendingCount((requests || []).length);
+        setLoading(false);
     }, []);
+
+    useEffect(() => { fetchRankings(); }, [fetchRankings]);
+
+    if (loading) return (
+        <div className="flex items-center justify-center h-64">
+            <div className="w-6 h-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin opacity-40"></div>
+        </div>
+    );
 
     const usersList = rankMode === 'global' ? globalUsers : friendUsers;
 
@@ -100,6 +125,20 @@ const GlobalRanking = () => {
                         Amigos
                     </button>
                 </div>
+
+                {/* Gerenciar amigos */}
+                <button
+                    onClick={() => setShowManager(true)}
+                    className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl border border-current/20 text-[10px] font-mono uppercase tracking-widest hover:bg-current/5 transition-all"
+                >
+                    <UserPlus size={12} />
+                    Gerenciar amigos
+                    {pendingCount > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-current/15 text-[9px] font-bold tabular-nums">
+                            {pendingCount}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* Podium Section */}
@@ -143,8 +182,10 @@ const GlobalRanking = () => {
                                 <span className={`font-syncopate font-bold text-[9px] sm:text-[10px] tracking-wider uppercase mb-1 ${isFirst ? 'text-glow' : 'opacity-80'}`}>
                                     {user.name}
                                 </span>
-                                <div className="px-3 py-1 rounded-md mb-2 flex items-center justify-center font-space font-black text-[12px] sm:text-[14px] shadow-[0_4px_10px_rgba(0,0,0,0.2)]"
-                                    style={{ backgroundColor: user.badgeColor, color: '#000' }}>
+                                <div
+                                    className="px-3 py-1 rounded-md mb-2 flex items-center justify-center font-space font-black text-[11px] sm:text-[12px] border"
+                                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                >
                                     {user.badgeText}
                                 </div>
                             </div>
@@ -221,16 +262,40 @@ const GlobalRanking = () => {
 
             {/* Empty State */}
             {usersList.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-[300px] opacity-40">
-                    <Trophy size={40} className="mb-4" />
-                    <span className="text-[10px] font-mono tracking-widest uppercase">Sem Dados no Ranking</span>
-                    <span className="text-[8px] font-mono tracking-widest uppercase mt-2">Aguardando Sincronização Global...</span>
+                <div className="flex flex-col items-center justify-center h-[300px] opacity-40 px-6 text-center">
+                    {rankMode === 'friends' ? (
+                        <>
+                            <Users size={40} className="mb-4" />
+                            <span className="text-[10px] font-mono tracking-widest uppercase">Sua rede está vazia</span>
+                            <span className="text-[8px] font-mono tracking-widest uppercase mt-2">Adicione amigos para comparar progresso</span>
+                            <button
+                                onClick={() => setShowManager(true)}
+                                className="mt-5 px-4 py-2 rounded-xl border border-current/40 text-[10px] font-mono uppercase tracking-widest opacity-100 hover:bg-current/5"
+                            >
+                                + Adicionar amigos
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Trophy size={40} className="mb-4" />
+                            <span className="text-[10px] font-mono tracking-widest uppercase">Sem Dados no Ranking</span>
+                            <span className="text-[8px] font-mono tracking-widest uppercase mt-2">Aguardando Sincronização Global...</span>
+                        </>
+                    )}
                 </div>
             )}
 
             {/* Profile Modal */}
             {selectedUser && (
                 <UserProfile user={selectedUser} onClose={() => setSelectedUser(null)} />
+            )}
+
+            {/* Friends Manager */}
+            {showManager && (
+                <FriendsManager
+                    onClose={() => setShowManager(false)}
+                    onChange={fetchRankings}
+                />
             )}
         </div>
     );

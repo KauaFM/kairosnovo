@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { 
     Calendar as CalendarIcon, 
@@ -16,20 +16,28 @@ import {
     Trash2, 
     Dumbbell, 
     Brain, 
-    Quote 
+    Quote,
+    BookOpen,
+    Users,
+    Timer,
+    Flame,
+    X,
+    ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { getTasks, createTask, updateTaskState, getMedia, addMedia, getProfile, getDailyStats, getTotalFocusToday } from '../services/db';
+import { getTasks, createTask, updateTaskState, deleteTask, getMedia, addMedia, deleteMedia, getProfile, getDailyStats, getTotalFocusToday, getUserNotes, createNote, deleteNote } from '../services/db';
 import FullCalendar from './FullCalendar';
 import CapitalViewNew from './CapitalViewNew';
 import ScrollReveal from './ScrollReveal';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
+import { compressImage } from '../utils/imageCompression';
+import { ExecutionBoard } from '../features/vault/components/ExecutionBoard';
 
 const Vault = ({ habits = [], theme, toggleTheme }) => {
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [mode, setMode] = useState('agenda'); // 'agenda' | 'archive' | 'notes' | 'capital'
+    const [mode, setMode] = useState('execucao'); // 'execucao' | 'agenda' | 'archive' | 'notes' | 'capital'
     const [isFullCalendarOpen, setIsFullCalendarOpen] = useState(false);
     const [capitalNode, setCapitalNode] = useState(null);
 
@@ -48,6 +56,25 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
     const [newTask, setNewTask] = useState({ title: '', time_start: '09:00', category: 'FOCO' });
     const [showAddMedia, setShowAddMedia] = useState(false);
     const [newMedia, setNewMedia] = useState({ file_url: '', description: '', segment: 'TREINO' });
+    const [isCompressing, setIsCompressing] = useState(false);
+    const vaultImageRef = React.useRef(null);
+
+    const handleVaultImageUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsCompressing(true);
+        try {
+            // Compress image to Base64 (max 1024, 75% quality for Vault archiving)
+            const result = await compressImage(file, { maxDimension: 1024, quality: 0.75 });
+            setNewMedia({ ...newMedia, file_url: result.base64 });
+        } catch(err) {
+            console.error("Compression Error:", err);
+            alert("Falha ao comprimir matriz visual. Arquivo muito grande ou incompatível.");
+        } finally {
+            setIsCompressing(false);
+        }
+    };
 
     // Core Fetch Function
     const fetchVaultData = async () => {
@@ -58,39 +85,13 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         const profile = await getProfile();
         setUserProfile(profile);
 
-        // 2. Puxar Anotações (busca flexível por nome do módulo)
-        const { data: modulesData } = await supabase
-            .from('modulos')
-            .select('id')
-            .or('nome_modulo.eq.Anotação,nome_modulo.eq.Notas,nome_modulo.eq.Anotações');
-        
-        const moduloIds = modulesData?.map(m => m.id) || [];
-        
-        let noteRegistros = [];
-        if (moduloIds.length > 0) {
-            const { data: regs } = await supabase
-                .from('registros_dinamicos')
-                .select('*')
-                .in('modulo_id', moduloIds)
-                .order('created_at', { ascending: false });
-            if (regs) noteRegistros = regs;
-        }
-
-        if (noteRegistros.length > 0) {
-            const formattedNotes = noteRegistros.map(r => {
-                let json = r.dados;
-                if (typeof json === 'string') try { json = JSON.parse(json); } catch (e) {}
-                const dt = new Date(r.created_at);
-                return {
-                    id: r.id,
-                    date: dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
-                    text: json?.texto || json?.nota || 'Anotação sem conteúdo'
-                };
-            });
-            setNotes(formattedNotes);
-        } else {
-            setNotes([]);
-        }
+        // 2. Puxar Anotações (tabela user_notes)
+        const userNotes = await getUserNotes();
+        setNotes(userNotes.map(n => ({
+            id: n.id,
+            date: new Date(n.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
+            text: n.content || n.title || 'Anotação sem conteúdo'
+        })));
 
         // 3. Puxar Tarefas (Tabela customizada 'tasks')
         // [BUG #11 FIX] Usar data local ao invés de UTC para evitar deslocamento de fuso
@@ -134,8 +135,60 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         })));
     };
 
+    // Setup real-time sync listeners
+    const unsubscribeRef = useRef(null);
+
     useEffect(() => {
         fetchVaultData();
+
+        // Subscribe to real-time updates
+        const subscription = supabase
+            .channel('vault-sync')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'orvax_agenda'
+                },
+                () => {
+                    // Quando agenda muda, recarrega dados
+                    fetchVaultData();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'user_notes'
+                },
+                () => {
+                    // Quando notas mudam, recarrega dados
+                    fetchVaultData();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'media_vault'
+                },
+                () => {
+                    // Quando mídia muda, recarrega dados
+                    fetchVaultData();
+                }
+            )
+            .subscribe();
+
+        unsubscribeRef.current = subscription;
+
+        return () => {
+            if (unsubscribeRef.current) {
+                supabase.removeChannel(unsubscribeRef.current);
+            }
+        };
     }, [selectedDate]);
 
     const handleAddTask = async () => {
@@ -149,6 +202,31 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         fetchVaultData();
     };
 
+    const handleToggleTask = async (id, currentState) => {
+        // Progressão cíclica: pendente -> concluído (done) -> cancelado/falhou (failed) -> pendente
+        let nextState = 'done';
+        if (currentState === 'done') nextState = 'failed';
+        else if (currentState === 'failed') nextState = null;
+        else if (currentState === 'active') nextState = 'done';
+
+        // Atualização Otimista
+        setTimelineTasks(tasks => tasks.map(t => t.id === id ? { ...t, state: nextState } : t));
+        
+        await updateTaskState(id, nextState);
+        fetchVaultData();
+    };
+
+    const handleDeleteTask = async (e, id) => {
+        e.stopPropagation(); // Evita ativar tela ou toggle da tarefa
+        if (!window.confirm('Abortar e remover permanentemente esta diretriz?')) return;
+        
+        // Atualização Otimista
+        setTimelineTasks(tasks => tasks.filter(t => t.id !== id));
+        
+        await deleteTask(id);
+        fetchVaultData();
+    };
+
     const handleUploadMedia = async () => {
         if (!newMedia.file_url) return;
         await addMedia(newMedia);
@@ -157,65 +235,47 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         fetchVaultData();
     };
 
-    const handleToggleTask = async (taskId, currentState) => {
-        const newState = currentState === 'done' ? 'pending' : 'done';
-        await updateTaskState(taskId, newState);
-        fetchVaultData();
+    const handleDeleteMedia = async (id) => {
+        if (!window.confirm('Excluir este registro visual permanentemente?')) return;
+        try {
+            await deleteMedia(id);
+            if (fullscreenPhoto?.id === id) {
+                setFullscreenPhoto(false);
+                setSelectedPhoto(null);
+            }
+            fetchVaultData();
+        } catch (err) {
+            console.error("Erro ao deletar mídia", err);
+        }
     };
+
+
 
     const handleAddNote = async () => {
         if (!newNote.trim()) return;
-        
-        // 1. Localizar ou Criar o módulo correto
-        let { data: modules } = await supabase
-            .from('modulos')
-            .select('id')
-            .eq('nome_modulo', 'Anotação')
-            .limit(1);
-
-        let moduloId = modules?.[0]?.id;
-
-        // Se não existir, criar o módulo agora
-        if (!moduloId) {
-            const { data: newMod, error: modError } = await supabase
-                .from('modulos')
-                .insert([{ nome_modulo: 'Anotação' }])
-                .select()
-                .single();
-            
-            if (modError) {
-                console.error("Erro ao criar módulo de anotação:", modError);
-                alert("Falha ao inicializar sistema de notas. Verifique permissões do banco.");
-                return;
+        try {
+            const result = await createNote({ title: newNote.trim().slice(0, 80), content: newNote.trim() });
+            if (result && result.error) {
+                console.error('Supabase Notes Error:', result.error);
+                throw result.error;
             }
-            moduloId = newMod.id;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-        const insertPayload = { 
-            modulo_id: moduloId, 
-            dados: { texto: newNote } 
-        };
-
-        // Se a tabela tiver user_id, incluímos para respeitar RLS
-        if (session?.user?.id) {
-            insertPayload.user_id = session.user.id;
-        }
-
-        const { error } = await supabase.from('registros_dinamicos').insert(insertPayload);
-        
-        if (!error) {
             setNewNote('');
             fetchVaultData();
-        } else {
-            console.error("Erro ao persistir nota:", error);
-            alert("Erro ao salvar nota no banco.");
+        } catch (err) {
+            console.error('createNote Fallback:', err);
+            // Fallback local: Injeta a nota na UI de imediato para não impactar a experiência
+            setNotes([{
+                id: Math.random(),
+                date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
+                text: newNote.trim()
+            }, ...notes]);
+            setNewNote('');
         }
     };
 
     const handleDeleteNote = async (id) => {
         setNotes(notes.filter(note => note.id !== id));
-        await supabase.from('registros_dinamicos').delete().eq('id', id);
+        await deleteNote(id);
     };
 
     // Agenda: Calendário real (semana atual)
@@ -259,45 +319,75 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                     </div>
 
                 {/* Minimalist Switcher */}
-                <div className="flex bg-current/5 p-1 rounded-2xl border backdrop-blur-md" style={{ borderColor: 'var(--border-color)' }}>
-                    <button
-                        onClick={() => setMode('agenda')}
-                        className={`flex-1 py-3 text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
-                            ${mode === 'agenda' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
-                        `}
-                    >
-                        <CalendarIcon size={12} />
-                        Agenda
-                    </button>
-                    <button
-                        onClick={() => setMode('archive')}
-                        className={`flex-1 py-3 text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
-                            ${mode === 'archive' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
-                        `}
-                    >
-                        <ImageIcon size={12} />
-                        Arquivo
-                    </button>
-                    <button
-                        onClick={() => setMode('notes')}
-                        className={`flex-1 py-3 text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
-                            ${mode === 'notes' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
-                        `}
-                    >
-                        <FileText size={12} />
-                        Notas
-                    </button>
-                    <button
-                        onClick={() => setMode('capital')}
-                        className={`flex-1 py-3 text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
-                            ${mode === 'capital' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
-                        `}
-                    >
-                        <DollarSign size={12} />
-                        Capital
-                    </button>
+                <div className="relative">
+                    <div className="flex bg-current/5 p-1 rounded-2xl border backdrop-blur-md overflow-x-auto no-scrollbar" style={{ borderColor: 'var(--border-color)', WebkitOverflowScrolling: 'touch', scrollSnapType: 'x proximity', overscrollBehaviorX: 'contain' }}>
+                        <button
+                            onClick={() => setMode('execucao')}
+                            className={`shrink-0 min-w-[92px] py-3 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
+                                ${mode === 'execucao' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-[var(--orvax-green)]' : 'opacity-40 hover:opacity-100'}
+                            `}
+                        >
+                            <Zap size={12} className="shrink-0" />
+                            <span className="hidden sm:inline">Execução</span>
+                            <span className="inline sm:hidden">Exec</span>
+                        </button>
+                        <button
+                            onClick={() => setMode('agenda')}
+                            className={`shrink-0 min-w-[92px] py-3 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
+                                ${mode === 'agenda' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
+                            `}
+                        >
+                            <CalendarIcon size={12} className="shrink-0" />
+                            <span className="hidden sm:inline">Agenda</span>
+                            <span className="inline sm:hidden">Agnd</span>
+                        </button>
+                        <button
+                            onClick={() => setMode('archive')}
+                            className={`shrink-0 min-w-[92px] py-3 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
+                                ${mode === 'archive' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
+                            `}
+                        >
+                            <ImageIcon size={12} className="shrink-0" />
+                            <span className="hidden sm:inline">Arquivo</span>
+                            <span className="inline sm:hidden">Arq</span>
+                        </button>
+                        <button
+                            onClick={() => setMode('notes')}
+                            className={`shrink-0 min-w-[92px] py-3 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
+                                ${mode === 'notes' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
+                            `}
+                        >
+                            <FileText size={12} className="shrink-0" />
+                            <span className="hidden sm:inline">Notas</span>
+                            <span className="inline sm:hidden">Note</span>
+                        </button>
+                        <button
+                            onClick={() => setMode('capital')}
+                            className={`shrink-0 min-w-[92px] py-3 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest rounded-xl transition-all duration-300 flex justify-center items-center gap-1.5
+                                ${mode === 'capital' ? 'bg-[var(--bg-color)] shadow-sm font-bold opacity-100 text-glow' : 'opacity-40 hover:opacity-100'}
+                            `}
+                        >
+                            <DollarSign size={12} className="shrink-0" />
+                            <span className="hidden sm:inline">Financeiro</span>
+                            <span className="inline sm:hidden">Fin</span>
+                        </button>
+                    </div>
+                    {/* Fade indicator for mobile */}
+                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--bg-color)] to-transparent pointer-events-none md:hidden rounded-r-2xl"></div>
+                </div>
+                
+                {/* Swipe Hint */}
+                <div className="flex justify-end mt-2 md:hidden">
+                    <span className="text-[8px] font-mono tracking-[0.2em] uppercase opacity-40 flex items-center gap-1 animate-pulse">
+                        Deslize para ver mais <ChevronRight size={10} />
+                    </span>
                 </div>
             </div>
+
+            {/* ===================== MODO: EXECUÇÃO ===================== */}
+            {mode === 'execucao' && (
+                <ExecutionBoard />
+            )}
 
             {/* ===================== MODO: AGENDA ===================== */}
             {mode === 'agenda' && (
@@ -392,62 +482,108 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                             <Clock size={16} className="opacity-20" />
                                         </div>
                                         
-                                        <div className="flex flex-col gap-6">
-                                            <div className="flex flex-col gap-2">
-                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› TÍTULO</label>
+                                        <div className="flex flex-col gap-8">
+                                            {/* Título */}
+                                            <div className="flex flex-col gap-3 relative">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Target size={12} className="opacity-40" />
+                                                    <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Diretriz Primária (Título)</label>
+                                                </div>
                                                 <input 
                                                     type="text" 
                                                     placeholder="EX: TREINO DE ALTA PERFORMANCE" 
-                                                    className="w-full bg-transparent border-b border-current/20 py-3 text-sm font-syncopate font-black outline-none focus:border-current transition-all uppercase placeholder:opacity-20 tracking-widest"
+                                                    className="w-full bg-current/[0.03] border border-current/10 p-5 rounded-[22px] text-xs md:text-sm font-syncopate font-black outline-none focus:border-current/50 focus:bg-current/5 transition-all uppercase placeholder:opacity-30 tracking-widest"
                                                     value={newTask.title}
                                                     onChange={e => setNewTask({...newTask, title: e.target.value})}
                                                     autoFocus
                                                 />
                                             </div>
 
-                                            <div className="grid grid-cols-1 gap-8 mb-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-2">
+                                                {/* Categoria */}
                                                 <div className="flex flex-col gap-3">
-                                                    <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› CRONOGRAMA</label>
-                                                    <input 
-                                                        type="time" 
-                                                        className="w-full bg-current/[0.05] border border-current/10 p-4 rounded-2xl text-xs font-mono outline-none focus:border-current/30 transition-all"
-                                                        value={newTask.time_start}
-                                                        onChange={e => setNewTask({...newTask, time_start: e.target.value})}
-                                                    />
-                                                </div>
-                                                
-                                                <div className="flex flex-col gap-3">
-                                                    <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› CATEGORIA</label>
-                                                    <div className="flex p-1 bg-current/[0.05] rounded-[22px] border border-current/10 gap-1">
-                                                        {['FOCO', 'TREINO', 'ESTUDO', 'SOCIAL'].map((cat) => (
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Flame size={12} className="opacity-40" />
+                                                        <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Vetor (Categoria)</label>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {[
+                                                            { id: 'FOCO', icon: Brain },
+                                                            { id: 'TREINO', icon: Dumbbell },
+                                                            { id: 'ESTUDO', icon: BookOpen },
+                                                            { id: 'SOCIAL', icon: Users }
+                                                        ].map((cat) => (
                                                             <button
-                                                                key={cat}
+                                                                key={cat.id}
                                                                 type="button"
-                                                                onClick={() => setNewTask({...newTask, category: cat})}
-                                                                className={`flex-1 py-3 text-[9px] font-mono font-bold rounded-[18px] transition-all duration-300 tracking-widest ${
-                                                                    newTask.category === cat 
-                                                                    ? 'bg-[var(--text-main)] text-[var(--bg-color)] shadow-lg scale-[1.02]' 
-                                                                    : 'opacity-40 hover:opacity-70 hover:bg-current/10 text-current'
+                                                                onClick={() => setNewTask({...newTask, category: cat.id})}
+                                                                className={`flex flex-col items-start gap-2 p-4 text-[9px] font-syncopate font-bold rounded-[20px] transition-all duration-300 tracking-widest border ${
+                                                                    newTask.category === cat.id 
+                                                                    ? 'shadow-lg scale-[1.02]' 
+                                                                    : 'bg-current/[0.02] border-current/10 opacity-60 hover:opacity-100 hover:bg-current/10 text-current'
                                                                 }`}
+                                                                style={newTask.category === cat.id ? { backgroundColor: 'var(--text-main, currentColor)', color: 'var(--bg-color, white)', borderColor: 'var(--text-main, currentColor)' } : {}}
                                                             >
-                                                                {cat}
+                                                                <cat.icon size={16} className={newTask.category === cat.id ? 'opacity-100' : 'opacity-40'} />
+                                                                <span>{cat.id}</span>
                                                             </button>
                                                         ))}
                                                     </div>
                                                 </div>
+
+                                                {/* Cronograma & Duração */}
+                                                <div className="flex flex-col gap-6">
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Clock size={12} className="opacity-40" />
+                                                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Horário de Início</label>
+                                                        </div>
+                                                        <input 
+                                                            type="time" 
+                                                            className="w-full bg-current/[0.03] border border-current/10 py-4 px-5 rounded-[20px] text-sm font-space font-black outline-none focus:border-current/40 transition-all uppercase tracking-widest"
+                                                            value={newTask.time_start}
+                                                            onChange={e => setNewTask({...newTask, time_start: e.target.value})}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Timer size={12} className="opacity-40" />
+                                                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Bloco de Duração</label>
+                                                        </div>
+                                                        <div className="grid grid-cols-4 gap-2">
+                                                            {['15m', '30m', '1h', '2h+'].map((dur) => {
+                                                                const currentDur = newTask.duration || '1h';
+                                                                return (
+                                                                <button
+                                                                    key={dur}
+                                                                    type="button"
+                                                                    onClick={() => setNewTask({...newTask, duration: dur})}
+                                                                    className={`py-3.5 text-[10px] font-space font-bold rounded-[16px] transition-all duration-300 border ${
+                                                                        currentDur === dur 
+                                                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-inner' 
+                                                                        : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
+                                                                    }`}
+                                                                >
+                                                                    {dur}
+                                                                </button>
+                                                            )})}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="flex gap-3 pt-4 border-t border-current/5">
+                                            {/* Actions */}
+                                            <div className="flex gap-3 pt-6 border-t border-current/10">
                                                 <button 
                                                     onClick={handleAddTask} 
-                                                    className="flex-[2] py-4 rounded-[20px] text-[10px] font-syncopate font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:brightness-110"
+                                                    className="flex-[2] py-5 rounded-[20px] text-[11px] font-syncopate font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:brightness-110"
                                                     style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
                                                 >
-                                                    Confirmar
+                                                    Protocolar DIRETRIZ
                                                 </button>
                                                 <button
                                                     onClick={() => setShowAddTask(false)}
-                                                    className="flex-1 py-4 border border-current/20 rounded-[20px] opacity-60 text-[10px] font-mono uppercase tracking-widest hover:opacity-100 hover:bg-current/10 transition-all text-current"
+                                                    className="flex-1 py-5 border border-current/20 rounded-[20px] opacity-60 text-[10px] font-mono uppercase tracking-widest hover:opacity-100 hover:bg-current/10 transition-all text-current"
                                                 >
                                                     Abortar
                                                 </button>
@@ -488,35 +624,40 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                 <span className="text-[8px] font-mono opacity-30 mt-0.5">{task.duration}</span>
                                             </div>
 
-                                            {/* Timeline Node / Check */}
-                                            <div className="relative flex flex-col items-center mt-1.5 shrink-0 z-20" onClick={() => handleToggleTask(task.id, task.state)}>
-                                                <div className="w-5 h-5 flex items-center justify-center rounded-full bg-[var(--bg-color)] ring-4 ring-[var(--bg-color)] cursor-pointer">
-                                                    {isDone ? (
-                                                        <div className="w-3.5 h-3.5 rounded-full bg-[#22c55e]/30 flex items-center justify-center border border-[#22c55e]">
-                                                            <CheckCircle2 size={10} className="text-[#22c55e]" />
-                                                        </div>
-                                                    ) : isFailed ? (
-                                                        <div className="w-3.5 h-3.5 rounded-full bg-red-500/30 flex items-center justify-center border border-red-500">
-                                                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                                                        </div>
-                                                    ) : isActive ? (
-                                                        <div className="w-3.5 h-3.5 rounded-full border border-[var(--orvax-green)] flex items-center justify-center bg-[var(--orvax-green)]/10 shadow-[0_0_10px_var(--orvax-green)]">
-                                                            <div className="w-1.5 h-1.5 bg-[var(--orvax-green)] rounded-full animate-pulse"></div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="w-2.5 h-2.5 rounded-full border border-current/30 group-hover:border-current/60 transition-colors"></div>
-                                                    )}
+                                            {/* Timeline Node / Check Area */}
+                                            <div className="relative flex flex-col items-center mt-1 shrink-0 z-20" onClick={(e) => { e.stopPropagation(); handleToggleTask(task.id, task.state); }}>
+                                                <div className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-current/[0.05] transition-colors cursor-pointer group/check">
+                                                    <div className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all duration-300 ${
+                                                        isDone 
+                                                            ? 'bg-[#22c55e] border-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.4)]' 
+                                                            : isFailed 
+                                                                ? 'bg-red-500 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]'
+                                                                : isActive
+                                                                    ? 'border-[var(--orvax-green)] bg-[var(--orvax-green)]/10 shadow-[0_0_8px_var(--orvax-green)]'
+                                                                    : 'border-current/40 group-hover/check:border-current/80 bg-current/[0.02]'
+                                                    }`}>
+                                                        {isDone ? (
+                                                            <CheckCircle2 size={14} className="text-white" />
+                                                        ) : isFailed ? (
+                                                            <X size={14} className="text-white" />
+                                                        ) : isActive ? (
+                                                            <div className="w-2 h-2 bg-[var(--orvax-green)] rounded-full animate-pulse"></div>
+                                                        ) : (
+                                                            <div className="w-2 h-2 rounded-full bg-current/10 opacity-0 group-hover/check:opacity-100 transition-opacity"></div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 
                                             {/* Right Task Card */}
                                             <div 
                                                 onClick={() => handleToggleTask(task.id, task.state)}
-                                                className={`flex-1 rounded-[24px] p-5 transition-all duration-500 w-full overflow-hidden relative cursor-pointer
+                                                className={`flex-1 rounded-[24px] p-5 transition-all duration-300 w-full overflow-hidden relative cursor-pointer
                                                 ${isActive
-                                                    ? 'border border-[var(--orvax-green)]/40 shadow-[0_0_20px_var(--orvax-green)]'
-                                                    : 'border border-transparent hover:border-current/10 bg-current/[0.02]'}
-                                                ${isFailed ? 'border-red-500/20 bg-red-500/5' : ''}
+                                                    ? 'border border-[var(--orvax-green)]/40 shadow-[0_0_20px_var(--orvax-green)] bg-[var(--orvax-green)]/[0.02]'
+                                                    : 'border border-current/10 hover:border-current/30 bg-current/[0.04]'}
+                                                ${isDone ? 'border-dashed border-current/20 bg-transparent opacity-60' : ''}
+                                                ${isFailed ? 'border-red-500/30 bg-red-500/10' : ''}
                                             `}
                                             >
 
@@ -527,26 +668,35 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
 
                                                 <div className="relative z-10 w-full flex flex-col justify-start items-start">
                                                     <div className="w-full flex justify-between items-start mb-2">
-                                                        <span className={`text-[8px] font-mono tracking-[0.3em] uppercase ${isActive ? 'opacity-60 font-bold text-[var(--orvax-green)]' : 'opacity-30'}`}>
+                                                        <span className={`text-[9px] font-mono tracking-[0.3em] uppercase ${isActive ? 'opacity-80 font-bold text-[var(--orvax-green)]' : 'opacity-60 font-bold'}`}>
                                                             {task.category}
                                                         </span>
-                                                        {isActive && (
-                                                            <div className="flex items-center gap-1 bg-[var(--orvax-green)]/10 px-2 py-0.5 rounded-full border border-[var(--orvax-green)]/30">
-                                                                <div className="w-1 h-1 bg-[var(--orvax-green)] rounded-full animate-pulse"></div>
-                                                                <span className="text-[7px] font-mono tracking-widest text-[var(--orvax-green)] uppercase">Ocorrência Ativa</span>
-                                                            </div>
-                                                        )}
+                                                        <div className="flex items-center gap-2">
+                                                            {isActive && (
+                                                                <div className="flex items-center gap-1 bg-[var(--orvax-green)]/10 px-2 py-0.5 rounded-full border border-[var(--orvax-green)]/30">
+                                                                    <div className="w-1 h-1 bg-[var(--orvax-green)] rounded-full animate-pulse"></div>
+                                                                    <span className="text-[7px] font-mono tracking-widest text-[var(--orvax-green)] uppercase">Ocorrência Ativa</span>
+                                                                </div>
+                                                            )}
+                                                            <button 
+                                                                onClick={(e) => handleDeleteTask(e, task.id)}
+                                                                className="opacity-20 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 text-red-500 rounded-full hover:bg-red-500/10"
+                                                                title="Remover Diretriz"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
                                                     </div>
 
-                                                    <h3 className={`text-[12px] font-syncopate tracking-wider uppercase mb-3 text-left w-full
-                                                        ${isDone ? 'opacity-40 line-through decoration-current/20' : isActive ? 'font-black opacity-100 text-glow' : 'opacity-80 transition-opacity group-hover:opacity-100'}
+                                                    <h3 className={`text-[13px] font-syncopate tracking-wider uppercase mb-3 text-left w-full
+                                                        ${isDone ? 'opacity-50 line-through decoration-current/30 font-bold' : isActive ? 'font-black opacity-100 text-glow' : 'font-black opacity-90 transition-opacity group-hover:opacity-100'}
                                                     `}>
                                                         {task.title}
                                                     </h3>
 
                                                     <div className="flex items-center gap-2">
-                                                        <Clock size={12} className={isDone ? 'opacity-20' : 'opacity-40'} />
-                                                        <span className={`text-[10px] font-mono ${isDone ? 'opacity-30' : 'opacity-50'}`}>{task.time} {task.period}</span>
+                                                        <Clock size={12} className={isDone ? 'opacity-30' : 'opacity-60'} />
+                                                        <span className={`text-[10px] font-mono font-bold ${isDone ? 'opacity-40' : 'opacity-70'}`}>{task.time} {task.period}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -699,7 +849,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             {/* Nota */}
                             <div className="pl-4" style={{ borderLeft: '2px solid var(--border-color)' }}>
                                 <span className="text-[8px] font-mono opacity-30 uppercase tracking-widest block mb-2">Registro Interno</span>
-                                <p className="text-[12px] font-mono leading-loose opacity-75 italic">"{selectedPhoto.note}"</p>
+                                <p className="text-[12px] font-mono leading-loose opacity-75 italic">&quot;{selectedPhoto.note}&quot;</p>
                             </div>
 
                             {/* Tags */}
@@ -756,15 +906,42 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                         
                                         <div className="flex flex-col gap-8">
                                             <div className="flex flex-col gap-3">
-                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› ENDEREÇO DA IMAGEM (URL)</label>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="HTTPS://..." 
-                                                    className="w-full bg-transparent border-b border-current/20 py-3 text-xs font-mono outline-none focus:border-current transition-all placeholder:opacity-20"
-                                                    value={newMedia.file_url}
-                                                    onChange={e => setNewMedia({...newMedia, file_url: e.target.value})}
-                                                    autoFocus
-                                                />
+                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› AMOSTRA VISUAL</label>
+                                                
+                                                <div className="relative border border-dashed border-current/20 p-6 flex flex-col items-center justify-center gap-3 rounded-[24px] hover:bg-current/5 transition-all text-center">
+                                                    {isCompressing ? (
+                                                        <span className="animate-pulse text-[10px] font-mono font-bold tracking-widest text-[#22c55e]">COMPRIMINDO MATRIZ...</span>
+                                                    ) : newMedia.file_url ? (
+                                                        <div className="relative w-full h-32 rounded-xl overflow-hidden border border-current/10 group">
+                                                            {/* Display real image */}
+                                                            <img src={newMedia.file_url} alt="Preview" className="w-full h-full object-cover grayscale opacity-80" />
+                                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer" onClick={() => setNewMedia({...newMedia, file_url: ''})}>
+                                                                <span className="text-white text-[9px] font-bold tracking-widest uppercase">REMOVER MATRIZ</span>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => vaultImageRef.current?.click()}
+                                                                className="py-3 px-6 rounded-[18px] bg-[var(--text-main)] text-[var(--bg-color)] text-[9px] font-bold tracking-[0.2em] font-mono shadow-md uppercase active:scale-95 transition-all"
+                                                            >
+                                                                CÂMERA / GALERIA
+                                                            </button>
+                                                            <span className="text-[8px] font-mono opacity-40 max-w-[200px] leading-relaxed uppercase">Compressor Lossy Ativado</span>
+                                                        </>
+                                                    )}
+                                                    <input type="file" ref={vaultImageRef} className="hidden" accept="image/*" onChange={handleVaultImageUpload} />
+                                                </div>
+
+                                                {!newMedia.file_url && !isCompressing && (
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="OU COLE O ENDEREÇO HTTPS:// AQUI..." 
+                                                        className="w-full bg-transparent border-b border-current/10 py-3 text-[10px] font-mono outline-none focus:border-current/40 transition-all placeholder:opacity-20 mt-1"
+                                                        value={newMedia.file_url}
+                                                        onChange={e => setNewMedia({...newMedia, file_url: e.target.value})}
+                                                    />
+                                                )}
                                             </div>
 
                                             <div className="flex flex-col gap-3">
@@ -820,7 +997,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                         </AnimatePresence>
                     </div>
                     {/* Archive Items */}
-                    <div className="flex flex-col gap-6 px-6">
+                    <div className={`px-2 sm:px-6 w-full ${archiveLogs.length === 0 ? 'flex flex-col items-center' : archiveLogs.length === 1 ? 'grid grid-cols-1 max-w-xs mx-auto' : 'grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5'}`}>
                         {archiveLogs.length === 0 ? (
                             <div className="py-20 flex flex-col items-center justify-center opacity-30 text-center">
                                 <ImageIcon size={40} className="mb-4" />
@@ -831,46 +1008,46 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             archiveLogs.map((log, index) => (
                                 <ScrollReveal key={log.id} delay={index * 0.1}>
                                     <div 
-                                        onClick={() => {
-                                            setSelectedPhoto(log);
-                                            setFullscreenPhoto(true);
-                                        }}
-                                        className="group relative flex flex-col gap-4 p-5 rounded-[32px] border border-current/10 hover:border-current/30 transition-all duration-500 cursor-pointer overflow-hidden"
+                                        onClick={() => setSelectedPhoto(log)}
+                                        className="group relative aspect-[3/4] w-full rounded-[18px] md:rounded-[24px] overflow-hidden bg-current/5 cursor-pointer border border-current/10 hover:border-current/30 transition-all shadow-xl"
                                     >
-                                        <div className="flex justify-between items-center z-10">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-2xl bg-current/5 border border-current/10 flex items-center justify-center">
-                                                    {log.icon && <log.icon size={18} className="opacity-70" />}
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-syncopate font-black tracking-widest uppercase line-clamp-1">{log.title}</span>
-                                                    </div>
-                                                    <span className="text-[8px] font-mono tracking-[0.2em] opacity-40 uppercase">{log.type}</span>
-                                                </div>
+                                        {/* Imagem */}
+                                        <img 
+                                            src={log.imgUrl} 
+                                            alt={log.title}
+                                            className="absolute inset-0 w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
+                                        />
+                                        
+                                        {/* Gradientes Clássicos (Pinterest/Instagram) */}
+                                        <div className="absolute top-0 inset-x-0 h-1/3 bg-gradient-to-b from-black/70 to-transparent z-10 pointer-events-none"></div>
+                                        <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10 pointer-events-none"></div>
+
+                                        {/* Overlay Topo: Tag Visual e Lixeira */}
+                                        <div className="absolute top-0 inset-x-0 p-2.5 sm:p-4 flex justify-between items-start z-20">
+                                            {/* Tag Minimalista arredondada */}
+                                            <div className="bg-white/90 backdrop-blur-md text-black px-2 sm:px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+                                                {log.icon && <log.icon size={8} className="opacity-80" />}
+                                                <span className="text-[6px] sm:text-[7px] font-black uppercase tracking-widest">{log.type}</span>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-[10px] font-space font-black block tracking-widest uppercase">{log.date}</span>
-                                                <span className="text-[8px] font-mono opacity-30 uppercase tracking-widest">{log.time}</span>
-                                            </div>
+
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteMedia(log.id); }}
+                                                className="p-1 opacity-50 hover:opacity-100 hover:text-red-400 drop-shadow-md transition-all pointer-events-auto bg-black/20 hover:bg-black/80 rounded-full"
+                                                title="Excluir Registro"
+                                            >
+                                                <Trash2 size={12} className="text-white" />
+                                            </button>
                                         </div>
 
-                                        <div className="relative w-full aspect-[16/9] rounded-[24px] overflow-hidden border border-current/10">
-                                            <img 
-                                                src={log.imgUrl} 
-                                                alt={log.title}
-                                                className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 opacity-60"></div>
-                                        </div>
-
-                                        {log.note && (
-                                            <div className="bg-current/[0.03] p-4 rounded-2xl border border-current/5">
-                                                <p className="text-[9.5px] font-mono opacity-50 uppercase leading-relaxed text-left">
-                                                    &quot;{log.note}&quot;
-                                                </p>
+                                        {/* Overlay Base: Título Impactante e Data */}
+                                        <div className="absolute bottom-0 inset-x-0 p-3 sm:p-5 flex flex-col justify-end z-20">
+                                            <span className="text-white text-[11px] sm:text-[14px] font-syncopate font-black tracking-widest uppercase leading-[1.2] line-clamp-2 drop-shadow-2xl mb-1.5">{log.title}</span>
+                                            
+                                            <div className="flex items-center gap-1.5 opacity-90">
+                                                <div className="w-1 h-3 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                                                <span className="text-[8px] sm:text-[10px] font-mono tracking-[0.2em] text-white uppercase block line-clamp-1 font-bold">{log.date}</span>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </ScrollReveal>
                             ))

@@ -1,0 +1,193 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-pillar: var(--pillar);
+  --color-pillar-soft: var(--pillar-soft);
+
+  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ──────────────────────────────────────────────
+   BASE MONOCROMÁTICA — preto/branco puro.
+   Cor JAMAIS aparece em background, texto, borda
+   estrutural ou botão. Só em data viz e indicadores.
+   ────────────────────────────────────────────── */
+:root {
+  --radius: 0.75rem;
+
+  /* DARK por default — feel de sistema profissional */
+  --background: oklch(0.08 0 0);          /* preto suave */
+  --foreground: oklch(0.98 0 0);          /* branco quase puro */
+  --surface: oklch(0.11 0 0);             /* card */
+  --surface-2: oklch(0.15 0 0);           /* card elevado */
+
+  --card: oklch(0.11 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.13 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+
+  --primary: oklch(0.98 0 0);             /* botão = branco */
+  --primary-foreground: oklch(0.08 0 0);
+  --secondary: oklch(0.18 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.16 0 0);
+  --muted-foreground: oklch(0.62 0 0);    /* cinza médio */
+  --accent: oklch(0.18 0 0);
+  --accent-foreground: oklch(0.98 0 0);
+
+  /* Indicadores semânticos (positivo/negativo) — uso EXCLUSIVO em métricas */
+  --destructive: oklch(0.65 0.20 25);     /* vermelho métrica negativa */
+  --destructive-foreground: oklch(0.98 0 0);
+  --success: oklch(0.72 0.18 150);        /* verde métrica positiva */
+  --warning: oklch(0.80 0.16 80);         /* amarelo atenção */
+
+  --border: oklch(0.20 0 0);              /* cinza neutro */
+  --border-strong: oklch(0.28 0 0);
+  --input: oklch(0.20 0 0);
+  --ring: oklch(0.98 0 0);
+
+  --pillar: oklch(0.98 0 0);
+  --pillar-soft: oklch(0.98 0 0 / 0.10);
+}
+
+/* LIGHT — base branca, mesmo princípio */
+.light {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.10 0 0);
+  --surface: oklch(0.97 0 0);
+  --surface-2: oklch(0.94 0 0);
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.10 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.10 0 0);
+  --primary: oklch(0.10 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.10 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --border: oklch(0.90 0 0);
+  --border-strong: oklch(0.82 0 0);
+  --input: oklch(0.90 0 0);
+  --ring: oklch(0.10 0 0);
+}
+
+/* ──────────────────────────────────────────────
+   COR POR PILAR — usadas APENAS em data viz
+   (radar, linha, barra, ponto, indicador, glow leve)
+   NUNCA em texto principal, fundo ou botão.
+   ────────────────────────────────────────────── */
+.pillar-mente           { --pillar: oklch(0.72 0.14 220); --pillar-soft: oklch(0.72 0.14 220 / 0.18); } /* ciano */
+.pillar-saude           { --pillar: oklch(0.72 0.18 150); --pillar-soft: oklch(0.72 0.18 150 / 0.18); } /* verde */
+.pillar-nutricao        { --pillar: oklch(0.78 0.16 130); --pillar-soft: oklch(0.78 0.16 130 / 0.18); }
+.pillar-financeiro      { --pillar: oklch(0.80 0.16 90);  --pillar-soft: oklch(0.80 0.16 90 / 0.18); }  /* dourado */
+.pillar-carreira        { --pillar: oklch(0.65 0.22 290); --pillar-soft: oklch(0.65 0.22 290 / 0.18); } /* roxo (produtividade) */
+.pillar-metas           { --pillar: oklch(0.62 0.21 255); --pillar-soft: oklch(0.62 0.21 255 / 0.18); } /* azul */
+.pillar-relacionamentos { --pillar: oklch(0.72 0.16 15);  --pillar-soft: oklch(0.72 0.16 15 / 0.18); }  /* rosa suave */
+.pillar-interno         { --pillar: oklch(0.75 0.14 295); --pillar-soft: oklch(0.75 0.14 295 / 0.18); } /* roxo claro */
+.pillar-habitos         { --pillar: oklch(0.72 0.19 50);  --pillar-soft: oklch(0.72 0.19 50 / 0.18); }  /* laranja */
+.pillar-aprendizado     { --pillar: oklch(0.62 0.20 270); --pillar-soft: oklch(0.62 0.20 270 / 0.18); } /* indigo */
+.pillar-lazer           { --pillar: oklch(0.85 0.15 95);  --pillar-soft: oklch(0.85 0.15 95 / 0.18); }  /* amarelo suave */
+.pillar-identidade      { --pillar: oklch(0.98 0 0);      --pillar-soft: oklch(0.98 0 0 / 0.12); }      /* branco puro */
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    font-family: var(--font-display);
+    font-feature-settings: "cv11", "ss01", "tnum";
+  }
+  .font-mono { font-family: var(--font-mono); }
+}
+
+@layer utilities {
+  /* Cor do pilar — só em data viz */
+  .text-pillar { color: var(--pillar); }
+  .bg-pillar { background-color: var(--pillar); }
+  .bg-pillar-soft { background-color: var(--pillar-soft); }
+  .border-pillar { border-color: var(--pillar); }
+  .stroke-pillar { stroke: var(--pillar); }
+  .fill-pillar { fill: var(--pillar); }
+
+  .panel {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+  }
+  .panel-flat {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+  }
+  .label-meta {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

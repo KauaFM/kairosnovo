@@ -4,13 +4,15 @@ import {
     Filter, ArrowRight, ArrowUpRight, ArrowDownRight, MoreVertical, 
     PiggyBank, CreditCard, DollarSign, Wallet, ShoppingBag, Coffee, Home,
     Car, Zap, Utensils, Briefcase, Minus, ChevronDown, CheckCircle2, History,
-    ShoppingCart, Tv, Smile, MoreHorizontal, Activity
+    ShoppingCart, Tv, Smile, MoreHorizontal, Activity, Trash2, X, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getTransactions, getGoals, createTransaction, createFinancialGoal, getMonthlyFinancialSummary } from '../services/db';
+import { getTransactions, getGoals, createTransaction, createFinancialGoal, getMonthlyFinancialSummary, deleteTransaction, deleteFinancialGoal, updateFinancialGoalProgress } from '../services/db';
 import { supabase } from '../lib/supabase';
 
 import { toLocalDateStr } from '../utils/dateUtils';
+import { useCompassPillar } from '../features/metrics/compass/hooks/useCompassData';
+import { PillarLayered } from '../features/metrics/compass/components/PillarLayered';
 
 const CATEGORIES_ICONS = {
     'Moradia': Home,
@@ -47,7 +49,12 @@ function AnimCounter({ to, prefix = '', suffix = '', duration = 1400 }) {
         raf = requestAnimationFrame(step);
         return () => cancelAnimationFrame(raf);
     }, [to, duration]);
-    return <>{prefix}{val.toLocaleString('pt-BR')}{suffix}</>;
+
+    const format = (v) => {
+        return v.toLocaleString('pt-BR');
+    };
+
+    return <>{prefix}{format(val)}{suffix}</>;
 }
 
 /* ─── Mini Sparkline SVG ────────────────────────────────── */
@@ -136,7 +143,15 @@ function SparklineCard({ theme, dynamicData }) {
 
     const chartData = (dynamicData && dynamicData.length > 0) ? dynamicData : SPARK_DATA;
     const [activeIdx, setActiveIdx] = useState(Math.min(SPARK_ACTIVE_IDX, chartData.length - 1));
+    const [showDropdown, setShowDropdown] = useState(false);
     const svgRef = useRef(null);
+
+    // Synchronize activeIdx if chartData length changes
+    useEffect(() => {
+        if (activeIdx >= chartData.length) {
+            setActiveIdx(Math.max(0, chartData.length - 1));
+        }
+    }, [chartData.length, activeIdx]);
 
     // Dimensoes do grafico
     const W = 320, H = 120;
@@ -145,8 +160,8 @@ function SparklineCard({ theme, dynamicData }) {
     const maxV = Math.max(...vals) * 1.1;
     const range = maxV - minV;
 
-    const toX = i => (i / (chartData.length - 1)) * W;
-    const toY = v => (1 - (v - minV) / range) * H;
+    const toX = i => chartData.length > 1 ? (i / (chartData.length - 1)) * W : W / 2;
+    const toY = v => range > 0 ? (1 - (v - minV) / range) * H : H / 2;
 
     const points = chartData.map((d, i) => ({ x: toX(i), y: toY(d.value) }));
 
@@ -160,8 +175,9 @@ function SparklineCard({ theme, dynamicData }) {
     const linePath = buildPath(points);
     const areaPath = `${linePath} L ${W},${H} L 0,${H} Z`;
 
-    const ap = points[activeIdx];
-    const av = chartData[activeIdx]?.value || 0;
+    const safeIdx = Math.max(0, Math.min(activeIdx, chartData.length - 1));
+    const ap = points[safeIdx] || { x: 0, y: 0 };
+    const av = chartData[safeIdx]?.value || 0;
 
     const handlePointer = (e) => {
         const svg = svgRef.current;
@@ -176,17 +192,54 @@ function SparklineCard({ theme, dynamicData }) {
     return (
         <div className="w-full select-none mt-2">
             {/* History Row */}
-            <div className="flex items-center justify-between px-1 mb-4">
+            <div className="flex items-center justify-between px-1 mb-4 z-30 relative">
                 <span className="text-[12px] font-outfit font-medium" style={{ color: textColor, opacity: 0.6 }}>History</span>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border cursor-pointer"
-                     style={{
-                        backgroundColor: cardIsBlack ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                        borderColor: cardIsBlack ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
-                     }}>
-                    <span className="text-[11px] font-outfit font-medium" style={{ color: textColor, opacity: 0.8 }}>{chartData[activeIdx]?.month || ''}</span>
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
-                        <path d="M2.5 4L5 6.5L7.5 4" stroke={textColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                <div className="relative z-30">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border cursor-pointer select-none transition-all hover:opacity-80"
+                         onClick={(e) => { e.stopPropagation(); setShowDropdown(!showDropdown); }}
+                         style={{
+                            backgroundColor: cardIsBlack ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                            borderColor: cardIsBlack ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+                         }}>
+                        <span className="text-[11px] font-outfit font-bold" style={{ color: textColor, opacity: 0.9 }}>{chartData[activeIdx]?.month || ''}</span>
+                        <ChevronDown size={12} color={textColor} className="opacity-50" style={{ transform: showDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    </div>
+                    
+                    <AnimatePresence>
+                        {showDropdown && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute right-0 top-[110%] p-1.5 rounded-[16px] shadow-2xl border overflow-hidden backdrop-blur-xl"
+                                style={{
+                                    backgroundColor: cardIsBlack ? 'rgba(15,15,15,0.9)' : 'rgba(255,255,255,0.9)',
+                                    borderColor: cardIsBlack ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                                    minWidth: '110px'
+                                }}
+                            >
+                                {chartData.map((d, index) => (
+                                    <div 
+                                        key={d.month}
+                                        onClick={() => {
+                                            setActiveIdx(index);
+                                            setShowDropdown(false);
+                                        }}
+                                        className="px-3 py-2 rounded-xl text-[11px] font-outfit cursor-pointer flex justify-between items-center transition-all"
+                                        style={{ 
+                                            color: index === activeIdx ? '#22c55e' : textColor,
+                                            fontWeight: index === activeIdx ? '800' : '500',
+                                            backgroundColor: index === activeIdx ? (cardIsBlack ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.08)') : 'transparent'
+                                        }}
+                                    >
+                                        {d.month}
+                                        {index === activeIdx && <Check size={12} color="#22c55e" strokeWidth={3} />}
+                                    </div>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -240,9 +293,10 @@ function SparklineCard({ theme, dynamicData }) {
                         d={linePath}
                         fill="none"
                         stroke="#22c55e"
-                        strokeWidth="2.8"
+                        strokeWidth="3.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        style={{ filter: 'drop-shadow(0px 8px 10px rgba(34,197,94,0.35))' }}
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                         transition={{ duration: 1 }}
@@ -250,14 +304,12 @@ function SparklineCard({ theme, dynamicData }) {
 
                     {/* Interactive Active Dot — Layered like image */}
                     <g>
-                        {/* Outer glow ring */}
-                        <circle cx={ap.x} cy={ap.y} r={12} fill={cardIsBlack ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"} />
-                        {/* Ring color depends on card theme */}
-                        <circle cx={ap.x} cy={ap.y} r={9} fill={cardIsBlack ? "white" : "#050507"} />
-                        {/* Dark inner hole */}
-                        <circle cx={ap.x} cy={ap.y} r={7} fill={dotInnerColor} />
-                        {/* Green glowing center */}
-                        <circle cx={ap.x} cy={ap.y} r={3} fill="#22c55e" style={{ filter: 'drop-shadow(0 0 5px #22c55e)' }} />
+                        {/* Outer glow aura */}
+                        <circle cx={ap.x} cy={ap.y} r={16} fill="#22c55e" opacity="0.15" style={{ filter: 'blur(4px)' }} />
+                        {/* The thick ring */}
+                        <circle cx={ap.x} cy={ap.y} r={6} fill={dotInnerColor} stroke={cardIsBlack ? "white" : "#050507"} strokeWidth="2.5" />
+                        {/* The centered green indicator */}
+                        <circle cx={ap.x} cy={ap.y} r={2.5} fill="#22c55e" />
                     </g>
                 </svg>
             </div>
@@ -290,103 +342,6 @@ function SparklineCard({ theme, dynamicData }) {
     );
 }
 
-/* ─── Bar Chart (Income vs Expense) ────────────────────── */
-
-function BarChart() {
-    const [tooltip, setTooltip] = useState(null); // { index, x, income, expense }
-    const [animated, setAnimated] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const t = setTimeout(() => setAnimated(true), 200);
-        return () => clearTimeout(t);
-    }, []);
-
-    return (
-        <div className="relative w-full select-none mt-4" ref={ref} style={{ height: '130px' }}>
-            {/* Y-axis labels */}
-            <div className="absolute left-0 top-0 bottom-5 flex flex-col justify-between pointer-events-none" style={{ width: '28px' }}>
-                {['$50k', '$25k', '$0k'].map(l => (
-                    <span key={l} className="text-[7px] font-mono opacity-20 text-right pr-1">{l}</span>
-                ))}
-            </div>
-
-            {/* Bars container */}
-            <div className="absolute left-7 right-0 top-0 bottom-5 flex items-end justify-between gap-1">
-                {BAR_DATA.map((d, i) => {
-                    const incH = (d.income / MAX_VAL) * 100;
-                    const expH = (d.expense / MAX_VAL) * 100;
-                    const isHov = tooltip?.index === i;
-                    return (
-                        <div
-                            key={d.month}
-                            className="flex-1 flex flex-col justify-end items-center gap-[2px] cursor-pointer"
-                            style={{ height: '100%' }}
-                            onMouseEnter={() => setTooltip({ index: i, ...d })}
-                            onMouseLeave={() => setTooltip(null)}
-                            onTouchStart={() => setTooltip(t => t?.index === i ? null : { index: i, ...d })}
-                        >
-                            {/* Tooltip */}
-                            {isHov && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 4, scale: 0.9 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    className="absolute bottom-full mb-1 flex flex-col items-center pointer-events-none z-10"
-                                    style={{ left: `${(i / (BAR_DATA.length - 1)) * 100}%`, transform: 'translateX(-50%)' }}
-                                >
-                                    <div className="px-2.5 py-1.5 rounded-xl text-[8px] font-mono font-bold text-white whitespace-nowrap"
-                                        style={{ backgroundColor: '#22c55e', boxShadow: '0 4px 16px rgba(34,197,94,0.4)' }}>
-                                        R$ {d.income.toLocaleString('pt-BR')}
-                                    </div>
-                                    <div className="w-0 h-0" style={{ borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid #22c55e' }} />
-                                </motion.div>
-                            )}
-
-                            {/* Income bar (green, taller) */}
-                            <div className="relative flex gap-[2px] items-end" style={{ height: '100%', width: '100%' }}>
-                                <motion.div
-                                    initial={{ height: 0 }}
-                                    animate={{ height: animated ? `${incH}%` : 0 }}
-                                    transition={{ duration: 0.8, delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
-                                    className="flex-1 rounded-t-[4px]"
-                                    style={{
-                                        backgroundColor: isHov ? '#22c55e' : 'rgba(34,197,94,0.55)',
-                                        boxShadow: isHov ? '0 0 12px rgba(34,197,94,0.5)' : 'none',
-                                        alignSelf: 'flex-end',
-                                        transition: 'background-color 0.2s, box-shadow 0.2s',
-                                    }}
-                                />
-                                {/* Expense bar (dim) */}
-                                <motion.div
-                                    initial={{ height: 0 }}
-                                    animate={{ height: animated ? `${expH}%` : 0 }}
-                                    transition={{ duration: 0.8, delay: i * 0.07 + 0.05, ease: [0.16, 1, 0.3, 1] }}
-                                    className="flex-1 rounded-t-[4px]"
-                                    style={{
-                                        backgroundColor: isHov ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
-                                        alignSelf: 'flex-end',
-                                        transition: 'background-color 0.2s',
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* X-axis months */}
-            <div className="absolute left-7 right-0 bottom-0 flex justify-between">
-                {BAR_DATA.map((d, i) => (
-                    <span key={d.month} className="flex-1 text-center text-[7px] font-mono uppercase"
-                        style={{ opacity: tooltip?.index === i ? 0.8 : 0.28, transition: 'opacity 0.2s' }}>
-                        {d.month}
-                    </span>
-                ))}
-            </div>
-        </div>
-    );
-}
-
 /* ─── Main Component ────────────────────────────────────── */
 export default function CapitalViewNew({ onBack, theme }) {
     const isLight = theme === 'light';
@@ -396,6 +351,9 @@ export default function CapitalViewNew({ onBack, theme }) {
     const [goals, setGoals] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [monthlyData, setMonthlyData] = useState([]);
+
+    // Compass Pillar Data
+    const { data: pillarData } = useCompassPillar('finance');
 
     // Form State
     const [showAddForm, setShowAddForm] = useState(false);
@@ -443,14 +401,93 @@ export default function CapitalViewNew({ onBack, theme }) {
             const gls = await getGoals();
             setGoals(gls.map(g => ({
                 id: g.id,
-                name: g.name,
-                current: g.current_amount,
+                name: g.title || g.name || 'Nova Meta',
+                current: g.current_amount || 0,
                 target: g.target_amount,
-                progress: Math.round((g.current_amount / g.target_amount) * 100),
-                color: CATEGORIES_COLORS[g.category] || '#22c55e'
+                progress: Math.round(((g.current_amount || 0) / g.target_amount) * 100),
+                color: CATEGORIES_COLORS[g.category] || CATEGORIES_COLORS['Outros'] || '#22c55e'
             })));
         } catch (err) {
-            console.error('createGoal:', err);
+            console.error('createGoal Error:', err);
+            alert(`Erro na base de dados (RLS ou Schema): ${err.message}. A meta será adicionada localmente para visualização.`);
+            // Local Presentation Fallback so the UI updates and feels responsive to the user
+            setShowGoalForm(false);
+            setGoals(prev => [...prev, {
+                id: Math.random(),
+                name: newGoal.name,
+                current: 0,
+                target: parseFloat(newGoal.target_amount),
+                progress: 0,
+                color: CATEGORIES_COLORS[newGoal.category] || '#22c55e'
+            }]);
+            setNewGoal({ name: '', target_amount: '', category: 'Outros' });
+        }
+    };
+
+    const handleDeleteTransaction = async (id, e) => {
+        if (e) e.stopPropagation();
+        if (window.confirm('Tem certeza que deseja excluir esta transação?')) {
+            try {
+                await deleteTransaction(id);
+                setTransactions(prev => prev.filter(t => t.id !== id));
+            } catch (err) {
+                console.error('Delete tx error:', err);
+                // Fallback local se falhar por banco
+                setTransactions(prev => prev.filter(t => t.id !== id));
+            }
+        }
+    };
+
+    const handleDeleteGoal = async (id, e) => {
+        if (e) e.stopPropagation();
+        if (window.confirm('Tem certeza que deseja excluir esta meta?')) {
+            try {
+                await deleteFinancialGoal(id);
+                setGoals(prev => prev.filter(g => g.id !== id));
+            } catch (err) {
+                console.error('Delete goal error:', err);
+                // Fallback local se falhar por banco
+                setGoals(prev => prev.filter(g => g.id !== id));
+            }
+        }
+    };
+
+    const handleAddFundsToGoal = async (id, currentProgress, target, e) => {
+        if (e) e.stopPropagation();
+        const amountStr = window.prompt('Quanto deseja depositar nesta meta? (R$)');
+        if (!amountStr) return;
+        const amount = parseFloat(amountStr.replace(',', '.'));
+        if (isNaN(amount) || amount <= 0) return alert('Valor inválido.');
+
+        try {
+            await updateFinancialGoalProgress(id, amount);
+            // Update local state instantly
+            setGoals(prev => prev.map(g => {
+                if (g.id === id) {
+                    const newCurrent = g.current + amount;
+                    return {
+                        ...g,
+                        current: newCurrent,
+                        progress: Math.min(100, Math.round((newCurrent / g.target) * 100))
+                    };
+                }
+                return g;
+            }));
+        } catch (err) {
+            console.error('Add funds error:', err);
+            alert(`Erro no banco: ${err.message}. Atualizando localmente.`);
+            // Local fallback
+            setGoals(prev => prev.map(g => {
+                if (g.id === id) {
+                    const newCurrent = g.current + amount;
+                    return {
+                        ...g,
+                        current: newCurrent,
+                        progress: Math.min(100, Math.round((newCurrent / g.target) * 100))
+                    };
+                }
+                return g;
+            }));
         }
     };
 
@@ -463,11 +500,11 @@ export default function CapitalViewNew({ onBack, theme }) {
             const gls = await getGoals();
             setGoals(gls.map(g => ({
                 id: g.id,
-                name: g.name,
-                current: g.current_amount,
+                name: g.title || g.name || 'Nova Meta',
+                current: g.current_amount || 0,
                 target: g.target_amount,
-                progress: Math.round((g.current_amount / g.target_amount) * 100),
-                color: CATEGORIES_COLORS[g.category] || '#22c55e'
+                progress: Math.round(((g.current_amount || 0) / g.target_amount) * 100),
+                color: CATEGORIES_COLORS[g.category] || CATEGORIES_COLORS['Outros'] || '#22c55e'
             })));
 
             // Fetch monthly summary for charts
@@ -488,6 +525,20 @@ export default function CapitalViewNew({ onBack, theme }) {
     useEffect(() => {
         fetchCapitalData();
     }, [period]);
+
+    // Realtime sync — quando transações ou metas mudam em outra aba/dispositivo
+    useEffect(() => {
+        const ch = supabase
+            .channel(`capital-sync-${Math.random().toString(36).slice(2, 8)}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+                fetchCapitalData();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_goals' }, () => {
+                fetchCapitalData();
+            })
+            .subscribe();
+        return () => { ch.unsubscribe(); };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const totals = useMemo(() => {
         const income = transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + t.amount, 0);
@@ -514,7 +565,7 @@ export default function CapitalViewNew({ onBack, theme }) {
         })).sort((a, b) => b.value - a.value);
     }, [transactions]);
 
-    const TABS = ['overview', 'gastos', 'metas'];
+    const TABS = ['overview', 'gastos', 'metas', 'metricas'];
 
     // Inversion Logic
     const cardIsBlack = isLight;
@@ -558,11 +609,15 @@ export default function CapitalViewNew({ onBack, theme }) {
                 <p className="text-center text-[12px] font-outfit font-semibold tracking-[0.15em] mb-2 uppercase opacity-40">
                     {period === 'MES' ? 'SALDO DO MÊS' : `SALDO (${period})`}
                 </p>
-                <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-[28px] font-outfit font-bold opacity-30">R$</span>
+                <div className="flex items-baseline justify-center gap-1.5 px-4 overflow-hidden w-full">
+                    <span className="text-[18px] md:text-[24px] font-outfit font-bold opacity-30 shrink-0">R$</span>
                     <span className="font-outfit font-black leading-none"
                         style={{ 
-                            fontSize: '62px', 
+                            fontSize: 
+                                String(totals.balance.toLocaleString('pt-BR')).length > 15 ? '24px' :
+                                String(totals.balance.toLocaleString('pt-BR')).length > 12 ? '32px' :
+                                String(totals.balance.toLocaleString('pt-BR')).length > 9 ? '42px' :
+                                String(totals.balance.toLocaleString('pt-BR')).length > 6 ? '52px' : '62px',
                             letterSpacing: '-0.02em', 
                             textShadow: isLight ? '0 0 30px rgba(0,0,0,0.05)' : '0 0 40px rgba(34,197,94,0.1)' 
                         }}>
@@ -588,41 +643,36 @@ export default function CapitalViewNew({ onBack, theme }) {
 
 
             {/* ── Period Filter ── */}
+            {/* ── Period Filter ── */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-                className="flex gap-2 mb-5 px-0.5"
+                className="mb-6 flex justify-center"
             >
-                {['SEM', 'MES', '3M', '6M', 'ANO'].map(p => (
-                    <button
-                        key={p}
-                        onClick={() => setPeriod(p)}
-                        className="flex-1 py-1.5 rounded-full text-[8px] font-mono font-bold uppercase tracking-widest transition-all active:scale-95"
-                        style={period === p
-                            ? { backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }
-                            : { border: '1px solid var(--border-color)', color: 'var(--text-main)', opacity: 0.4 }
-                        }
-                    >
-                        {p}
-                    </button>
-                ))}
+                <div className="flex bg-zinc-100 dark:bg-black/40 p-1 rounded-2xl border border-zinc-200/50 dark:border-white/5 w-full max-w-[340px] shadow-inner">
+                    {['SEM', 'MES', '3M', '6M', 'ANO'].map(p => (
+                        <button
+                            key={p}
+                            onClick={() => setPeriod(p)}
+                            className={`flex-1 py-1.5 rounded-[12px] text-[9px] font-mono font-bold uppercase tracking-widest transition-all duration-300 ${period === p ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
+                        >
+                            {p}
+                        </button>
+                    ))}
+                </div>
             </motion.div>
 
             {/* ── Sub-tabs ── */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-                className="flex gap-1.5 mb-5 px-0.5"
+                className="flex gap-2 mb-6 px-1.5"
             >
-                {['Visão Geral', 'Gastos', 'Metas'].map((t, i) => {
+                {['Visão Geral', 'Gastos', 'Metas', 'Métricas'].map((t, i) => {
                     const key = TABS[i];
                     return (
                         <button
                             key={key}
                             onClick={() => setTab(key)}
-                            className="flex-1 py-2 rounded-2xl text-[9px] font-mono uppercase tracking-widest font-bold transition-all active:scale-95"
-                            style={tab === key
-                                ? { backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }
-                                : { border: '1px solid var(--border-color)', opacity: 0.45 }
-                            }
+                            className={`flex-1 py-2.5 rounded-2xl text-[9px] font-outfit uppercase tracking-widest font-bold transition-all duration-300 active:scale-95 ${tab === key ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-lg shadow-black/10 dark:shadow-white/10' : 'bg-zinc-100 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800/80'}`}
                         >
                             {t}
                         </button>
@@ -691,54 +741,76 @@ export default function CapitalViewNew({ onBack, theme }) {
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     onSubmit={handleAddTransaction}
-                                    className="mb-6 p-4 rounded-2xl border border-current/20 bg-current/5 flex flex-col gap-3"
+                                    className="mb-8 p-5 rounded-[24px] border border-zinc-200/50 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex flex-col gap-4 shadow-sm"
                                 >
-                                    <input 
-                                        type="text" 
-                                        placeholder="Descrição"
-                                        className="w-full bg-transparent border-b border-current/10 py-1 text-xs font-mono uppercase focus:outline-none"
-                                        value={newTx.description}
-                                        onChange={e => setNewTx({...newTx, description: e.target.value})}
-                                    />
-                                    <div className="flex gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Descrição</label>
                                         <input 
-                                            type="number" 
-                                            placeholder="Valor"
-                                            className="flex-1 bg-transparent border-b border-current/10 py-1 text-xs font-mono uppercase focus:outline-none"
-                                            value={newTx.amount}
-                                            onChange={e => setNewTx({...newTx, amount: e.target.value})}
+                                            type="text" 
+                                            placeholder="Ex: Uber, Mercado, Freelance"
+                                            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono uppercase focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
+                                            value={newTx.description}
+                                            onChange={e => setNewTx({...newTx, description: e.target.value})}
                                         />
-                                        <select 
-                                            className="bg-transparent border-b border-current/10 py-1 text-[10px] font-mono uppercase focus:outline-none"
-                                            value={newTx.type}
-                                            onChange={e => setNewTx({...newTx, type: e.target.value})}
-                                        >
-                                            <option value="out" className="bg-black">Saída (-)</option>
-                                            <option value="in" className="bg-black">Entrada (+)</option>
-                                        </select>
                                     </div>
-                                    <select 
-                                        className="w-full bg-transparent border-b border-current/10 py-1 text-[10px] font-mono uppercase focus:outline-none"
-                                        value={newTx.category}
-                                        onChange={e => setNewTx({...newTx, category: e.target.value})}
-                                    >
-                                        {Object.keys(CATEGORIES_ICONS).map(cat => (
-                                            <option key={cat} value={cat} className="bg-black">{cat}</option>
-                                        ))}
-                                    </select>
-                                    <div className="flex gap-2 mt-2">
-                                        <button 
-                                            type="submit"
-                                            className="flex-1 py-1.5 bg-[#22c55e] text-black font-mono font-bold text-[10px] rounded-lg uppercase"
-                                        >
-                                            Confirmar
-                                        </button>
+                                    <div className="flex gap-3">
+                                        <div className="flex flex-col gap-1.5 flex-1">
+                                            <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Valor</label>
+                                            <input 
+                                                type="number" 
+                                                placeholder="0,00"
+                                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono font-bold focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
+                                                value={newTx.amount}
+                                                onChange={e => setNewTx({...newTx, amount: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1.5 shrink-0 justify-end">
+                                            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl h-[38px] border border-zinc-200 dark:border-zinc-800">
+                                                <button 
+                                                    type="button" 
+                                                    onClick={(e) => { e.preventDefault(); setNewTx({...newTx, type: 'out'}); }}
+                                                    className={`px-3 flex items-center justify-center text-[9px] font-mono font-bold uppercase rounded-lg transition-all ${newTx.type === 'out' ? 'bg-[#ef4444] text-white shadow-sm' : 'text-zinc-500 opacity-60 hover:opacity-100'}`}
+                                                >
+                                                    Saída
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={(e) => { e.preventDefault(); setNewTx({...newTx, type: 'in'}); }}
+                                                    className={`px-3 flex items-center justify-center text-[9px] font-mono font-bold uppercase rounded-lg transition-all ${newTx.type === 'in' ? 'bg-[#22c55e] text-black shadow-sm' : 'text-zinc-500 opacity-60 hover:opacity-100'}`}
+                                                >
+                                                    Entrada
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2 mt-1">
+                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Categoria</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {Object.keys(CATEGORIES_ICONS).map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    type="button"
+                                                    onClick={(e) => { e.preventDefault(); setNewTx({...newTx, category: cat}); }}
+                                                    className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 ${newTx.category === cat ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-md' : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 mt-3 pt-4 border-t border-zinc-200/50 dark:border-white/5">
                                         <button 
                                             type="button"
                                             onClick={() => setShowAddForm(false)}
-                                            className="px-3 py-1.5 border border-current/20 font-mono text-[10px] rounded-lg uppercase"
+                                            className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 font-mono text-[10px] rounded-xl uppercase font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                                         >
                                             Cancelar
+                                        </button>
+                                        <button 
+                                            type="submit"
+                                            className="flex-1 py-2 bg-[#22c55e] border border-[#22c55e] text-black font-mono font-black tracking-widest text-[10px] rounded-xl uppercase hover:bg-[#1fb154] hover:shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all active:scale-[0.98]"
+                                        >
+                                            Confirmar
                                         </button>
                                     </div>
                                 </motion.form>
@@ -764,11 +836,16 @@ export default function CapitalViewNew({ onBack, theme }) {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <span className="block text-[12px] font-mono font-bold truncate uppercase">{tx.description || tx.category}</span>
-                                                    <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{tx.category} · {new Date(tx.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
+                                                    <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{tx.category} · {new Date(tx.date || tx.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
                                                 </div>
-                                                <span className="text-[13px] font-mono font-black shrink-0" style={{ color: tx.type === 'in' ? '#22c55e' : '#ef4444' }}>
-                                                    {tx.type === 'in' ? '+' : '-'} R$ {tx.amount.toLocaleString('pt-BR')}
-                                                </span>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-[13px] font-mono font-black" style={{ color: tx.type === 'in' ? '#22c55e' : '#ef4444' }}>
+                                                        {tx.type === 'in' ? '+' : '-'} R$ {tx.amount.toLocaleString('pt-BR')}
+                                                    </span>
+                                                    <button onClick={(e) => handleDeleteTransaction(tx.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir Transação">
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
                                             </motion.div>
                                         );
                                     })
@@ -910,6 +987,14 @@ export default function CapitalViewNew({ onBack, theme }) {
                                         <span className="text-[8px] font-mono opacity-40 shrink-0 uppercase">
                                             Faltam R$ {Math.max(0, goal.target - goal.current).toLocaleString('pt-BR')}
                                         </span>
+                                        <div className="flex items-center gap-1 ml-1 shrink-0">
+                                            <button onClick={(e) => handleAddFundsToGoal(goal.id, goal.progress, goal.target, e)} className="p-1.5 text-[#22c55e] bg-[#22c55e]/10 hover:bg-[#22c55e]/20 rounded-lg transition-all active:scale-95" title="Depositar">
+                                                <Plus size={11} strokeWidth={3.5} />
+                                            </button>
+                                            <button onClick={(e) => handleDeleteGoal(goal.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir Meta">
+                                                <Trash2 size={11} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </Card>
                             ))
@@ -920,44 +1005,56 @@ export default function CapitalViewNew({ onBack, theme }) {
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 onSubmit={handleAddGoal}
-                                className="p-4 rounded-2xl border border-current/20 bg-current/5 flex flex-col gap-3"
+                                className="mb-4 p-5 rounded-[24px] border border-zinc-200/50 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex flex-col gap-4 shadow-sm"
                             >
-                                <input
-                                    type="text"
-                                    placeholder="Nome da meta (ex: Viagem)"
-                                    className="w-full bg-transparent border-b border-current/10 py-1 text-xs font-mono uppercase focus:outline-none"
-                                    value={newGoal.name}
-                                    onChange={e => setNewGoal({ ...newGoal, name: e.target.value })}
-                                />
-                                <input
-                                    type="number"
-                                    placeholder="Valor alvo (R$)"
-                                    className="w-full bg-transparent border-b border-current/10 py-1 text-xs font-mono uppercase focus:outline-none"
-                                    value={newGoal.target_amount}
-                                    onChange={e => setNewGoal({ ...newGoal, target_amount: e.target.value })}
-                                />
-                                <select
-                                    className="w-full bg-transparent border-b border-current/10 py-1 text-[10px] font-mono uppercase focus:outline-none"
-                                    value={newGoal.category}
-                                    onChange={e => setNewGoal({ ...newGoal, category: e.target.value })}
-                                >
-                                    {Object.keys(CATEGORIES_ICONS).map(cat => (
-                                        <option key={cat} value={cat} className="bg-black">{cat}</option>
-                                    ))}
-                                </select>
-                                <div className="flex gap-2 mt-1">
-                                    <button
-                                        type="submit"
-                                        className="flex-1 py-1.5 bg-[#22c55e] text-black font-mono font-bold text-[10px] rounded-lg uppercase"
-                                    >
-                                        Confirmar
-                                    </button>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Nome da Meta</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Viagem, Reserva"
+                                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono uppercase focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
+                                        value={newGoal.name}
+                                        onChange={e => setNewGoal({ ...newGoal, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Valor Alvo (R$)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0,00"
+                                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono font-bold focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
+                                        value={newGoal.target_amount}
+                                        onChange={e => setNewGoal({ ...newGoal, target_amount: e.target.value })}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-2 mt-1">
+                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Categoria Relacionada</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.keys(CATEGORIES_ICONS).map(cat => (
+                                            <button
+                                                key={cat}
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); setNewGoal({ ...newGoal, category: cat }); }}
+                                                className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 ${newGoal.category === cat ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-md' : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 mt-3 pt-4 border-t border-zinc-200/50 dark:border-white/5">
                                     <button
                                         type="button"
                                         onClick={() => setShowGoalForm(false)}
-                                        className="px-3 py-1.5 border border-current/20 font-mono text-[10px] rounded-lg uppercase"
+                                        className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 font-mono text-[10px] rounded-xl uppercase font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                                     >
                                         Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 py-2 bg-[#22c55e] border border-[#22c55e] text-black font-mono font-black tracking-widest text-[10px] rounded-xl uppercase hover:bg-[#1fb154] hover:shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all active:scale-[0.98]"
+                                    >
+                                        Confirmar
                                     </button>
                                 </div>
                             </motion.form>
@@ -969,6 +1066,24 @@ export default function CapitalViewNew({ onBack, theme }) {
                             >
                                 <Plus size={13} /> Nova Meta Financeira
                             </button>
+                        )}
+                    </motion.div>
+                )}
+
+                {/* ══ TAB: Métricas (Pilar) ═════════════════════════════════ */}
+                {tab === 'metricas' && (
+                    <motion.div key="metricas"
+                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
+                        className="flex flex-col"
+                    >
+                        {pillarData ? (
+                            <PillarLayered data={pillarData} onBack={() => {}} hideNav={true} />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                                <Activity className="animate-spin mb-4" />
+                                <span className="text-[10px] font-mono tracking-widest uppercase">Extraindo Dados Neurais...</span>
+                            </div>
                         )}
                     </motion.div>
                 )}

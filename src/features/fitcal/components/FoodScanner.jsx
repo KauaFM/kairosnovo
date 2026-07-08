@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, X, Check, Loader2, AlertCircle } from 'lucide-react';
+import { Camera, X, Check, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { analyzeFoodPhoto } from '../services/aiService';
 
 const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
@@ -9,6 +9,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const fileRef = useRef(null);
+  const cameraRef = useRef(null);
 
   const handleFileChange = (e) => {
     const f = e.target.files[0];
@@ -28,8 +29,8 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
       const data = await analyzeFoodPhoto(file, userId);
       setResults(data);
     } catch (err) {
-      setError('Erro ao analisar foto. Tente novamente.');
       console.error('Scanner error:', err);
+      setError(err?.message || 'Erro ao analisar a foto. Tente novamente.');
     } finally {
       setScanning(false);
     }
@@ -59,18 +60,29 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
           </button>
         </div>
 
-        {/* Upload area */}
-        <input type="file" accept="image/*" capture="environment" ref={fileRef} onChange={handleFileChange} className="hidden" />
+        {/* Upload area — dois inputs distintos: câmera e galeria */}
+        <input type="file" accept="image/*" capture="environment" ref={cameraRef} onChange={handleFileChange} className="hidden" />
+        <input type="file" accept="image/*" ref={fileRef} onChange={handleFileChange} className="hidden" />
 
         {!preview ? (
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="w-full py-12 border-2 border-dashed rounded-sm flex flex-col items-center gap-3 opacity-40 hover:opacity-70 transition-all"
-            style={{ borderColor: 'var(--border-color)' }}
-          >
-            <Camera size={32} />
-            <span className="text-[11px] font-mono tracking-wider">TIRAR FOTO OU ESCOLHER DA GALERIA</span>
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => cameraRef.current?.click()}
+              className="py-10 border-2 border-dashed rounded-sm flex flex-col items-center gap-2 opacity-50 hover:opacity-100 transition-all"
+              style={{ borderColor: 'var(--border-color)' }}
+            >
+              <Camera size={26} />
+              <span className="text-[10px] font-mono tracking-wider">CÂMERA</span>
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="py-10 border-2 border-dashed rounded-sm flex flex-col items-center gap-2 opacity-50 hover:opacity-100 transition-all"
+              style={{ borderColor: 'var(--border-color)' }}
+            >
+              <ImageIcon size={26} />
+              <span className="text-[10px] font-mono tracking-wider">GALERIA</span>
+            </button>
+          </div>
         ) : (
           <div className="relative rounded-sm overflow-hidden border mb-4" style={{ borderColor: 'var(--border-color)' }}>
             <img src={preview} alt="Foto da refeicao" className="w-full max-h-52 object-cover" />
@@ -102,8 +114,22 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
           </button>
         )}
 
+        {/* No food detected */}
+        {results && results.items && results.items.length === 0 && (
+          <div className="mt-4 text-center py-6 px-3 rounded-sm border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+            <AlertCircle size={20} className="mx-auto opacity-30 mb-2" />
+            <p className="text-[11px] font-mono opacity-60">Nenhum alimento reconhecido nesta foto.</p>
+            <button
+              onClick={() => { setResults(null); }}
+              className="mt-3 text-[10px] font-mono tracking-wider underline opacity-50 hover:opacity-90"
+            >
+              TENTAR OUTRA FOTO
+            </button>
+          </div>
+        )}
+
         {/* Results */}
-        {results && results.items && (
+        {results && results.items && results.items.length > 0 && (
           <div className="mt-4 space-y-2">
             <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-60 mb-2">ALIMENTOS IDENTIFICADOS</h3>
             {results.items.map((item, i) => (

@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { User, Crosshair, Fingerprint, ChevronRight, Activity, Clock, Wifi, Zap, Hexagon, Medal, Award, Camera, Pencil } from 'lucide-react';
+import { User, Crosshair, Fingerprint, ChevronRight, Activity, Clock, Wifi, Zap, Hexagon, Medal, Award, Camera } from 'lucide-react';
 import RankSystem from './RankSystem';
 import MentorConfig, { MENTORS } from './MentorConfig';
 import GlobalRanking from './GlobalRanking';
 import ScrollReveal from './ScrollReveal';
-import { getProfile, updateAvatar, getRankFromXP, getAllAchievements } from '../services/db';
+import { getProfile, updateAvatar, getRankFromXP, getAllAchievements, getDashboard, checkAndUnlockAchievements } from '../services/db';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { supabase } from '../lib/supabase';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
+// Conquistas · badges reais
+import { AchievementBadges as OrvaxAchievementBadges } from '../features/achievements';
 
 const Dossier = ({ theme, toggleTheme }) => {
     const [isViewingRanks, setIsViewingRanks] = useState(false);
     const [isViewingMentors, setIsViewingMentors] = useState(false);
     const [isViewingGlobalRanking, setIsViewingGlobalRanking] = useState(false);
-    const [selectedMentorId, setSelectedMentorId] = useState('peterson');
+    const [selectedMentorId, setSelectedMentorId] = useState('atlas');
     const [activeProfileTab, setActiveProfileTab] = useState('stats'); // 'stats' | 'achievements'
     const [userName, setUserName] = useState('');
     const [userAvatar, setUserAvatar] = useState(null);
@@ -21,52 +24,107 @@ const Dossier = ({ theme, toggleTheme }) => {
         xp: 0,
         streak: 0,
         rank_index: 0,
-        kIndex: 850,
-        rank: 'Ø',
-        rankTitle: 'RECRUTA KRS'
+        kIndex: 0,
+        rank: 'E-',
+        rankTitle: 'RECRUTA KRS',
+        rankColor: '#ef4444',
+        rankStatus: 'CRÍTICO',
+        rankProgress: 0
     });
 
-    useEffect(() => {
-        const fetchUserData = async () => {
-            const profile = await getProfile();
-            if (profile) {
-                setUserName(profile.full_name || 'Agente Orvax');
-                setUserAvatar(profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`);
-                
-                const xp = profile.xp || 0;
-                const rankInfo = getRankFromXP(xp);
+    const { subscribeToXpLog, subscribeToDailyMetrics } = useRealtimeSync();
+    const unsubRef = React.useRef([]);
 
-                setUserStats({
-                    xp: xp,
-                    streak: profile.streak_days || 0,
-                    rank_index: profile.rank_index || 0,
-                    kIndex: 850 + (profile.rank_index || 0),
-                    rank: rankInfo.rank,
-                    rankTitle: rankInfo.title,
-                    rankProgress: rankInfo.progress
-                });
+    const fetchUserData = React.useCallback(async () => {
+        const profile = await getProfile();
+        if (!profile) {
+            // Fallback para estado zero se não houver perfil (raro)
+            const rankInfo = getRankFromXP(0);
+            setUserStats(prev => ({
+                ...prev,
+                rank: rankInfo.rank,
+                rankTitle: rankInfo.title,
+                rankColor: rankInfo.color,
+                rankStatus: rankInfo.status
+            }));
+            return;
+        }
 
-                // Fetch achievements
-                const achData = await getAllAchievements();
-                setAchievementsData(achData);
-            }
-        };
+        setUserName(profile.full_name || 'Agente Orvax');
+        setUserAvatar(profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`);
 
-        fetchUserData();
+        const dash = await getDashboard();
+        const xp = dash?.xp_total ?? profile.xp ?? 0;
+        const streak = dash?.streak ?? profile.streak_days ?? 0;
+        const rankInfo = getRankFromXP(xp);
+
+        setUserStats({
+            xp: xp,
+            streak: streak,
+            rank_index: profile.rank_index || 0,
+            kIndex: xp,
+            rank: rankInfo.rank,
+            rankTitle: rankInfo.title,
+            rankProgress: rankInfo.progress,
+            rankColor: rankInfo.color,
+            rankStatus: rankInfo.status,
+            nextAt: rankInfo.nextAt
+        });
+
+        // Desbloqueia conquistas recém-atingidas e busca a lista atualizada
+        try { await checkAndUnlockAchievements(); } catch (e) { console.warn('check_achievements:', e?.message); }
+        const achData = await getAllAchievements();
+        setAchievementsData(achData);
     }, []);
+
+    useEffect(() => {
+        fetchUserData();
+
+        // [ORVAX CORE] Realtime: qualquer ganho de XP ou métrica diária
+        // atualiza o cartão do agente instantaneamente.
+        const u1 = subscribeToXpLog(() => fetchUserData());
+        const u2 = subscribeToDailyMetrics(() => fetchUserData());
+        if (u1) unsubRef.current.push(u1);
+        if (u2) unsubRef.current.push(u2);
+
+        return () => {
+            unsubRef.current.forEach(u => u?.());
+            unsubRef.current = [];
+        };
+    }, [fetchUserData, subscribeToXpLog, subscribeToDailyMetrics]);
 
     const handleAvatarUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const ext = file.name.split('.').pop();
-        const path = `avatars/${session.user.id}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-        if (uploadError) { console.error('Upload error:', uploadError); return; }
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-        await updateAvatar(publicUrl);
-        setUserAvatar(publicUrl);
+
+        // Validação de tamanho (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Imagem muito grande. Máx 5MB.');
+            return;
+        }
+
+        // Path sem prefixo "avatars/" (o bucket já é avatars) + extensão segura
+        const extRaw = file.name?.split('.').pop()?.toLowerCase() || 'jpg';
+        const ext = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extRaw) ? extRaw : 'jpg';
+        const path = `${session.user.id}/avatar.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type || `image/${ext}` });
+
+        if (uploadError) {
+            console.error('[Avatar] Upload error:', uploadError);
+            alert(`Falha ao subir foto: ${uploadError.message}. Verifique se o bucket "avatars" existe e está público.`);
+            return;
+        }
+
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+        // Cache-busting para forçar re-render da foto nova
+        const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        await updateAvatar(finalUrl);
+        setUserAvatar(finalUrl);
     };
 
     const handleUserNameSave = async () => {
@@ -88,207 +146,227 @@ const Dossier = ({ theme, toggleTheme }) => {
                 <div className={`transition-all duration-500 ${isAnySubViewOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     <div className="animate-in slide-in-from-left-4 duration-700 delay-100 pb-20 w-full overflow-hidden">
                         
-                        <div className="mb-8 px-4 pt-2">
-                            <h2 className="text-[10px] font-mono opacity-40 tracking-[0.4em] uppercase mb-2 shadow-sm">Registro Central</h2>
-                            <h1 className="text-3xl font-syncopate font-bold tracking-widest uppercase text-glow">DOSSIER</h1>
+                        {/* Header */}
+                        <div className="mb-6 px-4 pt-2">
+                            <h2 className="text-[8px] font-mono opacity-30 tracking-[0.3em] uppercase mb-1">Registro Central</h2>
+                            <h1 className="text-2xl font-outfit font-black tracking-wide uppercase">Dossier</h1>
                         </div>
 
-                        {/* Top Identity Area */}
-                        <ScrollReveal delay={0.1} className="flex flex-col items-center mb-10 w-full relative z-10 px-4 mt-6">
-                            <div className="w-28 h-32 rounded-3xl overflow-hidden shadow-[0_15px_30px_rgba(0,0,0,0.4)] border-2 mb-6 relative group cursor-pointer transition-transform hover:scale-105" style={{ borderColor: 'var(--bg-color)', backgroundColor: 'var(--glass-bg)' }}>
-                                {!userAvatar && <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-600/20" />}
-                                {userAvatar ? (
-                                    <img src={userAvatar} alt="User Profile" className="w-full h-full object-cover relative z-10" />
-                                ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-40"><User size={40} /></div>
-                                )}
-                                <input type="file" accept="image/*" onChange={handleAvatarUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" title="Definir Foto de Perfil" />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-300 z-20 backdrop-blur-sm">
-                                    <Camera size={24} className="text-white mb-2" />
-                                    <span className="text-[8px] font-mono tracking-widest text-white uppercase font-bold text-center px-2">Atualizar<br />Foto</span>
+                        {/* Identity Area */}
+                        <ScrollReveal delay={0.1} className="flex flex-col items-center mb-8 w-full relative z-10 px-4 mt-4">
+                            {/* Avatar */}
+                            <div className="relative mb-5">
+                                <div className="w-24 h-[104px] rounded-[28px] overflow-hidden relative group cursor-pointer transition-transform duration-300 hover:scale-[1.03]" style={{ backgroundColor: 'var(--glass-bg)', border: '2px solid var(--border-color)' }}>
+                                    {!userAvatar && <div className="absolute inset-0 bg-gradient-to-br from-zinc-400/10 to-zinc-600/10" />}
+                                    {userAvatar ? (
+                                        <img src={userAvatar} alt="Profile" className="w-full h-full object-cover relative z-10" />
+                                    ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-30"><User size={36} /></div>
+                                    )}
+                                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" title="Foto de Perfil" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-300 z-20 backdrop-blur-sm rounded-[28px]">
+                                        <Camera size={20} className="text-white mb-1.5" />
+                                        <span className="text-[7px] font-mono tracking-widest text-white uppercase font-bold">Alterar</span>
+                                    </div>
                                 </div>
-                                <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-3xl pointer-events-none z-20" />
+                                {/* Rank color ring indicator */}
+                                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-outfit font-black z-30" style={{ backgroundColor: userStats.rankColor || '#ef4444', color: '#fff', boxShadow: `0 0 12px ${userStats.rankColor || '#ef4444'}40` }}>
+                                    {userStats.rank}
+                                </div>
                             </div>
 
-                            <div className="relative mb-2 group w-full max-w-[280px]">
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 transition-opacity"><Pencil size={14} /></div>
+                            {/* Name Input */}
+                            <div className="relative mb-1 group w-full max-w-[260px]">
                                 <input
                                     type="text"
                                     placeholder="INSERIR NOME"
                                     value={userName}
                                     onChange={(e) => setUserName(e.target.value)}
                                     onBlur={handleUserNameSave}
-                                    className="w-full text-3xl font-syncopate font-black tracking-widest text-[var(--text-main)] shadow-sm text-center bg-transparent border-b-2 border-transparent hover:border-current/20 focus:border-[#22c55e] transition-colors focus:outline-none uppercase placeholder:opacity-30"
+                                    className="w-full text-xl font-outfit font-black tracking-wide text-[var(--text-main)] text-center bg-transparent border-b-2 border-transparent hover:border-current/10 focus:border-[var(--text-main)] transition-colors focus:outline-none uppercase placeholder:opacity-20 placeholder:text-sm"
                                 />
                             </div>
 
-                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-current/5 border border-current/10 mb-6 backdrop-blur-md text-[10px] font-mono tracking-widest font-bold uppercase opacity-80 mt-2">
-                                <span>#0000-KRS</span>
-                                <Fingerprint size={12} className="opacity-50" />
+                            {/* Agent ID */}
+                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-current/5 border border-current/5 mb-5 mt-2">
+                                <span className="text-[8px] font-mono tracking-[0.2em] font-semibold uppercase opacity-40">#0000-KRS</span>
+                                <Fingerprint size={10} className="opacity-30" />
                             </div>
 
-                            <div className="w-full max-w-[280px] flex flex-col items-start gap-2 mb-8">
-                                <span className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                                    RANK {userStats.rank} <span className="opacity-40">{"// " + userStats.rankTitle}</span>
-                                </span>
-                                <div className="w-full flex items-center gap-3">
-                                    <div className="flex-1 h-1.5 rounded-full bg-current/10 relative overflow-hidden border border-current/5">
-                                        <div className="absolute top-0 left-0 h-full rounded-full bg-current opacity-80" style={{ width: `${Math.min(100, Math.round(userStats.rankProgress || 0))}%` }} />
+                            {/* Rank Progress */}
+                            <div className="w-full max-w-[280px] flex flex-col gap-2 mb-6">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-50 flex items-center gap-1.5">
+                                        <span style={{ color: userStats.rankColor || '#ef4444' }}>{userStats.rank}</span>
+                                        <span className="opacity-40 font-normal">{userStats.rankTitle}</span>
+                                    </span>
+                                    <span className="text-[8px] font-mono font-bold opacity-30">{userStats.nextAt ? `→ ${userStats.nextAt} XP` : 'MAX'}</span>
+                                </div>
+                                <div className="w-full flex items-center gap-2.5">
+                                    <div className="flex-1 h-1.5 rounded-full bg-current/5 relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, Math.round(userStats.rankProgress || 0))}%`, backgroundColor: userStats.rankColor || '#ef4444' }} />
                                     </div>
-                                    <span className="text-[10px] font-mono font-bold py-0.5 px-2 rounded-md bg-current/5 border border-current/10 opacity-70" style={{ color: 'var(--text-main)' }}>{userStats.kIndex}</span>
+                                    <span className="text-[9px] font-outfit font-bold py-0.5 px-2 rounded-lg shrink-0" style={{ backgroundColor: `${userStats.rankColor || '#ef4444'}15`, color: userStats.rankColor || '#ef4444' }}>{userStats.kIndex}</span>
                                 </div>
                             </div>
 
-                            <div className="w-full max-w-[320px] grid grid-cols-3 gap-3">
-                                <div className="flex flex-col items-center p-3 rounded-2xl border border-current/5 bg-current/5">
-                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                        <Zap size={14} className="text-[#38bdf8] drop-shadow-[0_0_5px_#38bdf8]" />
-                                        <span className="font-space font-black text-lg">{userStats.xp}</span>
-                                    </div>
-                                    <span className="text-[8px] font-mono uppercase tracking-widest opacity-40 text-center leading-tight">Pontos<br />XP</span>
+                            {/* Stats Grid */}
+                            <div className="w-full max-w-[320px] grid grid-cols-3 gap-2.5">
+                                <div className="flex flex-col items-center p-3.5 rounded-[20px] border border-current/5 bg-current/[.02]">
+                                    <Zap size={13} strokeWidth={2} className="text-[#38bdf8] mb-1.5" />
+                                    <span className="font-outfit font-black text-lg leading-none mb-1">{userStats.xp}</span>
+                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">Pontos XP</span>
                                 </div>
-                                <div className="flex flex-col items-center p-3 rounded-2xl border border-current/5 bg-current/5">
-                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                        <Activity size={14} className="text-[#ffca28] drop-shadow-[0_0_5px_#ffca28]" />
-                                        <span className="font-space font-black text-lg">{userStats.streak}</span>
-                                    </div>
-                                    <span className="text-[8px] font-mono uppercase tracking-widest opacity-40 text-center leading-tight">Dias<br />Streak</span>
+                                <div className="flex flex-col items-center p-3.5 rounded-[20px] border border-current/5 bg-current/[.02]">
+                                    <Activity size={13} strokeWidth={2} className="text-[#f59e0b] mb-1.5" />
+                                    <span className="font-outfit font-black text-lg leading-none mb-1">{userStats.streak}</span>
+                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">Dias Streak</span>
                                 </div>
-                                <div className="flex flex-col items-center p-3 rounded-2xl border border-current/5 bg-current/5">
-                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                        <Hexagon size={14} fill="#a855f7" className="text-white drop-shadow-[0_0_5px_#a855f7]" />
-                                        <span className="font-space font-black text-lg">{userStats.rank_index}</span>
-                                    </div>
-                                    <span className="text-[8px] font-mono uppercase tracking-widest opacity-40 text-center leading-tight">Índice<br />Rank</span>
+                                <div className="flex flex-col items-center p-3.5 rounded-[20px] border border-current/5 bg-current/[.02]">
+                                    <Hexagon size={13} strokeWidth={2} className="mb-1.5" style={{ color: userStats.rankColor || '#ef4444' }} />
+                                    <span className="font-outfit font-black text-lg leading-none mb-1">{userStats.rank_index}</span>
+                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">Índice Rank</span>
                                 </div>
                             </div>
                         </ScrollReveal>
 
-                        {/* Tabs Navigation */}
-                        <ScrollReveal delay={0.2} className="w-full px-6 flex items-center justify-start gap-6 border-b border-current/10 mb-8 relative z-10 font-syncopate text-[10px] font-bold uppercase tracking-widest">
-                            <button onClick={() => setActiveProfileTab('stats')} className={`pb-4 relative transition-colors duration-300 ${activeProfileTab === 'stats' ? 'text-[var(--text-main)]' : 'opacity-40 hover:opacity-100'}`}>
+                        {/* Tabs */}
+                        <ScrollReveal delay={0.2} className="w-full px-6 flex items-center justify-start gap-6 border-b border-current/5 mb-6 relative z-10">
+                            <button onClick={() => setActiveProfileTab('stats')} className={`pb-3 relative transition-colors duration-300 text-[10px] font-outfit font-bold uppercase tracking-widest ${activeProfileTab === 'stats' ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}>
                                 Estatísticas
-                                {activeProfileTab === 'stats' && <div className="absolute bottom-[-1px] left-0 w-full h-[3px] bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)] rounded-t-full" />}
+                                {activeProfileTab === 'stats' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] rounded-full" style={{ backgroundColor: userStats.rankColor || '#ef4444' }} />}
                             </button>
-                            <button onClick={() => setActiveProfileTab('achievements')} className={`pb-4 relative transition-colors duration-300 ${activeProfileTab === 'achievements' ? 'text-[var(--text-main)]' : 'opacity-40 hover:opacity-100'}`}>
+                            <button onClick={() => setActiveProfileTab('achievements')} className={`pb-3 relative transition-colors duration-300 text-[10px] font-outfit font-bold uppercase tracking-widest ${activeProfileTab === 'achievements' ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}>
                                 Conquistas
-                                {activeProfileTab === 'achievements' && <div className="absolute bottom-[-1px] left-0 w-full h-[3px] bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)] rounded-t-full" />}
+                                {activeProfileTab === 'achievements' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] rounded-full" style={{ backgroundColor: userStats.rankColor || '#ef4444' }} />}
                             </button>
                         </ScrollReveal>
 
-                        {/* Content Tabs */}
-                        <div className="relative w-full">
+                        {/* Content */}
+                        <div className="relative w-full px-4">
                             {/* Stats Tab */}
                             <div className={`transition-all duration-500 ${activeProfileTab === 'stats' ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
+                                {/* Classification Card */}
+                                <div className="flex items-center justify-between mb-3 px-0.5 pt-2">
+                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Rank & Status</span>
+                                </div>
                                 <ScrollReveal delay={0.25}>
                                     <button
                                         onClick={() => setIsViewingRanks(true)}
-                                        className="w-full text-left p-8 rounded-[40px] mb-4 relative overflow-hidden group transition-all duration-500 backdrop-blur-2xl block hover:-translate-y-1"
-                                        style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', boxShadow: 'var(--glass-shadow)', border: '1px solid var(--border-color)' }}
+                                        className="w-full text-left p-6 rounded-[28px] mb-3 relative overflow-hidden group transition-all duration-300 block hover:scale-[1.01] active:scale-[0.99]"
+                                        style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                                     >
-                                        <div className="absolute top-8 right-8 opacity-20 group-hover:opacity-60 group-hover:translate-x-1 transition-all" style={{ color: 'var(--text-main)' }}><ChevronRight size={20} /></div>
-                                        <div className="flex justify-between items-center mb-10 relative z-10">
+                                        <ChevronRight size={16} strokeWidth={1.5} className="absolute top-6 right-6 opacity-15 group-hover:opacity-40 group-hover:translate-x-0.5 transition-all" />
+                                        <div className="flex justify-between items-center mb-8 relative z-10">
                                             <div>
-                                                <h3 className="text-[10px] font-mono font-bold opacity-30 tracking-[0.6em] uppercase mb-4">Classificação</h3>
-                                                <div className="flex items-baseline relative mt-2">
-                                                    <span 
-                                                        className="text-7xl font-outfit font-black tracking-tighter"
-                                                        style={{ 
-                                                            color: userStats.rank === 'Ø' ? 'var(--text-main)' : '#a855f7',
-                                                            filter: userStats.rank === 'Ø' ? 'drop-shadow(0 0 15px var(--text-main))' : 'drop-shadow(0 0 15px rgba(168,85,247,0.4))'
-                                                        }}
-                                                    >
-                                                        {userStats.rank}
-                                                    </span>
-                                                </div>
+                                                <h3 className="text-[8px] font-mono font-bold opacity-25 tracking-[0.3em] uppercase mb-3">Classificação</h3>
+                                                <span 
+                                                    className="text-6xl font-outfit font-black tracking-tight block"
+                                                    style={{ 
+                                                        color: userStats.rankColor || 'var(--text-main)',
+                                                        filter: `drop-shadow(0 0 20px ${userStats.rankColor || 'var(--text-main)'}30)`
+                                                    }}
+                                                >
+                                                    {userStats.rank}
+                                                </span>
                                             </div>
-                                            <div className="relative w-24 h-24 flex items-center justify-center mr-6">
-                                                <div className="absolute w-full h-full rounded-full border opacity-10" style={{ borderColor: 'var(--text-main)' }} />
-                                                <div className="absolute w-[85%] h-[85%] rounded-full border opacity-40 group-hover:rotate-45 transition-transform duration-700" style={{ borderColor: 'var(--text-main)' }} />
-                                                <User size={34} className="opacity-90 relative z-10" />
+                                            <div className="relative w-20 h-20 flex items-center justify-center">
+                                                <div className="absolute w-full h-full rounded-full border opacity-8" style={{ borderColor: 'var(--text-main)' }} />
+                                                <div className="absolute w-[80%] h-[80%] rounded-full border opacity-20 group-hover:rotate-90 transition-transform duration-1000" style={{ borderColor: userStats.rankColor || '#ef4444' }} />
+                                                <User size={28} className="opacity-60 relative z-10" />
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 border-t pt-6 relative z-10" style={{ borderColor: 'var(--border-color)' }}>
+                                        <div className="grid grid-cols-2 gap-4 border-t pt-5 relative z-10" style={{ borderColor: 'var(--border-color)' }}>
                                             <div>
-                                                <span className="text-[8px] font-mono font-bold opacity-30 uppercase tracking-[0.3em] block mb-2">K-Index_Atual</span>
-                                                <span className="text-2xl font-space font-black">{userStats.kIndex}</span>
+                                                <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-1.5">K-Index</span>
+                                                <span className="text-xl font-outfit font-black">{userStats.kIndex}</span>
                                             </div>
-                                            <div className="text-right pr-6">
-                                                <span className="text-[8px] font-mono font-bold opacity-30 uppercase tracking-[0.3em] block mb-2">Status</span>
-                                                <span className="text-2xl font-space font-black uppercase tracking-wider opacity-80">ESTÁVEL</span>
+                                            <div className="text-right">
+                                                <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-1.5">Status</span>
+                                                <span className="text-xl font-outfit font-black uppercase tracking-wide" style={{ color: userStats.rankColor || '#ef4444', opacity: 0.85 }}>{userStats.rankStatus || 'CRÍTICO'}</span>
                                             </div>
                                         </div>
                                     </button>
                                 </ScrollReveal>
 
+                                {/* Global Ranking Button */}
+                                <div className="flex items-center justify-between mb-3 mt-6 px-0.5">
+                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Comunidade</span>
+                                </div>
                                 <ScrollReveal delay={0.3}>
                                     <button
                                         onClick={() => setIsViewingGlobalRanking(true)}
-                                        className="w-full mb-8 p-5 rounded-3xl flex justify-between items-center group transition-all duration-500 backdrop-blur-md border hover:-translate-y-1"
-                                        style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', boxShadow: 'var(--glass-shadow)', border: '1px solid var(--border-color)' }}
+                                        className="w-full mb-3 p-4 rounded-[28px] flex justify-between items-center group transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+                                        style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-[#ffca28]/10 border border-[#ffca28]/30 flex items-center justify-center shadow-[0_0_15px_rgba(255,202,40,0.15)]"><Medal size={20} className="text-[#ffca28]" /></div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-[#f59e0b]/8 border border-[#f59e0b]/15 flex items-center justify-center"><Medal size={18} strokeWidth={1.5} className="text-[#f59e0b]" /></div>
                                             <div className="flex flex-col text-left">
-                                                <span className="text-[12px] font-syncopate font-bold uppercase tracking-widest text-[#ffca28]">Ranking Global</span>
-                                                <span className="text-[9px] font-mono opacity-50 uppercase tracking-widest mt-0.5">Ranking Global & Amigos</span>
+                                                <span className="text-[11px] font-outfit font-bold uppercase tracking-wider text-[#f59e0b]">Ranking Global</span>
+                                                <span className="text-[8px] font-mono opacity-35 uppercase tracking-wider mt-0.5">Posição & Amigos</span>
                                             </div>
                                         </div>
-                                        <ChevronRight size={18} className="opacity-40" />
+                                        <ChevronRight size={16} className="opacity-20 group-hover:opacity-50 transition-opacity" />
                                     </button>
                                 </ScrollReveal>
 
-
-
+                                {/* Mentor Card */}
+                                <div className="flex items-center justify-between mb-3 mt-6 px-0.5">
+                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Mentor Interior</span>
+                                </div>
                                 <ScrollReveal delay={0.4}>
                                     <button
                                         onClick={() => setIsViewingMentors(true)}
-                                        className="w-full text-left p-8 rounded-[32px] group relative overflow-hidden mb-6 transition-all duration-500 block hover:-translate-y-1"
-                                        style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', boxShadow: 'var(--glass-shadow)', border: '1px solid var(--border-color)' }}
+                                        className="w-full text-left p-6 rounded-[28px] group relative overflow-hidden mb-4 transition-all duration-300 block hover:scale-[1.01] active:scale-[0.99]"
+                                        style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                                     >
-                                        <div className="absolute top-8 right-8 opacity-20"><ChevronRight size={20} /></div>
-                                        <h4 className="font-syncopate text-lg font-black tracking-wider uppercase">{activeMentor.name}</h4>
-                                        <span className="text-[8px] font-mono opacity-40 uppercase tracking-[0.2em] mt-1 block">ESTILO // {activeMentor.style}</span>
-                                        <p className="text-[11px] font-mono leading-relaxed opacity-60 my-6 uppercase tracking-wider">{activeMentor.profile}</p>
-                                        <div className="w-full h-12 rounded-full border flex items-center justify-center opacity-70" style={{ borderColor: 'var(--border-color)' }}>
-                                            <span className="text-[9px] font-mono tracking-[0.5em] uppercase">CONFIGURAR_MENTOR</span>
+                                        <ChevronRight size={16} strokeWidth={1.5} className="absolute top-6 right-6 opacity-15 group-hover:opacity-40 transition-opacity" />
+                                        <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-2">Mentor Ativo</span>
+                                        <h4 className="font-outfit text-base font-black tracking-wide uppercase">{activeMentor.name}</h4>
+                                        <span className="text-[8px] font-mono opacity-30 uppercase tracking-wider mt-0.5 block">{activeMentor.style}</span>
+                                        <p className="text-[10px] font-mono leading-relaxed opacity-40 my-4 line-clamp-2">{activeMentor.profile}</p>
+                                        <div className="w-full h-10 rounded-2xl border flex items-center justify-center opacity-50 hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--border-color)' }}>
+                                            <span className="text-[8px] font-mono tracking-[0.3em] uppercase font-semibold">Configurar</span>
                                         </div>
                                     </button>
                                 </ScrollReveal>
                             </div>
 
-                            {/* Achievements Tab */}
-                            <div className={`transition-all duration-500 ${activeProfileTab === 'achievements' ? 'opacity-100 block' : 'opacity-0 hidden'} px-6`}>
-                                <div className="text-center text-[10px] font-mono tracking-widest font-bold uppercase opacity-50 mb-10 pt-4">
-                                    Conquistas {achievementsData.completedCount}/{achievementsData.total}
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {achievementsData.all.length > 0 ? achievementsData.all.map((ach, idx) => (
-                                        <ScrollReveal key={ach.id} delay={0.1 + (idx * 0.02)}
-                                            className={`h-44 rounded-3xl border flex flex-col items-center justify-center gap-3 transition-all duration-500
-                                                ${ach.unlocked
-                                                    ? 'border-[#22c55e]/30 bg-[#22c55e]/5 opacity-100 shadow-[0_0_20px_rgba(34,197,94,0.1)]'
-                                                    : 'border-current/10 bg-current/5 opacity-40 hover:opacity-60'
-                                                }`}
-                                        >
-                                            <span className="text-3xl">{ach.icon || '🏆'}</span>
-                                            <span className={`text-[9px] font-syncopate font-bold uppercase tracking-widest text-center px-2 leading-tight ${ach.unlocked ? 'opacity-100' : 'opacity-60'}`}>
-                                                {ach.title}
-                                            </span>
-                                            <span className="text-[7px] font-mono opacity-40 text-center px-3 leading-relaxed">
-                                                {ach.unlocked ? ach.description : '???'}
-                                            </span>
-                                            {ach.unlocked && ach.xp_reward > 0 && (
-                                                <span className="text-[8px] font-mono font-bold text-[#22c55e]">+{ach.xp_reward} XP</span>
-                                            )}
-                                        </ScrollReveal>
-                                    )) : Array.from({ length: 25 }).map((_, idx) => (
-                                        <ScrollReveal key={idx} delay={0.1 + (idx * 0.02)} className="h-44 rounded-3xl border border-current/10 bg-current/5 flex flex-col items-center justify-center gap-4 opacity-40 hover:opacity-60 transition-opacity">
-                                            <Award size={32} />
-                                            <span className="text-[8px] font-syncopate font-bold uppercase tracking-widest text-center mt-2 px-2">Bloqueado<br />{String(idx + 1).padStart(2, '0')}</span>
-                                        </ScrollReveal>
-                                    ))}
-                                </div>
+                            {/* Achievements Tab · Cartas de Evolução */}
+                            <div className={`transition-all duration-500 ${activeProfileTab === 'achievements' ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
+                                {(() => {
+                                    const achAll = achievementsData.all || [];
+                                    const achTotal = achievementsData.total || achAll.length;
+                                    const achDone = achievementsData.completedCount ?? achAll.filter(a => a.unlocked).length;
+                                    const achXp = achAll.filter(a => a.unlocked).reduce((s, a) => s + (a.xp_reward || 0), 0);
+                                    const achPct = achTotal > 0 ? Math.round((achDone / achTotal) * 100) : 0;
+                                    return (
+                                        <>
+                                            {/* ── Resumo · conquistas + XP ── */}
+                                            <div className="grid grid-cols-2 gap-2.5 mb-5 pt-2">
+                                                <div className="rounded-2xl border p-3.5 flex flex-col items-center text-center" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                                                    <span className="font-outfit font-black text-xl leading-none mb-1" style={{ color: '#10B981' }}>{achDone}<span className="opacity-30 text-sm">/{achTotal}</span></span>
+                                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-35">Conquistas</span>
+                                                </div>
+                                                <div className="rounded-2xl border p-3.5 flex flex-col items-center text-center" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                                                    <span className="font-outfit font-black text-xl leading-none mb-1">{achXp.toLocaleString('pt-BR')}</span>
+                                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-35">XP de Conquistas</span>
+                                                </div>
+                                            </div>
+
+                                            {/* ══ SEÇÃO · CONQUISTAS (badges reais) ══ */}
+                                            <div className="flex items-center justify-between mb-3 px-0.5">
+                                                <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Conquistas</span>
+                                                <span className="text-[8px] font-mono tabular-nums opacity-30">{achPct}% completo</span>
+                                            </div>
+                                            {/* Barra de progresso global das conquistas */}
+                                            <div className="h-[3px] rounded-full bg-current/10 overflow-hidden mb-5">
+                                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${achPct}%`, backgroundColor: '#10B981' }} />
+                                            </div>
+                                            <OrvaxAchievementBadges achievements={achAll} />
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
 

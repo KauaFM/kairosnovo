@@ -1,0 +1,435 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Clock, CheckCircle2, X, Activity, Brain, Target, Zap, ChevronRight, Plus, Dumbbell, BookOpen, Users, Timer, Flame, Trash2, BellRing } from 'lucide-react';
+import { getTasks, updateTaskState, createTask, deleteTask } from '../../../services/db';
+import { listHabitsWithTodayStatus, checkInHabit, deleteHabit, undoCheckInHabit } from '../../../services/habits';
+import { appEvents } from '../../../lib/events';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface ExecutionItem {
+  id: string | number;
+  time: string;
+  title: string;
+  type: 'T' | 'H' | 'G'; // Task, Habit, Goal
+  status: 'pending' | 'done' | 'failed' | 'active';
+  category?: string;
+  raw: any;
+}
+
+export function ExecutionBoard() {
+  const [items, setItems] = useState<ExecutionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', time_start: '09:00', category: 'FOCO', duration: '1h', is_important: false });
+
+  const fetchBoard = useCallback(async () => {
+    setLoading(true);
+    const toLocalDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    
+    // 1. Fetch Tasks for today
+    const tasks = await getTasks(toLocalDateStr());
+    
+    // 2. Fetch Habits with today status
+    const habits = await listHabitsWithTodayStatus();
+
+    // Map Tasks
+    const mappedTasks: ExecutionItem[] = tasks.map((t: any) => ({
+      id: `task_${t.id}`,
+      time: t.time_start || '--:--',
+      title: t.title,
+      type: 'T',
+      status: t.state === 'done' ? 'done' : t.state === 'failed' ? 'failed' : t.state === 'active' ? 'active' : 'pending',
+      category: t.category,
+      raw: t
+    }));
+
+    // Map Habits
+    const mappedHabits: ExecutionItem[] = habits.map((h: any) => ({
+      id: `habit_${h.id}`,
+      time: h.cue || '--:--', // Habits often have cue like "08:00" or just a text
+      title: h.title,
+      type: 'H',
+      status: h.doneToday ? 'done' : 'pending',
+      category: h.pillar || 'hábito',
+      raw: h
+    }));
+
+    // Merge and sort
+    // Sort logic: First by time (if standard HH:mm format), then 'DIÁRIO' or '--:--' at the top/bottom.
+    // For now, let's just sort by time string roughly, but put done items at the bottom.
+    const all = [...mappedTasks, ...mappedHabits].sort((a, b) => {
+      if (a.status === 'done' && b.status !== 'done') return 1;
+      if (b.status === 'done' && a.status !== 'done') return -1;
+      return a.time.localeCompare(b.time);
+    });
+
+    setItems(all);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchBoard();
+    const unsub = appEvents.subscribe(() => {
+      fetchBoard();
+    });
+    return unsub;
+  }, [fetchBoard]);
+
+  const handleToggle = async (item: ExecutionItem) => {
+    // Para evitar conflito de cliques rápidos, calculamos o próximo estado com base no item recebido.
+    // O Optimistic Update cuida da UI imediata.
+    if (item.type === 'T') {
+      let nextState = 'done';
+      if (item.status === 'done') nextState = 'failed';
+      else if (item.status === 'failed') nextState = 'pending';
+      else if (item.status === 'active') nextState = 'done';
+      
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: nextState as any } : i));
+      await updateTaskState(item.raw.id, nextState);
+      
+    } else if (item.type === 'H') {
+      if (item.status !== 'done') {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done' } : i));
+        await checkInHabit(item.raw.id, { quality: 3 });
+      } else {
+        // Hábito estava concluído e o usuário clicou de novo (Desfazer)
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'pending' } : i));
+        await undoCheckInHabit(item.raw.id);
+      }
+    }
+  };
+
+  const handleAddTask = async () => {
+    if (!newTask.title) return;
+    const toLocalDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    await createTask({ ...newTask, scheduled_date: toLocalDateStr() });
+    setNewTask({ title: '', time_start: '09:00', category: 'FOCO', duration: '1h', is_important: false });
+    setShowAddTask(false);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, item: ExecutionItem) => {
+    e.stopPropagation();
+    const msg = item.type === 'T' 
+      ? 'Abortar e remover permanentemente esta tarefa?' 
+      : 'ATENÇÃO: Isso deletará permanentemente este HÁBITO de todo o seu sistema. Continuar?';
+      
+    if (window.confirm(msg)) {
+      // Optimistic Update
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      if (item.type === 'T') {
+        await deleteTask(item.raw.id);
+      } else {
+        await deleteHabit(item.raw.id);
+      }
+    }
+  };
+
+  const doneCount = items.filter(i => i.status === 'done').length;
+  const progress = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0;
+  const missingCount = items.length - doneCount;
+
+  // Insight generator
+  let insight = "SISTEMA INICIADO. EXECUTE SUAS DIRETRIZES.";
+  if (progress === 100) insight = "EXECUÇÃO PERFEITA. PROTOCOLO CONCLUÍDO.";
+  else if (progress > 50) insight = "PROGRESSO SÓLIDO. MANTENHA O RITMO.";
+  else if (progress > 0) insight = "TRABALHO INICIADO. FOCO NO PRÓXIMO BLOCO.";
+
+  return (
+    <div className="animate-in fade-in duration-500 pb-20">
+      
+      {/* HEADER: Date, Progress, Insight */}
+      <div className="px-6 mb-8 mt-2">
+        <div className="glass-panel rounded-[24px] p-6 border border-current/10 relative overflow-hidden">
+          {/* Progress BG */}
+          <div 
+            className="absolute left-0 top-0 bottom-0 bg-[var(--orvax-green)]/10 transition-all duration-1000 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+          
+          <div className="relative z-10 flex flex-col gap-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <h3 className="text-[10px] font-mono tracking-widest uppercase opacity-50 mb-1">
+                  {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                </h3>
+                <div className="text-3xl font-syncopate font-black tracking-widest text-glow">
+                  {progress}%
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-mono tracking-widest uppercase opacity-40">Status</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <Activity size={14} className={progress > 0 ? "text-[var(--orvax-green)]" : "opacity-40"} />
+                  <span className="text-[12px] font-space font-bold uppercase">{doneCount}/{items.length}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-current/[0.03] border border-current/10 rounded-xl p-3 flex items-center gap-3">
+              <Zap size={14} className="text-yellow-500 shrink-0" />
+              <span className="text-[9px] font-mono uppercase tracking-widest font-bold opacity-80 leading-relaxed">
+                {insight}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ADD TASK FORM */}
+      <div className="px-6 mb-8">
+        <AnimatePresence mode="wait">
+          {!showAddTask ? (
+            <motion.button 
+              key="add-btn"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddTask(true)}
+              className="w-full py-5 rounded-[24px] border border-dashed border-current/20 flex items-center justify-center gap-3 text-[10px] font-syncopate font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 hover:border-current/40 transition-all bg-current/[0.02]"
+            >
+              <Plus size={16} /> Nova Diretriz Operacional
+            </motion.button>
+          ) : (
+            <motion.div 
+              key="add-form"
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 5, scale: 0.99 }}
+              className="glass-panel p-6 md:p-8 rounded-[32px] border border-current/10 shadow-2xl relative overflow-hidden bg-zinc-50 dark:bg-[#050507]"
+            >
+              <div className="absolute inset-0 bg-current opacity-[0.01] pointer-events-none"></div>
+              <div className="relative z-10">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90">Registro Operacional</h3>
+                  <Clock size={16} className="opacity-20" />
+                </div>
+                
+                <div className="flex flex-col gap-6 md:gap-8">
+                  {/* Título */}
+                  <div className="flex flex-col gap-3 relative">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target size={12} className="opacity-40" />
+                      <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Diretriz Primária (Título)</label>
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="EX: TREINO DE ALTA PERFORMANCE" 
+                      className="w-full bg-current/[0.03] border border-current/10 p-4 md:p-5 rounded-[22px] text-xs md:text-sm font-syncopate font-black outline-none focus:border-current/50 focus:bg-current/5 transition-all uppercase placeholder:opacity-30 tracking-widest text-current"
+                      value={newTask.title}
+                      onChange={e => setNewTask({...newTask, title: e.target.value})}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-2">
+                    {/* Categoria */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Flame size={12} className="opacity-40" />
+                        <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Vetor (Categoria)</label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'FOCO', icon: Brain },
+                          { id: 'TREINO', icon: Dumbbell },
+                          { id: 'ESTUDO', icon: BookOpen },
+                          { id: 'SOCIAL', icon: Users }
+                        ].map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setNewTask({...newTask, category: cat.id})}
+                            className={`flex flex-col items-start gap-2 p-3 md:p-4 text-[9px] font-syncopate font-bold rounded-[20px] transition-all duration-300 tracking-widest border ${
+                              newTask.category === cat.id 
+                              ? 'shadow-lg scale-[1.02] bg-[var(--text-main)] text-[var(--bg-color)] border-[var(--text-main)]' 
+                              : 'bg-current/[0.02] border-current/10 opacity-60 hover:opacity-100 hover:bg-current/10 text-current'
+                            }`}
+                          >
+                            <cat.icon size={16} className={newTask.category === cat.id ? 'opacity-100' : 'opacity-40'} />
+                            <span>{cat.id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cronograma & Duração */}
+                    <div className="flex flex-col gap-6">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock size={12} className="opacity-40" />
+                          <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Horário de Início</label>
+                        </div>
+                        <input 
+                          type="time" 
+                          className="w-full bg-current/[0.03] border border-current/10 py-3 md:py-4 px-5 rounded-[20px] text-sm font-space font-black outline-none focus:border-current/40 transition-all uppercase tracking-widest text-current"
+                          value={newTask.time_start}
+                          onChange={e => setNewTask({...newTask, time_start: e.target.value})}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Timer size={12} className="opacity-40" />
+                          <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Bloco de Duração</label>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {['15m', '30m', '1h', '2h+'].map((dur) => {
+                            const currentDur = newTask.duration || '1h';
+                            return (
+                              <button
+                                key={dur}
+                                type="button"
+                                onClick={() => setNewTask({...newTask, duration: dur})}
+                                className={`py-3 text-[10px] font-space font-bold rounded-[16px] transition-all duration-300 border ${
+                                  currentDur === dur 
+                                  ? 'bg-[var(--orvax-green)]/10 border-[var(--orvax-green)]/40 text-[var(--orvax-green)] shadow-inner' 
+                                  : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
+                                }`}
+                              >
+                                {dur}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Priority Toggle */}
+                  <div className="pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewTask({...newTask, is_important: !newTask.is_important})}
+                      className={`w-full flex items-center justify-center gap-3 py-4 rounded-[20px] transition-all border font-syncopate font-bold uppercase tracking-widest text-[9px] md:text-[10px] ${
+                        newTask.is_important
+                        ? 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                        : 'border-current/10 bg-current/[0.02] opacity-50 hover:opacity-100 text-current'
+                      }`}
+                    >
+                      <BellRing size={14} className={newTask.is_important ? "animate-pulse" : ""} />
+                      {newTask.is_important ? "Prioridade Máxima Ativada" : "Marcar como Prioridade (Alerta)"}
+                    </button>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-6 border-t border-current/10">
+                    <button 
+                      onClick={handleAddTask} 
+                      className="flex-[2] py-4 md:py-5 rounded-[20px] text-[10px] md:text-[11px] font-syncopate font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:brightness-110 bg-[var(--text-main)] text-[var(--bg-color)]"
+                    >
+                      Protocolar DIRETRIZ
+                    </button>
+                    <button
+                      onClick={() => setShowAddTask(false)}
+                      className="flex-1 py-4 md:py-5 border border-current/20 rounded-[20px] opacity-60 text-[9px] md:text-[10px] font-mono uppercase tracking-widest hover:opacity-100 hover:bg-current/10 transition-all text-current"
+                    >
+                      Abortar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* SECTIONS */}
+      <div className="px-6 mb-6">
+        <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-4 px-2">Timeline de Execução</h4>
+        
+        <div className="flex flex-col gap-6 relative">
+          {/* Vertical Line */}
+          <div className="absolute left-[79px] md:left-[87px] top-4 bottom-8 w-[1px] border-l-2 border-dashed border-current/10 z-0" />
+
+          {loading && items.length === 0 ? (
+            <div className="py-10 text-center opacity-40 text-[10px] font-mono uppercase">Sincronizando Matriz...</div>
+          ) : items.length === 0 ? (
+            <div className="py-10 text-center opacity-40 text-[10px] font-mono uppercase">Nenhuma diretriz ativa hoje.</div>
+          ) : (
+            items.map((item, idx) => {
+              const isDone = item.status === 'done';
+              const isFailed = item.status === 'failed';
+              const isActive = item.status === 'active';
+
+              // Parse time format
+              const timeStr = item.time && item.time.includes(':') ? item.time : '--:--';
+              const [hour, minute] = timeStr.split(':');
+
+              return (
+                <div key={item.id} className="relative z-10 flex gap-4 md:gap-6 group items-start">
+                  
+                  {/* Time / Left col (Blog style date) */}
+                  <div className="w-12 md:w-16 flex flex-col items-center shrink-0 pt-1 z-10 bg-[var(--bg-color)]">
+                    <span className={`text-3xl md:text-4xl font-black font-space leading-none tracking-tighter ${isDone ? 'opacity-30' : 'text-zinc-900 dark:text-white'}`}>
+                      {hour}
+                    </span>
+                    <span className={`text-[8px] md:text-[10px] font-mono font-bold tracking-[0.3em] uppercase mt-1 ${isDone ? 'opacity-20' : 'opacity-40'}`}>
+                      {minute}
+                    </span>
+                  </div>
+
+                  {/* Node */}
+                  <div 
+                    className="relative flex flex-col items-center mt-2.5 shrink-0 cursor-pointer bg-[var(--bg-color)] py-2"
+                    onClick={() => handleToggle(item)}
+                  >
+                    <div className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                      isDone ? 'bg-[#22c55e] border-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.4)]' :
+                      isFailed ? 'bg-red-500 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]' :
+                      isActive ? 'border-[var(--orvax-green)] bg-[var(--orvax-green)]/10 shadow-[0_0_8px_var(--orvax-green)]' :
+                      'border-current/20 bg-[var(--bg-color)] hover:border-current/60'
+                    }`}>
+                      {isDone ? <CheckCircle2 size={12} className="text-white" /> : 
+                       isFailed ? <X size={12} className="text-white" /> :
+                       isActive ? <div className="w-2 h-2 bg-[var(--orvax-green)] rounded-full animate-pulse" /> :
+                       <div className="w-1.5 h-1.5 rounded-full bg-current/20 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                    </div>
+                  </div>
+
+                  {/* Card */}
+                  <div 
+                    onClick={() => handleToggle(item)}
+                    className={`flex-1 rounded-[20px] p-4 md:p-5 transition-all duration-300 cursor-pointer border ${
+                      isDone ? 'border-dashed border-current/10 opacity-50 bg-transparent' :
+                      isActive ? 'border-[var(--orvax-green)]/40 bg-[var(--orvax-green)]/[0.03] shadow-[0_0_15px_rgba(34,197,94,0.1)]' :
+                      isFailed ? 'border-red-500/20 bg-red-500/5' :
+                      item.raw.is_important ? 'border-red-500/40 bg-red-500/[0.03] shadow-[0_0_15px_rgba(239,68,68,0.05)]' :
+                      'border-current/10 bg-current/[0.02] hover:bg-current/[0.04] hover:border-current/20'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {item.raw.is_important && !isDone && (
+                          <span className="flex items-center gap-1 text-red-500 bg-red-500/10 px-2 py-0.5 rounded text-[7px] md:text-[8px] font-syncopate font-bold uppercase tracking-widest">
+                            <BellRing size={10} /> Alerta
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded text-[7px] md:text-[8px] font-syncopate font-bold uppercase tracking-widest ${isActive ? 'bg-[var(--orvax-green)] text-black' : 'bg-zinc-900 dark:bg-white text-white dark:text-black'}`}>
+                          {item.type === 'T' ? 'TAREFA' : 'HÁBITO'}
+                        </span>
+                        <span className={`text-[8px] font-mono uppercase tracking-[0.2em] font-bold ${isActive ? 'text-[var(--orvax-green)]' : 'opacity-40'}`}>
+                          {item.category || 'GERAL'}
+                        </span>
+                      </div>
+                      
+                      {/* Delete Button (Visible for all) */}
+                      <button 
+                        onClick={(e) => handleDelete(e, item)}
+                        className="opacity-40 hover:opacity-100 transition-opacity p-2 text-red-500 rounded-full hover:bg-red-500/10 active:scale-95"
+                        title="Remover Registro"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <h3 className={`text-xs md:text-sm font-syncopate tracking-wider uppercase font-bold ${isDone ? 'line-through decoration-current/30' : ''}`}>
+                      {item.title}
+                    </h3>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+}

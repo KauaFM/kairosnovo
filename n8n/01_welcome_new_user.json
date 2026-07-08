@@ -1,0 +1,129 @@
+{
+  "name": "ORVAX - Welcome New User",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "orvax-welcome",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook (Supabase trigger)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "orvax-welcome"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-email",
+              "leftValue": "={{ $json.body.record.email }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "validate-node",
+      "name": "Validar payload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/goals",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Webhook (Supabase trigger)').item.json.body.record.id }}\",\n  \"title\": \"Meta inicial: formar 1 hábito em 7 dias\",\n  \"description\": \"Gerada automaticamente no cadastro. Edite ou exclua quando quiser.\",\n  \"progress\": 0,\n  \"deadline\": null,\n  \"status\": \"ativo\"\n}"
+      },
+      "id": "create-goal",
+      "name": "Criar meta inicial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/habits",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"user_id\": \"{{ $('Webhook (Supabase trigger)').item.json.body.record.id }}\",\n    \"title\": \"Beber água ao acordar\",\n    \"cue\": \"ao acordar\",\n    \"frequency\": \"daily\",\n    \"pillar\": \"energia\",\n    \"xp_reward\": 10\n  },\n  {\n    \"user_id\": \"{{ $('Webhook (Supabase trigger)').item.json.body.record.id }}\",\n    \"title\": \"Revisar metas do dia\",\n    \"cue\": \"depois do café\",\n    \"frequency\": \"daily\",\n    \"pillar\": \"disciplina\",\n    \"xp_reward\": 15\n  },\n  {\n    \"user_id\": \"{{ $('Webhook (Supabase trigger)').item.json.body.record.id }}\",\n    \"title\": \"Caminhar 10 minutos\",\n    \"cue\": \"fim da tarde\",\n    \"frequency\": \"daily\",\n    \"pillar\": \"energia\",\n    \"xp_reward\": 15\n  }\n]"
+      },
+      "id": "create-habits",
+      "name": "Criar 3 hábitos iniciais",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"user\": \"{{ $('Webhook (Supabase trigger)').item.json.body.record.email }}\" }"
+      },
+      "id": "respond",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": false, \"error\": \"missing email\" }",
+        "options": { "responseCode": 400 }
+      },
+      "id": "respond-error",
+      "name": "Responder erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [640, 500]
+    }
+  ],
+  "connections": {
+    "Webhook (Supabase trigger)": {
+      "main": [[{ "node": "Validar payload", "type": "main", "index": 0 }]]
+    },
+    "Validar payload": {
+      "main": [
+        [
+          { "node": "Criar meta inicial", "type": "main", "index": 0 },
+          { "node": "Criar 3 hábitos iniciais", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Responder erro", "type": "main", "index": 0 }]
+      ]
+    },
+    "Criar meta inicial": {
+      "main": [[{ "node": "Responder OK", "type": "main", "index": 0 }]]
+    },
+    "Criar 3 hábitos iniciais": {
+      "main": [[{ "node": "Responder OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveExecutionProgress": true },
+  "tags": [{ "name": "orvax" }, { "name": "onboarding" }]
+}

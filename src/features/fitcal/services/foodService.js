@@ -74,11 +74,22 @@ export async function searchFoods(query, limit = 20) {
 
   if (local && local.length > 0) return local;
 
-  // 2. Fallback: Open Food Facts (sem chave, gratuita)
+  // 2. Fallback: Open Food Facts (sem chave, gratuita) — filtra por produtos em português
   try {
-    const res = await fetch(
-      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&fields=code,product_name,brands,nutriments&lc=pt&cc=br&page_size=${limit}`
-    );
+    const params = new URLSearchParams({
+      search_terms: query,
+      search_simple: '1',
+      action: 'process',
+      json: '1',
+      fields: 'code,product_name,brands,nutriments',
+      lc: 'pt',
+      cc: 'br',
+      page_size: String(limit),
+      tagtype_0: 'languages',
+      tag_contains_0: 'contains',
+      tag_0: 'pt',
+    });
+    const res = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?${params}`);
     const json = await res.json();
     return (json.products || [])
       .filter(p => p.product_name && p.nutriments?.['energy-kcal_100g'] != null)

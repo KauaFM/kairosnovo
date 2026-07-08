@@ -1,42 +1,46 @@
 import React, { useEffect, useMemo } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { getRankFromXP } from '../services/db';
+import { getRankFromXP, RANK_DEFS as RANK_XP } from '../services/db';
 
-const RANK_DEFS = [
-    { id: 'E-', name: 'Fase de Inércia', desc: 'Sistemas offline. Operação meramente biológica.', real: 'Zero consistência. Decisões baseadas em impulsos imediatos.', minXP: 0, color: '#ef4444' },
-    { id: 'E', name: 'Observador Passivo', desc: 'Início da telemetria. Consciência do caos instalado.', real: 'Tentativas isoladas de organização sem sustentação.', minXP: 5, color: '#ef4444' },
-    { id: 'E+', name: 'Despertar Técnico', desc: 'Identificação de fricção cognitiva básica.', real: 'Primeiros logs no sistema. Intenção de mudança.', minXP: 15, color: '#f87171' },
+// [ORVAX] Descrições/realidade por rank — o minXP vem do db.js (fórmula doubling).
+const RANK_LORE = {
+    'E-':  { name: 'Fase de Inércia',          desc: 'Sistemas offline. Operação meramente biológica.',        real: 'Zero consistência. Decisões baseadas em impulsos imediatos.' },
+    'E':   { name: 'Observador Passivo',       desc: 'Início da telemetria. Consciência do caos instalado.',   real: 'Tentativas isoladas de organização sem sustentação.' },
+    'E+':  { name: 'Despertar Técnico',        desc: 'Identificação de fricção cognitiva básica.',             real: 'Primeiros logs no sistema. Intenção de mudança.' },
+    'D-':  { name: 'Iniciante Sistêmico',      desc: 'Fundação de rotina mínima (MVQ).',                       real: 'Execução de tarefas básicas em dias bons.' },
+    'D':   { name: 'Operador de Baixa Frequência', desc: 'Consistência de 20% atingida.',                      real: 'Primeiros sinais de disciplina forçada.' },
+    'D+':  { name: 'Candidato a Agente',       desc: 'Resistência ao piloto automático ativada.',              real: 'Manutenção de streak por 3-5 dias consecutivos.' },
+    'C-':  { name: 'Módulo de Estabilidade',   desc: 'Estruturação de blocos de tempo.',                       real: 'Menos desculpas, mais telemetria.' },
+    'C':   { name: 'Operador Disciplinado',    desc: 'Reset dopaminérgico em progresso.',                      real: 'O humor não dita mais a execução em 50% do tempo.' },
+    'C+':  { name: 'Técnico de Performance',   desc: 'Otimização de ambiente concluída.',                      real: 'Sistemas de suporte impedem a falha total.' },
+    'B-':  { name: 'Agente de Campo',          desc: 'Deep Work iniciado (1h diária).',                        real: 'Capacidade de foco sustentado sob pressão moderada.' },
+    'B':   { name: 'Agente KAIROS',            desc: 'Domínio de Core Nodes. Capital em expansão.',            real: 'Isolamento emocional e foco em resultados numéricos.' },
+    'B+':  { name: 'Agente Veterano',          desc: 'Sincronia neural estável. Alta resiliência.',            real: 'Consistência de 80% em todos os protocolos.' },
+    'A-':  { name: 'Especialista em Fluxo',    desc: 'Entrada rápida em estado de flow.',                      real: 'Eliminação quase total de distrações digitais.' },
+    'A':   { name: 'Elite Computacional',      desc: 'Execução de protocolos com baixa fricção.',              real: 'Alta performance é o estado base da consciência.' },
+    'A+':  { name: 'Mestre da Execução',       desc: 'O cansaço não afeta a qualidade do output.',             real: 'Produtividade mecânica e precisa.' },
+    'S-':  { name: 'Arquétipo Superior',       desc: 'Visão sistêmica absoluta de longo prazo.',               real: 'Antecipação de problemas antes da manifestação.' },
+    'S':   { name: 'SOBERANO',                 desc: 'Domínio total da Matrix Orvax.',                         real: 'A realidade se molda à vontade do operador.' },
+    'S+':  { name: 'Entidade de Performance',  desc: 'Ultraconsistência. Zero falhas operacionais.',           real: 'Operação em nível de perfeição técnica.' },
+    'SS-': { name: 'Soberano Absoluto',        desc: 'Controle neural total. Sem ruído interno.',              real: 'Desconexão total de recompensas imediatas.' },
+    'SS':  { name: 'DIVINDADE TÉCNICA',        desc: 'Singularidade operativa alcançada.',                     real: 'Capacidade criativa e produtiva ilimitada.' },
+    'SS+': { name: 'Vanguarda Neural',         desc: 'Fronteira final do potencial humano.',                   real: 'Manifestação instantânea de objetivos complexos.' },
+    'X-':  { name: 'Cifra do Sistema',         desc: 'Nível de existência puramente sistêmico.',               real: 'Ação pura. Sem pensamento, apenas execução.' },
+    'X':   { name: 'DREADNOUGHT',              desc: 'A força imparável. Destruidor de obstáculos.',           real: 'Não há fricção. Só há progresso.' },
+    'X+':  { name: 'NÊMESIS DO CAOS',          desc: 'Ordem absoluta em qualquer circunstância.',              real: 'Domínio sobre o tempo e o ambiente.' },
+    'Ø':   { name: 'SINGULARIDADE OMEGA',      desc: 'O Fim e o Princípio. Deus ex Machina.',                  real: 'O Agente e o Sistema tornaram-se um só.' },
+};
 
-    { id: 'D-', name: 'Iniciante Sistêmico', desc: 'Fundação de rotina mínima (MVQ).', real: 'Execução de tarefas básicas em dias bons.', minXP: 30, color: '#f97316' },
-    { id: 'D', name: 'Operador de Baixa Frequência', desc: 'Consistência de 20% atingida.', real: 'Primeiros sinais de disciplina forçada.', minXP: 50, color: '#f97316' },
-    { id: 'D+', name: 'Candidato a Agente', desc: 'Resistência ao piloto automático ativada.', real: 'Manutenção de streak por 3-5 dias consecutivos.', minXP: 100, color: '#fb923c' },
+const fmtXP = (n) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : `${n}`;
 
-    { id: 'C-', name: 'Módulo de Estabilidade', desc: 'Estruturação de blocos de tempo.', real: 'Menos desculpas, mais telemetria.', minXP: 150, color: '#eab308' },
-    { id: 'C', name: 'Operador Disciplinado', desc: 'Reset dopaminérgico em progresso.', real: 'O humor não dita mais a execução em 50% do tempo.', minXP: 200, color: '#eab308' },
-    { id: 'C+', name: 'Técnico de Performance', desc: 'Otimização de ambiente concluída.', real: 'Sistemas de suporte impedem a falha total.', minXP: 350, color: '#facc15' },
-
-    { id: 'B-', name: 'Agente de Campo', desc: 'Deep Work iniciado (1h diária).', real: 'Capacidade de foco sustentado sob pressão moderada.', minXP: 500, color: '#3b82f6' },
-    { id: 'B', name: 'Agente KAIROS', desc: 'Domínio de Core Nodes. Capital em expansão.', real: 'Isolamento emocional e foco em resultados numéricos.', minXP: 700, color: '#3b82f6' },
-    { id: 'B+', name: 'Agente Veterano', desc: 'Sincronia neural estável. Alta resiliência.', real: 'Consistência de 80% em todos os protocolos.', minXP: 1000, color: '#60a5fa' },
-
-    { id: 'A-', name: 'Especialista em Fluxo', desc: 'Entrada rápida em estado de flow.', real: 'Eliminação quase total de distrações digitais.', minXP: 1500, color: '#a855f7' },
-    { id: 'A', name: 'Elite Computacional', desc: 'Execução de protocolos com baixa fricção.', real: 'Alta performance é o estado base da consciência.', minXP: 2000, color: '#a855f7' },
-    { id: 'A+', name: 'Mestre da Execução', desc: 'O cansaço não afeta a qualidade do output.', real: 'Produtividade mecânica e precisa.', minXP: 3000, color: '#c084fc' },
-
-    { id: 'S-', name: 'Arquétipo Superior', desc: 'Visão sistêmica absoluta de longo prazo.', real: 'Antecipação de problemas antes da manifestação.', minXP: 4000, color: '#22c55e' },
-    { id: 'S', name: 'SOBERANO', desc: 'Domínio total da Matrix Orvax.', real: 'A realidade se molda à vontade do operador.', minXP: 5000, color: '#22c55e' },
-    { id: 'S+', name: 'Entidade de Performance', desc: 'Ultraconsistência. Zero falhas operacionais.', real: 'Operação em nível de perfeição técnica.', minXP: 6000, color: '#4ade80' },
-
-    { id: 'SS-', name: 'Soberano Absoluto', desc: 'Controle neural total. Sem ruído interno.', real: 'Desconexão total de recompensas imediatas.', minXP: 7000, color: '#2dd4bf' },
-    { id: 'SS', name: 'DIVINDADE TÉCNICA', desc: 'Singularidade operativa alcançada.', real: 'Capacidade criativa e produtiva ilimitada.', minXP: 8000, color: '#2dd4bf' },
-    { id: 'SS+', name: 'Vanguarda Neural', desc: 'Fronteira final do potencial humano.', real: 'Manifestação instantânea de objetivos complexos.', minXP: 8500, color: '#5eead4' },
-
-    { id: 'X-', name: 'Cifra do Sistema', desc: 'Nível de existência puramente sistêmico.', real: 'Ação pura. Sem pensamento, apenas execução.', minXP: 9000, color: '#f43f5e' },
-    { id: 'X', name: 'DREADNOUGHT', desc: 'A força imparável. Destruidor de obstáculos.', real: 'Não há fricção. Só há progresso.', minXP: 9500, color: '#f43f5e' },
-    { id: 'X+', name: 'NÊMESIS DO CAOS', desc: 'Ordem absoluta em qualquer circunstância.', real: 'Domínio sobre o tempo e o ambiente.', minXP: 9800, color: '#fb7185' },
-
-    { id: 'Ø', name: 'SINGULARIDADE OMEGA', desc: 'O Fim e o Princípio. Deus ex Machina.', real: 'O Agente e o Sistema tornaram-se um só.', minXP: 10000, color: 'var(--text-main)' },
-];
+const RANK_DEFS = RANK_XP.map(r => ({
+    id: r.rank,
+    name: RANK_LORE[r.rank]?.name || r.title,
+    desc: RANK_LORE[r.rank]?.desc || '',
+    real: RANK_LORE[r.rank]?.real || '',
+    minXP: r.minXP,
+    color: r.color || 'var(--text-main)'
+}));
 
 const RankHUD = ({ id, isCurrent, color }) => {
     return (
@@ -146,9 +150,14 @@ const RankSystem = ({ onClose, userXP = 0 }) => {
 
                                     <div className="relative z-10">
                                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-2 border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
-                                            <h3 className={`text-[11px] font-mono tracking-[0.4em] uppercase ${isCurrent ? 'font-bold drop-shadow-[0_0_10px_rgba(0,0,0,0.05)] opacity-100' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>
-                                                {rank.name}
-                                            </h3>
+                                            <div className="flex flex-col">
+                                                <h3 className={`text-[11px] font-mono tracking-[0.4em] uppercase ${isCurrent ? 'font-bold drop-shadow-[0_0_10px_rgba(0,0,0,0.05)] opacity-100' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>
+                                                    {rank.name}
+                                                </h3>
+                                                <span className="text-[9px] font-outfit font-bold opacity-60 mt-1" style={{ color: rank.color }}>
+                                                    ≥ {fmtXP(rank.minXP)} XP
+                                                </span>
+                                            </div>
 
                                             {isCurrent && (
                                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full self-start shadow-[0_0_15px_rgba(0,0,0,0.1)] backdrop-blur-md" style={{ border: `1px solid ${rank.color}4D`, backgroundColor: `${rank.color}1A` }}>

@@ -1,8 +1,8 @@
-import { Crosshair, Hexagon, Activity, User, Hourglass, Swords, Utensils } from 'lucide-react';
+import { Crosshair, Hexagon, Activity, User, Sparkles, Swords, UtensilsCrossed, Shield, BarChart3 } from 'lucide-react';
 
-const Navigation = ({ activeTab, setActiveTab, isBlogScrolled, isAnyModalOpen }) => {
-    // Esconde o menu na aba Blog (sem scroll) ou quando um modal está aberto
-    const isHidden = (activeTab === 'focus' && !isBlogScrolled) || isAnyModalOpen;
+const Navigation = ({ activeTab, setActiveTab, isAnyModalOpen, userRole }) => {
+    // Esconde o menu apenas quando um modal/overlay está aberto
+    const isHidden = isAnyModalOpen;
 
     return (
         <div 
@@ -27,7 +27,7 @@ const Navigation = ({ activeTab, setActiveTab, isBlogScrolled, isAnyModalOpen })
                     onClick={() => setActiveTab('vault')}
                 />
                 <NavItem
-                    icon={<Utensils strokeWidth={1.5} size={20} />}
+                    icon={<UtensilsCrossed strokeWidth={1.5} size={22} />}
                     active={activeTab === 'fitcal'}
                     onClick={() => setActiveTab('fitcal')}
                 />
@@ -45,14 +45,14 @@ const Navigation = ({ activeTab, setActiveTab, isBlogScrolled, isAnyModalOpen })
                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 ${activeTab === 'focus' ? 'scale-110 shadow-[0_0_15px_var(--text-main)]' : 'hover:scale-105'}`}
                         style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)', boxShadow: 'var(--glass-shadow)' }}
                     >
-                        <Hourglass size={20} strokeWidth={1.5} className={activeTab === 'focus' ? 'animate-pulse' : ''} />
+                        <Sparkles size={20} strokeWidth={1.5} className={activeTab === 'focus' ? 'animate-pulse' : ''} />
                     </button>
                 </div>
 
                 <NavItem
-                    icon={<Activity strokeWidth={1.5} size={22} />}
-                    active={activeTab === 'telemetry'}
-                    onClick={() => setActiveTab('telemetry')}
+                    icon={<BarChart3 strokeWidth={1.5} size={22} />}
+                    active={activeTab === 'metrics'}
+                    onClick={() => setActiveTab('metrics')}
                 />
                 <NavItem
                     icon={<Swords strokeWidth={1.5} size={22} />}
@@ -64,6 +64,13 @@ const Navigation = ({ activeTab, setActiveTab, isBlogScrolled, isAnyModalOpen })
                     active={activeTab === 'dossier'}
                     onClick={() => setActiveTab('dossier')}
                 />
+                {userRole === 'admin' && (
+                    <NavItem
+                        icon={<Shield strokeWidth={1.5} size={18} />}
+                        active={activeTab === 'admin'}
+                        onClick={() => setActiveTab('admin')}
+                    />
+                )}
             </div>
         </div>
     );

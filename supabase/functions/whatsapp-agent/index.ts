@@ -8,12 +8,46 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 // ─── CONFIGURAÇÃO ───────────────────────────────────────────
 const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TOKEN")!          // Token da API do WhatsApp Business
 const WHATSAPP_VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "orvax_verify_2026"
+const WHATSAPP_APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") || "" // Para HMAC do x-hub-signature-256
 const PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID")! // ID do número no Meta Business
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! // service_role, NÃO anon
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+// ─── VERIFICAÇÃO HMAC DO META (x-hub-signature-256) ─────────
+// Meta assina cada payload com sha256=HMAC(app_secret, raw_body).
+// Só aceitamos requests com assinatura válida quando APP_SECRET está configurado.
+async function verifyMetaSignature(rawBody: string, signatureHeader: string | null): Promise<boolean> {
+    if (!WHATSAPP_APP_SECRET) {
+        console.warn("[SECURITY] WHATSAPP_APP_SECRET não configurado — aceitando sem verificação. Configure em produção!")
+        return true
+    }
+    if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false
+
+    const expectedHex = signatureHeader.slice(7)
+    const enc = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(WHATSAPP_APP_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+    )
+    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody))
+    const sigHex = Array.from(new Uint8Array(sig))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("")
+
+    // Comparação constante no tempo
+    if (sigHex.length !== expectedHex.length) return false
+    let diff = 0
+    for (let i = 0; i < sigHex.length; i++) {
+        diff |= sigHex.charCodeAt(i) ^ expectedHex.charCodeAt(i)
+    }
+    return diff === 0
+}
 
 // ─── PERSONALIDADES DOS MENTORES ────────────────────────────
 const MENTOR_PROMPTS: Record<string, string> = {
@@ -633,7 +667,21 @@ async function processMessage(from: string, messageId: string, messageType: stri
     await sendWhatsAppReaction(from, messageId, "⚡")
 
     // 4. Carregar personalidade do mentor
-    const mentorPrompt = MENTOR_PROMPTS[user.mentor] || MENTOR_PROMPTS.atlas
+    // Fonte primária: tabela mentor_personas (fonte única de verdade que
+    // sincroniza app ↔ WhatsApp). Fallback: constantes locais.
+    let mentorPrompt = MENTOR_PROMPTS[user.mentor] || MENTOR_PROMPTS.atlas
+    try {
+        const { data: persona } = await supabase
+            .from("mentor_personas")
+            .select("system_prompt")
+            .eq("id", user.mentor)
+            .maybeSingle()
+        if (persona?.system_prompt) {
+            mentorPrompt = persona.system_prompt
+        }
+    } catch (e) {
+        console.warn("[mentor_personas] fallback pro prompt local:", (e as Error).message)
+    }
 
     // 5. Adicionar contexto temporal ao system prompt
     const now = new Date()
@@ -774,7 +822,16 @@ Deno.serve(async (req: Request) => {
     // ── INCOMING MESSAGES (POST) ──
     if (req.method === "POST") {
         try {
-            const body = await req.json()
+            // Lê o corpo raw (necessário para HMAC antes de fazer parse)
+            const rawBody = await req.text()
+            const signature = req.headers.get("x-hub-signature-256")
+            const valid = await verifyMetaSignature(rawBody, signature)
+            if (!valid) {
+                console.warn("[SECURITY] Assinatura HMAC inválida. Rejeitando.")
+                return new Response("Forbidden", { status: 403 })
+            }
+
+            const body = JSON.parse(rawBody)
 
             // Meta envia status updates (delivered, read) - ignorar
             const entry = body.entry?.[0]
@@ -791,7 +848,6 @@ Deno.serve(async (req: Request) => {
             const messageType = message.type     // text, audio, image, document, sticker, etc.
 
             // Processar em background (responde 200 imediatamente para o Meta não reenviar)
-            // Supabase Edge Functions suportam EdgeRuntime.waitUntil ou processamento direto
             await processMessage(from, messageId, messageType, message)
 
             return new Response("OK", { status: 200 })

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Search, Plus, Loader2 } from 'lucide-react';
-import { searchFoods, addMealEntry, addMealEntryDirect } from '../services/foodService';
-import { supabase } from '../../../lib/supabase';
+import { searchFoods, logFood, logExternalFood } from '../services/foodServiceV2';
 
 const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
   const [query, setQuery] = useState('');
@@ -34,17 +33,13 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
     setAdding(true);
     setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('Sessão expirada. Faça login novamente.');
-        setAdding(false);
-        return;
-      }
-
+      const grams = parseFloat(quantity);
       if (selectedFood.id) {
-        await addMealEntry(session.user.id, selectedFood.id, mealType, parseFloat(quantity));
+        // Já está no catálogo
+        await logFood({ foodId: selectedFood.id, mealType, grams, source: 'search' });
       } else {
-        await addMealEntryDirect(session.user.id, mealType, selectedFood, parseFloat(quantity));
+        // Externo (OpenFoodFacts) — importa e loga em 1 passo
+        await logExternalFood({ ext: selectedFood, mealType, grams, source: 'search' });
       }
       onAdded?.();
       onClose();
@@ -56,14 +51,19 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
     }
   };
 
+  // V2: searchFoods retorna calories_100g/protein_100g/carbs_100g/fat_100g
   const calcPreview = () => {
     if (!selectedFood || !quantity) return null;
-    const ratio = parseFloat(quantity) / (selectedFood.serving_size_g || 100);
+    const ratio = parseFloat(quantity) / 100;
+    const cal = selectedFood.calories_100g ?? selectedFood.calories ?? 0;
+    const p   = selectedFood.protein_100g  ?? selectedFood.protein_g ?? 0;
+    const c   = selectedFood.carbs_100g    ?? selectedFood.carbs_g   ?? 0;
+    const f   = selectedFood.fat_100g      ?? selectedFood.fat_g     ?? 0;
     return {
-      calories: Math.round(selectedFood.calories * ratio),
-      protein: (selectedFood.protein_g * ratio).toFixed(1),
-      carbs: (selectedFood.carbs_g * ratio).toFixed(1),
-      fat: (selectedFood.fat_g * ratio).toFixed(1),
+      calories: Math.round(cal * ratio),
+      protein: (p * ratio).toFixed(1),
+      carbs: (c * ratio).toFixed(1),
+      fat: (f * ratio).toFixed(1),
     };
   };
 
@@ -118,13 +118,17 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
                   style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <span className="text-[11px] font-bold block truncate">{food.name}</span>
+                    <span className="text-[11px] font-bold block truncate">
+                      {food.name}
+                      {food.verified && <span className="ml-1 text-[#22c55e]">✓</span>}
+                    </span>
                     <span className="text-[9px] font-mono opacity-40">
-                      {food.brand && `${food.brand} · `}{food.serving_size_g}{food.serving_unit} por porcao
+                      {food.brand && `${food.brand} · `}
+                      {food.default_portion_label || '100g'} · por 100g
                     </span>
                   </div>
                   <div className="text-right ml-2">
-                    <span className="text-[11px] font-bold font-mono">{Math.round(food.calories)}</span>
+                    <span className="text-[11px] font-bold font-mono">{Math.round(food.calories_100g ?? food.calories ?? 0)}</span>
                     <span className="text-[8px] font-mono opacity-40 block">KCAL</span>
                   </div>
                 </button>

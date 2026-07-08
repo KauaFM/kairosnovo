@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, LogIn, Swords, Trophy, History, Loader2 } from 'lucide-react';
+import { Plus, LogIn, Swords, Trophy, History, Loader2, ChevronRight, Users, Zap, Shield, Crown } from 'lucide-react';
 import { ScrollContainer, OrvaxHeader } from '../../../components/BaseLayout';
 import { supabase } from '../../../lib/supabase';
 import { useChallenges } from '../hooks/useChallenges';
@@ -11,7 +11,7 @@ import ProfileStats from './ProfileStats';
 
 const GymRatsHome = ({ theme, toggleTheme }) => {
   const { challenges, loading, refresh } = useChallenges();
-  const [view, setView] = useState('home'); // 'home' | 'detail' | 'create' | 'stats' | 'join'
+  const [view, setView] = useState('home');
   const [selectedChallengeId, setSelectedChallengeId] = useState(null);
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
@@ -86,139 +86,222 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
   return (
     <div className="relative w-full h-full">
       <ScrollContainer>
-        <OrvaxHeader theme={theme} toggleTheme={toggleTheme} />
+        <OrvaxHeader theme={theme} toggleTheme={toggleTheme} minimal />
 
-        {/* Title area */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Swords size={16} className="text-[#22c55e]" />
-            <h2 className="text-xs font-bold tracking-[0.2em] uppercase opacity-60">Arena</h2>
-          </div>
-          <p className="text-[10px] font-mono opacity-30 tracking-wider">
-            COMPETICOES FITNESS EM TEMPO REAL
-          </p>
-        </div>
+        <div className="pb-32 relative" style={{ color: 'var(--text-main)' }}>
+          {/* Dotted grid bg */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: 'radial-gradient(var(--text-main) 0.5px, transparent 0.5px)',
+              backgroundSize: '24px 24px',
+              opacity: 0.02
+            }}
+          />
 
-        {/* Action buttons */}
-        <div className="grid grid-cols-3 gap-2 mb-6">
-          <button
-            onClick={() => setView('create')}
-            className="flex flex-col items-center gap-2 p-3 rounded-sm border transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}
-          >
-            <Plus size={18} className="text-[#22c55e]" />
-            <span className="text-[9px] font-mono font-bold tracking-wider">CRIAR</span>
-          </button>
-          <button
-            onClick={() => setView('join')}
-            className="flex flex-col items-center gap-2 p-3 rounded-sm border transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}
-          >
-            <LogIn size={18} className="text-[#3b82f6]" />
-            <span className="text-[9px] font-mono font-bold tracking-wider">ENTRAR</span>
-          </button>
-          <button
-            onClick={() => setView('stats')}
-            className="flex flex-col items-center gap-2 p-3 rounded-sm border transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}
-          >
-            <History size={18} className="text-[#a855f7]" />
-            <span className="text-[9px] font-mono font-bold tracking-wider">HISTORICO</span>
-          </button>
-        </div>
-
-        {/* Join modal inline */}
-        {view === 'join' && (
-          <div className="mb-6 p-4 rounded-sm border" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[11px] font-bold tracking-wider">ENTRAR COM CODIGO</h3>
-              <button onClick={() => { setView('home'); setJoinError(''); }} className="text-[9px] font-mono opacity-40 hover:opacity-100">FECHAR</button>
-            </div>
-            {joinError && (
-              <div className="mb-3 px-3 py-2 rounded-sm border border-red-400/30 bg-red-400/10 text-red-400 text-[11px] font-mono">
-                {joinError}
+          {/* ═══ HEADER ═══ */}
+          <div className="px-5 pt-4 pb-5 relative z-10">
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <h1 className="text-[22px] font-outfit font-black tracking-tight opacity-90 leading-tight">Arena</h1>
+                <p className="text-[9px] font-mono opacity-15 tracking-[0.25em] uppercase mt-1">competicoes fitness</p>
               </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="CODIGO"
-                maxLength={6}
-                className="flex-1 text-center text-[16px] font-mono font-bold tracking-[0.4em] bg-transparent border rounded-sm px-3 py-2.5 outline-none uppercase transition-all focus:border-[#22c55e]/50"
-                style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-              />
-              <button
-                onClick={handleJoin}
-                disabled={!joinCode.trim() || joining}
-                className="px-4 rounded-sm font-bold text-[11px] tracking-wider transition-all disabled:opacity-30"
-                style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
-              >
-                {joining ? <Loader2 size={14} className="animate-spin" /> : 'ENTRAR'}
-              </button>
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                  <Trophy size={11} className="opacity-30" />
+                  <span className="text-[10px] font-mono font-bold opacity-50">{challenges.length}</span>
+                </div>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Loading */}
-        {loading && (
-          <div className="text-center py-12">
-            <Loader2 size={24} className="animate-spin mx-auto opacity-30 mb-3" />
-            <span className="text-[10px] font-mono opacity-40 tracking-wider">SINCRONIZANDO ARENA...</span>
-          </div>
-        )}
-
-        {/* Active challenges */}
-        {!loading && activeChallenges.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
-              <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-60">DESAFIOS ATIVOS ({activeChallenges.length})</h3>
-            </div>
-            <div className="space-y-2">
-              {activeChallenges.map((c) => (
-                <ChallengeCard key={c.id} challenge={c} onPress={handleOpenChallenge} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Ended challenges */}
-        {!loading && endedChallenges.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-40 mb-3">ENCERRADOS ({endedChallenges.length})</h3>
-            <div className="space-y-2">
-              {endedChallenges.map((c) => (
-                <ChallengeCard key={c.id} challenge={c} onPress={handleOpenChallenge} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && challenges.length === 0 && view !== 'join' && (
-          <div className="text-center py-16">
-            <Swords size={32} className="mx-auto mb-4 opacity-20" />
-            <p className="text-[12px] font-bold tracking-wider mb-1">NENHUM DESAFIO</p>
-            <p className="text-[10px] font-mono opacity-40 mb-6">Crie ou entre em um desafio para comecar!</p>
-            <div className="flex gap-3 justify-center">
+          <div className="px-5 space-y-4 relative z-10">
+            {/* ═══ ACTION CARDS (Bento) ═══ */}
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setView('create')}
-                className="px-4 py-2 rounded-sm text-[10px] font-mono font-bold tracking-wider transition-all"
-                style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
+                className="rounded-[24px] border p-4 flex flex-col items-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group"
+                style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
               >
-                CRIAR DESAFIO
+                <div className="absolute inset-0 bg-[#22c55e] opacity-0 group-hover:opacity-[0.03] transition-opacity pointer-events-none rounded-[24px]" />
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                  <Plus size={18} className="text-[#22c55e]" style={{ opacity: 0.7 }} />
+                </div>
+                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">Criar</span>
               </button>
+
               <button
                 onClick={() => setView('join')}
-                className="px-4 py-2 rounded-sm text-[10px] font-mono font-bold tracking-wider border transition-all"
-                style={{ borderColor: 'var(--border-color)' }}
+                className="rounded-[24px] border p-4 flex flex-col items-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group"
+                style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
               >
-                ENTRAR COM CODIGO
+                <div className="absolute inset-0 bg-[#3b82f6] opacity-0 group-hover:opacity-[0.03] transition-opacity pointer-events-none rounded-[24px]" />
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                  <LogIn size={18} className="text-[#3b82f6]" style={{ opacity: 0.7 }} />
+                </div>
+                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">Entrar</span>
+              </button>
+
+              <button
+                onClick={() => setView('stats')}
+                className="rounded-[24px] border p-4 flex flex-col items-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group"
+                style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity pointer-events-none rounded-[24px]" style={{ backgroundColor: 'var(--text-main)' }} />
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}>
+                  <History size={18} style={{ opacity: 0.35 }} />
+                </div>
+                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">Perfil</span>
               </button>
             </div>
+
+            {/* ═══ JOIN INLINE ═══ */}
+            {view === 'join' && (() => {
+              const chars = joinCode.split('');
+              return (
+                <div className="rounded-[28px] border p-6 relative overflow-hidden" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                  <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #60a5fa, transparent)' }} />
+                  <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.06), transparent 70%)' }} />
+
+                  <div className="flex items-center justify-between mb-5 relative z-10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                        <LogIn size={14} className="text-[#3b82f6]" style={{ opacity: 0.7 }} />
+                      </div>
+                      <div>
+                        <h3 className="text-[10px] font-outfit font-bold tracking-tight opacity-70">Entrar em Desafio</h3>
+                        <p className="text-[7px] font-mono opacity-20 tracking-[0.2em] uppercase">insira o codigo de 6 digitos</p>
+                      </div>
+                    </div>
+                    <button onClick={() => { setView('home'); setJoinError(''); setJoinCode(''); }} className="text-[8px] font-mono opacity-15 hover:opacity-50 transition-opacity px-2 py-1 rounded-lg hover:bg-[var(--card-hover)]">X</button>
+                  </div>
+
+                  {joinError && (
+                    <div className="mb-4 px-3 py-2 rounded-xl border border-red-400/15 bg-red-400/5 text-red-400 text-[9px] font-mono relative z-10">{joinError}</div>
+                  )}
+
+                  <div className="flex gap-2 justify-center mb-4 relative z-10">
+                    {[0, 1, 2, 3, 4, 5].map((i) => {
+                      const c = chars[i] || '';
+                      const filled = c !== '';
+                      const isNext = i === chars.length && chars.length < 6;
+                      return (
+                        <div
+                          key={i}
+                          className="w-11 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-200"
+                          style={{
+                            borderColor: filled ? 'rgba(59,130,246,0.35)' : isNext ? 'rgba(59,130,246,0.2)' : 'var(--border-color)',
+                            backgroundColor: filled ? 'rgba(59,130,246,0.06)' : 'transparent',
+                            boxShadow: filled ? '0 0 12px rgba(59,130,246,0.1)' : 'none'
+                          }}
+                        >
+                          <span className="text-[20px] font-mono font-black" style={{ opacity: filled ? 0.8 : 0 }}>{c || '-'}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <input
+                    value={joinCode}
+                    onChange={(e) => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v.length <= 6) setJoinCode(v); }}
+                    placeholder="Digite o codigo aqui..."
+                    maxLength={6}
+                    autoFocus
+                    className="w-full text-center text-[14px] font-mono font-bold tracking-[0.5em] bg-transparent border rounded-2xl px-4 py-3 outline-none uppercase transition-all focus:border-[#3b82f6]/30 mb-4 relative z-10 placeholder:text-[10px] placeholder:tracking-[0.15em] placeholder:opacity-20 placeholder:normal-case"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                  />
+
+                  <button
+                    onClick={handleJoin}
+                    disabled={joinCode.length < 6 || joining}
+                    className="w-full py-3.5 rounded-2xl font-bold text-[10px] font-mono tracking-[0.2em] uppercase transition-all disabled:opacity-15 hover:brightness-110 active:scale-[0.98] relative z-10 flex items-center justify-center gap-2"
+                    style={{ backgroundColor: '#3b82f6', color: '#fff', boxShadow: joinCode.length >= 6 ? '0 4px 20px rgba(59,130,246,0.3)' : 'none' }}
+                  >
+                    {joining ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} /> ENTRAR NO DESAFIO</>}
+                  </button>
+                </div>
+              );
+            })()}
+
+
+            {/* ═══ LOADING ═══ */}
+            {loading && (
+              <div className="text-center py-20">
+                <Loader2 size={20} className="animate-spin mx-auto opacity-15 mb-4" />
+                <span className="text-[8px] font-mono opacity-15 tracking-[0.3em] uppercase">sincronizando arena</span>
+              </div>
+            )}
+
+            {/* ═══ ACTIVE CHALLENGES ═══ */}
+            {!loading && activeChallenges.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" style={{ boxShadow: '0 0 6px rgba(34,197,94,0.5)' }} />
+                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold">desafios ativos</span>
+                  <span className="text-[8px] font-mono opacity-15">{activeChallenges.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {activeChallenges.map((c) => (
+                    <ChallengeCard key={c.id} challenge={c} onPress={handleOpenChallenge} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ═══ ENDED CHALLENGES ═══ */}
+            {!loading && endedChallenges.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">encerrados</span>
+                  <span className="text-[8px] font-mono opacity-10">{endedChallenges.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {endedChallenges.map((c) => (
+                    <ChallengeCard key={c.id} challenge={c} onPress={handleOpenChallenge} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ═══ EMPTY STATE ═══ */}
+            {!loading && challenges.length === 0 && view !== 'join' && (
+              <div className="rounded-[28px] border p-8 text-center relative overflow-hidden" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                {/* Decorative background */}
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  <Swords size={120} className="opacity-[0.015]" />
+                </div>
+
+                <div className="relative z-10">
+                  <div className="w-16 h-16 rounded-3xl mx-auto mb-5 flex items-center justify-center" style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}>
+                    <Swords size={28} className="opacity-20" />
+                  </div>
+
+                  <h3 className="text-[14px] font-outfit font-bold tracking-tight opacity-70 mb-1">Nenhum desafio</h3>
+                  <p className="text-[9px] font-mono opacity-20 tracking-wider mb-6">Crie ou entre em um desafio para competir</p>
+
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => setView('create')}
+                      className="flex items-center gap-2 px-5 py-3 rounded-2xl text-[9px] font-mono font-bold tracking-[0.15em] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ backgroundColor: '#22c55e', color: '#000' }}
+                    >
+                      <Plus size={13} />
+                      CRIAR DESAFIO
+                    </button>
+                    <button
+                      onClick={() => setView('join')}
+                      className="flex items-center gap-2 px-5 py-3 rounded-2xl text-[9px] font-mono font-bold tracking-[0.15em] border transition-all hover:scale-[1.02] active:scale-[0.98] hover:bg-[var(--card-hover)]"
+                      style={{ borderColor: 'var(--border-color)' }}
+                    >
+                      <LogIn size={13} className="opacity-40" />
+                      ENTRAR
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </ScrollContainer>
     </div>
   );

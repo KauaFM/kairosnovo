@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Loader2, Check, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -11,6 +11,18 @@ const Login = ({ onLoginSuccess }) => {
     const [touchStartY, setTouchStartY] = useState(null);
     const [isSignUp, setIsSignUp] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    // Modo do form: 'auth' | 'forgot' | 'reset'
+    const [mode, setMode] = useState('auth');
+    const [infoMessage, setInfoMessage] = useState('');
+
+    // Detecta link de recovery (Supabase anexa #access_token=...&type=recovery)
+    useEffect(() => {
+        const hash = window.location.hash;
+        if (hash.includes('type=recovery')) {
+            setMode('reset');
+            setShowLoginForm(true);
+        }
+    }, []);
 
     // Statically generating array of stars so they don't jump around on renders
     const stars = useMemo(() => {
@@ -41,48 +53,79 @@ const Login = ({ onLoginSuccess }) => {
     // Supabase Authentication
     const handleLogin = async (e) => {
         e.preventDefault();
-        if (email && password) {
-            setIsSubmitting(true);
-            setLoginStatus(null);
-            setErrorMessage('');
+        setIsSubmitting(true);
+        setLoginStatus(null);
+        setErrorMessage('');
+        setInfoMessage('');
 
-            try {
-                if (isSignUp) {
-                    const { error } = await supabase.auth.signUp({
-                        email,
-                        password,
-                        options: {
-                            data: { full_name: email.split('@')[0] }
-                        }
-                    });
-                    if (error) throw error;
-                    setLoginStatus('success');
-                } else {
-                    const { error } = await supabase.auth.signInWithPassword({
-                        email,
-                        password
-                    });
-                    if (error) throw error;
-                    setLoginStatus('success');
-                }
-            } catch (err) {
-                console.error(err);
-                if (err.message.includes('Invalid login credentials')) {
-                    setErrorMessage('Credenciais inválidas.');
-                } else if (err.message.includes('email rate limit exceeded')) {
-                    setErrorMessage('Muitas tentativas. Tente novamente em 1 hora.');
-                } else {
-                    setErrorMessage(err.message || 'Erro de conexão.');
-                }
-                setLoginStatus('error');
-            } finally {
+        try {
+            // MODO: esqueci senha → envia email de recovery
+            if (mode === 'forgot') {
+                if (!email) throw new Error('Informe seu e-mail.');
+                const redirectTo = `${window.location.origin}/`;
+                const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+                if (error) throw error;
+                setInfoMessage('Enviamos um link de redefinição para seu e-mail. Verifique a caixa de entrada e spam.');
                 setIsSubmitting(false);
+                return;
             }
+
+            // MODO: redefinir senha (usuário veio do link de recovery)
+            if (mode === 'reset') {
+                if (!password || password.length < 6) throw new Error('Senha deve ter 6+ caracteres.');
+                const { error } = await supabase.auth.updateUser({ password });
+                if (error) throw error;
+                // Limpa o hash de recovery da URL
+                window.history.replaceState(null, '', window.location.pathname);
+                setInfoMessage('Senha redefinida com sucesso. Faça login.');
+                setMode('auth');
+                setPassword('');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // MODO: auth normal (login ou signup)
+            if (!email || !password) {
+                setIsSubmitting(false);
+                return;
+            }
+
+            if (isSignUp) {
+                if (password.length < 6) throw new Error('Senha deve ter 6+ caracteres.');
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { full_name: email.split('@')[0] } }
+                });
+                if (error) throw error;
+                setLoginStatus('success');
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                setLoginStatus('success');
+            }
+        } catch (err) {
+            console.error(err);
+            const msg = err?.message || '';
+            if (msg.includes('Invalid login credentials')) {
+                setErrorMessage('E-mail ou senha incorretos.');
+            } else if (msg.toLowerCase().includes('rate limit')) {
+                setErrorMessage('Muitas tentativas. Tente novamente em 1 hora.');
+            } else if (msg.toLowerCase().includes('user already registered')) {
+                setErrorMessage('Este e-mail já está cadastrado. Faça login.');
+            } else if (msg.toLowerCase().includes('email not confirmed')) {
+                setErrorMessage('Confirme seu e-mail antes de entrar.');
+            } else {
+                setErrorMessage(msg || 'Erro de conexão.');
+            }
+            setLoginStatus('error');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleModalClose = () => {
-        if (loginStatus === 'success') {
+        if (loginStatus === 'success' && !isSignUp) {
             onLoginSuccess();
         }
         setLoginStatus(null);
@@ -264,55 +307,79 @@ const Login = ({ onLoginSuccess }) => {
                             <div className="w-full flex flex-col mb-6 relative z-10 text-center">
                                 <h1 className="text-[2.2rem] font-outfit font-light leading-none mb-1 tracking-tight">
                                     <strong className="font-bold opacity-100 uppercase tracking-widest mt-1 block">
-                                        {isSignUp ? "Criar Conta" : "Conecte-se"}
+                                        {mode === 'forgot' ? 'Recuperar' : mode === 'reset' ? 'Nova Senha' : (isSignUp ? 'Criar Conta' : 'Conecte-se')}
                                     </strong>
                                 </h1>
                                 <p className="text-sm font-outfit font-light opacity-60">
-                                    {isSignUp ? "inicie sua jornada no ORVAX." : "e continue sua jornada."}
+                                    {mode === 'forgot' ? 'enviaremos um link para seu e-mail.' :
+                                     mode === 'reset'  ? 'defina uma nova senha de acesso.' :
+                                     (isSignUp ? 'inicie sua jornada no ORVAX.' : 'e continue sua jornada.')}
                                 </p>
                             </div>
 
                             <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full relative z-10">
 
-                                {/* Username/Email Input (No labels outside, using placeholders) */}
-                                <input
-                                    type="email"
-                                    required
-                                    placeholder="Endereço de e-mail"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 focus:border-white/40 focus:bg-white/10 rounded-full px-6 py-4 text-sm font-outfit text-white placeholder-white/40 outline-none transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]"
-                                />
+                                {/* E-mail — oculto no modo reset (usuário já autenticado via link) */}
+                                {mode !== 'reset' && (
+                                    <input
+                                        type="email"
+                                        required
+                                        placeholder="Endereço de e-mail"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 focus:border-white/40 focus:bg-white/10 rounded-full px-6 py-4 text-sm font-outfit text-white placeholder-white/40 outline-none transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]"
+                                    />
+                                )}
 
-                                {/* Password Input */}
-                                <input
-                                    type="password"
-                                    required
-                                    placeholder="Senha de acesso"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 focus:border-white/40 focus:bg-white/10 rounded-full px-6 py-4 text-sm font-outfit tracking-widest text-white placeholder-white/40 outline-none transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]"
-                                />
+                                {/* Senha — oculto no modo forgot */}
+                                {mode !== 'forgot' && (
+                                    <input
+                                        type="password"
+                                        required
+                                        placeholder={mode === 'reset' ? 'Nova senha' : 'Senha de acesso'}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 focus:border-white/40 focus:bg-white/10 rounded-full px-6 py-4 text-sm font-outfit tracking-widest text-white placeholder-white/40 outline-none transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]"
+                                    />
+                                )}
 
-                                {/* Remember me & Forgot Password */}
-                                <div className="flex justify-between items-center w-full px-2 mt-2 mb-2">
-                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                        <div className="w-4 h-4 rounded-sm border border-white/30 group-hover:border-white/60 bg-white/5 flex items-center justify-center transition-all">
-                                            {/* Visual Checkmark */}
-                                            <svg className="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        </div>
-                                        <span className="text-[11px] font-outfit font-medium text-white/70 group-hover:text-white transition-colors">Lembrar-me</span>
-                                    </label>
+                                {/* Links de navegação entre modos */}
+                                {mode === 'auth' && (
+                                    <div className="flex justify-between items-center w-full px-2 mt-2 mb-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setMode('forgot'); setErrorMessage(''); setInfoMessage(''); }}
+                                            className="text-[11px] font-outfit font-medium text-white/70 hover:text-white transition-colors"
+                                        >
+                                            Esqueci minha senha
+                                        </button>
+                                        <span
+                                            onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(''); }}
+                                            className="text-[11px] font-outfit font-light text-white/50 hover:text-white cursor-pointer transition-colors"
+                                        >
+                                            {isSignUp ? "Já possuo conta" : "Criar nova conta?"}
+                                        </span>
+                                    </div>
+                                )}
 
-                                    <span
-                                        onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(''); }}
-                                        className="text-[11px] font-outfit font-light text-white/50 hover:text-white cursor-pointer transition-colors"
-                                    >
-                                        {isSignUp ? "Já possuo conta" : "Criar nova conta?"}
-                                    </span>
-                                </div>
+                                {mode === 'forgot' && (
+                                    <div className="flex justify-center w-full mt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setMode('auth'); setErrorMessage(''); setInfoMessage(''); }}
+                                            className="text-[11px] font-outfit font-medium text-white/70 hover:text-white transition-colors"
+                                        >
+                                            ← Voltar para login
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Info message (recovery enviado, senha redefinida etc) */}
+                                {infoMessage && (
+                                    <div className="text-xs text-emerald-400 font-outfit font-medium text-center bg-emerald-500/10 py-2 rounded-lg -mt-1 mb-1">
+                                        {infoMessage}
+                                    </div>
+                                )}
 
                                 {/* Error Message */}
                                 {errorMessage && (
@@ -321,19 +388,27 @@ const Login = ({ onLoginSuccess }) => {
                                     </div>
                                 )}
 
-                                {/* Submit Button (Solid White fill, Dark text) */}
-                                {/* [BUG #4 FIX] Removido onClick duplicado — form onSubmit já trata o submit */}
+                                {/* Submit Button */}
                                 <button
                                     type="submit"
-                                    disabled={!email || !password || isSubmitting}
+                                    disabled={isSubmitting ||
+                                        (mode === 'forgot' && !email) ||
+                                        (mode === 'reset' && !password) ||
+                                        (mode === 'auth' && (!email || !password))}
                                     className={`w-full py-4 rounded-full text-center text-base font-outfit font-bold transition-all duration-300 flex justify-center items-center mt-2 shadow-lg
-                                        ${(email && password && !isSubmitting) ? 'bg-white text-black hover:bg-gray-200 hover:scale-[0.98]' : 'bg-white/20 text-white/50 cursor-not-allowed'}
+                                        ${!isSubmitting && (
+                                            (mode === 'forgot' && email) ||
+                                            (mode === 'reset' && password) ||
+                                            (mode === 'auth' && email && password)
+                                        ) ? 'bg-white text-black hover:bg-gray-200 hover:scale-[0.98]' : 'bg-white/20 text-white/50 cursor-not-allowed'}
                                     `}
                                 >
                                     {isSubmitting ? (
                                         <Loader2 size={24} className="animate-spin text-black" />
                                     ) : (
-                                        isSignUp ? "Registrar-se" : "Entrar"
+                                        mode === 'forgot' ? 'Enviar link' :
+                                        mode === 'reset'  ? 'Salvar nova senha' :
+                                        (isSignUp ? 'Registrar-se' : 'Entrar')
                                     )}
                                 </button>
 

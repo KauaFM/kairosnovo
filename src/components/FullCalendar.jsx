@@ -260,7 +260,14 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
                             <h3 className="text-[10px] font-syncopate font-black tracking-widest uppercase opacity-60">
                                 Tarefas do Dia
                             </h3>
-                            <button onClick={() => setShowAddModal(true)} className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                            <button onClick={() => {
+                                // [ORVAX] Se o usuário já selecionou um horário no rail, pré-preenche
+                                // o formulário de nova tarefa com ele (evita pedir a hora duas vezes).
+                                if (selectedTime) {
+                                    setNewTask(nt => ({ ...nt, time_start: selectedTime }));
+                                }
+                                setShowAddModal(true);
+                            }} className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
                                 <Plus size={10} />
                             </button>
                         </div>
@@ -279,7 +286,18 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
                             <h4 className="text-[9px] font-syncopate tracking-widest uppercase opacity-60 mb-4">Nova Tarefa</h4>
                             <input type="text" placeholder="TÍTULO DA TAREFA" value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })} className="w-full bg-transparent border-b border-white/20 text-[12px] font-mono mb-3 pb-1 outline-none focus:border-[#22c55e]" />
                             <div className="flex gap-2 mb-4">
-                                <input type="time" value={newTask.time_start} onChange={e => setNewTask({ ...newTask, time_start: e.target.value })} className="bg-white/5 rounded-lg px-2 py-1 text-[10px] font-mono flex-1 outline-none" />
+                                <div className="bg-white/5 rounded-lg px-2 py-1 flex-1 flex items-center gap-1.5">
+                                    <Clock size={10} className="opacity-40" />
+                                    <input
+                                        type="time"
+                                        value={newTask.time_start}
+                                        onChange={e => setNewTask({ ...newTask, time_start: e.target.value })}
+                                        className="bg-transparent text-[10px] font-mono flex-1 outline-none"
+                                    />
+                                    {selectedTime === newTask.time_start && (
+                                        <span className="text-[7px] font-mono opacity-50 uppercase tracking-widest">pré-selec.</span>
+                                    )}
+                                </div>
                                 <input type="text" placeholder="CATEGORIA" value={newTask.category} onChange={e => setNewTask({ ...newTask, category: e.target.value })} className="bg-white/5 rounded-lg px-2 py-1 text-[10px] font-mono flex-1 outline-none" />
                             </div>
                             <button onClick={handleCreateTask} className="w-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30 py-2 rounded-xl text-[10px] font-syncopate uppercase font-bold tracking-widest hover:bg-[#22c55e]/30 transition-colors">ADICIONAR</button>

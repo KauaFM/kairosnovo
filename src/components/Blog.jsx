@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Heart, MessageCircle, Share2, ArrowDown, Sun, Moon, Home, Search, User, Newspaper, ChevronLeft, Bookmark, X } from 'lucide-react';
-import { getBlogPosts } from '../services/db';
+import { Play, Heart, MessageCircle, Share2, ArrowDown, Sun, Moon, ChevronLeft, Bookmark, X, Plus, Send, Trash2, Star } from 'lucide-react';
+import { getBlogPosts, createBlogPost, deleteBlogPost } from '../services/db';
+import { supabase } from '../lib/supabase';
+import { AudioStation } from '../features/news/components/AudioStation';
+
+const ADMIN_EMAIL = 'kkfelipemacedo@gmail.com';
+const CATEGORIES = ['GERAL', 'SISTEMAS', 'PROTOCOLOS', 'CIÊNCIA', 'TECNOLOGIA', 'PERFORMANCE', 'NUTRIÇÃO', 'TREINO'];
 
 const HIGHLIGHTS = [
     {
@@ -96,68 +101,119 @@ const FEED_POSTS = [
     }
 ];
 
-// Public lo-fi radio stream (SomaFM Lush)
-const RADIO_STREAM_URL = 'https://ice2.somafm.com/lush-128-mp3';
-
 const Blog = ({ theme, toggleTheme, onScrollChange }) => {
     const [isScrolled, setIsScrolled] = useState(false);
-    const [isRadioPlaying, setIsRadioPlaying] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState(null);
     const [highlights, setHighlights] = useState(HIGHLIGHTS);
     const [feedPosts, setFeedPosts] = useState(FEED_POSTS);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    // Admin compose modal state
+    const [composeOpen, setComposeOpen] = useState(false);
+    const [publishing, setPublishing] = useState(false);
+    const [form, setForm] = useState({
+        title: '', content: '', summary: '', category: 'GERAL',
+        image_url: '', is_highlight: false
+    });
+
     const containerRef = useRef(null);
-    const audioRef = useRef(null);
+    const realtimeRef = useRef(null);
 
-    // Fetch blog posts from database (fallback to hardcoded if empty)
-    useEffect(() => {
-        const fetchPosts = async () => {
-            try {
-                const dbHighlights = await getBlogPosts(true);
-                const dbFeed = await getBlogPosts(false);
-                if (dbHighlights && dbHighlights.length > 0) {
-                    setHighlights(dbHighlights.map(p => ({
-                        id: p.id,
-                        title: p.title,
-                        category: (p.category || 'GERAL').toUpperCase(),
-                        image: p.image_url,
-                        summary: p.summary || '',
-                        content: p.content || '',
-                        author: p.author_name || 'ORVAX',
-                        date: new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
-                        isVideo: false
-                    })));
-                }
-                if (dbFeed && dbFeed.length > 0) {
-                    setFeedPosts(dbFeed.filter(p => !p.is_highlight).map(p => {
-                        const dt = new Date(p.created_at);
-                        return {
-                            id: p.id,
-                            author: { name: p.author_name || 'ORVAX', avatar: p.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.author_name}` },
-                            readTime: `${p.read_time_min || 5} MIN READ`,
-                            title: p.title,
-                            image: p.image_url,
-                            category: (p.category || 'GERAL').toUpperCase(),
-                            date: { day: String(dt.getDate()).padStart(2, '0'), month: dt.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '') },
-                            summary: p.summary || '',
-                            content: p.content || ''
-                        };
-                    }));
-                }
-            } catch (e) {
-                // Fallback to hardcoded data silently
-            }
+    // Helper: convert raw DB post to feed format
+    const toFeedPost = (p) => {
+        const dt = new Date(p.created_at);
+        return {
+            id: p.id,
+            _raw: p,
+            author: { name: p.author_name || 'ORVAX', avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${p.author_name || 'ORVAX'}` },
+            readTime: `${p.read_time_min || 3} MIN READ`,
+            title: p.title,
+            image: p.image_url || null,
+            category: (p.category || 'GERAL').toUpperCase(),
+            date: {
+                day:   p.date_day   || String(dt.getDate()).padStart(2, '0'),
+                month: p.date_month || dt.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '')
+            },
+            summary: p.summary || '',
+            content: p.content || ''
         };
-        fetchPosts();
+    };
+
+    const toHighlight = (p) => ({
+        id: p.id,
+        _raw: p,
+        title: p.title,
+        category: (p.category || 'GERAL').toUpperCase(),
+        image: p.image_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80',
+        summary: p.summary || '',
+        content: p.content || '',
+        author: p.author_name || 'ORVAX',
+        date: new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+        isVideo: false
+    });
+
+    // Load posts + subscribe to realtime
+    const loadPosts = async () => {
+        try {
+            const dbHighlights = await getBlogPosts(true);
+            const dbFeed = await getBlogPosts(false);
+            if (dbHighlights?.length > 0) setHighlights(dbHighlights.map(toHighlight));
+            if (dbFeed?.length > 0) setFeedPosts(dbFeed.filter(p => !p.is_highlight).map(toFeedPost));
+        } catch (e) { /* fallback to hardcoded */ }
+    };
+
+    useEffect(() => {
+        // Check if admin
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user?.email === ADMIN_EMAIL) setIsAdmin(true);
+        });
+
+        loadPosts();
+
+        // ── Realtime: escuta INSERT/UPDATE/DELETE em blog_posts
+        const channel = supabase
+            .channel('blog-posts-live')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'blog_posts' }, (payload) => {
+                const p = payload.new;
+                if (!p.published) return;
+                if (p.is_highlight) {
+                    setHighlights(prev => [toHighlight(p), ...prev]);
+                } else {
+                    setFeedPosts(prev => [toFeedPost(p), ...prev]);
+                }
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'blog_posts' }, (payload) => {
+                const id = payload.old?.id;
+                setFeedPosts(prev => prev.filter(p => p.id !== id));
+                setHighlights(prev => prev.filter(p => p.id !== id));
+            })
+            .subscribe();
+
+        realtimeRef.current = channel;
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
-        };
-    }, []);
+    // Admin: publish post
+    const handlePublish = async () => {
+        if (!form.title.trim() || !form.content.trim()) return;
+        setPublishing(true);
+        try {
+            await createBlogPost({ ...form, author_name: 'ORVAX' });
+            setForm({ title: '', content: '', summary: '', category: 'GERAL', image_url: '', is_highlight: false });
+            setComposeOpen(false);
+        } catch (e) {
+            console.error('Publish error:', e);
+        } finally {
+            setPublishing(false);
+        }
+    };
+
+    // Admin: delete post
+    const handleDelete = async (e, postId) => {
+        e.stopPropagation();
+        if (!window.confirm('Deletar este post permanentemente?')) return;
+        await deleteBlogPost(postId);
+    };
 
     const handleScroll = () => {
         if (containerRef.current) {
@@ -168,13 +224,6 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
         }
     };
 
-    useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }, [theme]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -194,56 +243,9 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
             className="max-w-md mx-auto h-screen overflow-y-scroll snap-y snap-mandatory bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 relative scrollbar-hide text-black dark:text-white"
         >
             
-            {/* 1. TOP HEADER: FLOATING ISLAND RADIO (ULTRA PREMIUM) */}
-            <div className="fixed top-4 w-full max-w-md px-4 z-[60] flex justify-between items-center pointer-events-none">
-                {/* Floating Pill Radio */}
-                <div className="pointer-events-auto flex items-center gap-2">
-                    <div className="flex items-center gap-3 px-3 py-2 rounded-full border border-white/20 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-lg transition-all active:scale-95">
-                        {/* Spinning Avatar */}
-                        <div className={`w-8 h-8 rounded-full overflow-hidden shrink-0 border border-black/10 dark:border-white/10 ${isRadioPlaying ? 'animate-spin-slow' : ''}`}>
-                            <img src="https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=100&q=80" alt="Orvax Radio" className="w-full h-full object-cover" />
-                        </div>
-                        
-                        {/* Info & Equalizer */}
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black tracking-widest leading-none">ORVAX FM</span>
-                            <div className="flex items-center gap-1 mt-1">
-                                <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400">Lo-Fi Beats</span>
-                                {isRadioPlaying && (
-                                    <div className="flex items-end gap-[1px] h-2 ml-1">
-                                        <div className="w-[1.5px] bg-indigo-500 rounded-full animate-equalizer-long" />
-                                        <div className="w-[1.5px] bg-indigo-500 rounded-full animate-equalizer-short" />
-                                        <div className="w-[1.5px] bg-indigo-500 rounded-full animate-equalizer-long delay-150" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Control Button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (!audioRef.current) {
-                                    audioRef.current = new Audio(RADIO_STREAM_URL);
-                                    audioRef.current.volume = 0.6;
-                                }
-                                if (isRadioPlaying) {
-                                    audioRef.current.pause();
-                                    setIsRadioPlaying(false);
-                                } else {
-                                    audioRef.current.play().catch(() => {});
-                                    setIsRadioPlaying(true);
-                                }
-                            }}
-                            className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-md active:scale-90 transition-all ml-1 shrink-0"
-                        >
-                            {isRadioPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Theme Toggle Button */}
-                <button 
+            {/* 1. TOP HEADER: THEME TOGGLE */}
+            <div className="fixed top-4 w-full max-w-md px-4 z-[60] flex justify-end items-center pointer-events-none">
+                <button
                     onClick={toggleTheme}
                     className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800 shadow-lg active:scale-90 transition-all text-black dark:text-white"
                 >
@@ -256,17 +258,26 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                 <div className="px-6 mb-4">
                     <span className="text-[10px] font-black tracking-[0.4em] text-gray-400 uppercase">MAR 2026</span>
                     <h1 className="text-4xl font-black tracking-tighter text-black dark:text-white uppercase leading-none mt-1">
-                        TODAY'S<br/>HIGHLIGHTS
+                        TODAY&apos;S<br/>HIGHLIGHTS
                     </h1>
                 </div>
 
                 {/* Great Carrossel */}
                 <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-5 px-6 h-full pb-16">
                     {highlights.map((item) => (
-                        <button 
-                            key={item.id}
+                        <div key={item.id} className="min-w-[88vw] snap-center flex flex-col relative">
+                            {/* Admin delete button */}
+                            {isAdmin && (
+                                <button
+                                    onClick={e => handleDelete(e, item.id)}
+                                    className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-red-500 flex items-center justify-center active:scale-90 transition-all shadow-lg"
+                                >
+                                    <Trash2 size={13} className="text-white" />
+                                </button>
+                            )}
+                        <button
                             onClick={() => setSelectedArticle(item)}
-                            className="min-w-[88vw] snap-center flex flex-col relative group text-left transition-transform duration-300 active:scale-[0.98]"
+                            className="w-full h-full flex flex-col relative group text-left transition-transform duration-300 active:scale-[0.98]"
                         >
                             <div className="h-[70%] w-full rounded-t-3xl overflow-hidden relative shadow-lg">
                                 <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
@@ -288,6 +299,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                                 </h2>
                             </div>
                         </button>
+                        </div>
                     ))}
                 </div>
 
@@ -300,14 +312,27 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
 
             {/* 3. BLOG BODY: O FEED SOCIAL BRUTALISTA (2ª TELA) */}
             <main className="min-h-screen w-full snap-start pt-32 px-6 pb-40 bg-gray-50 dark:bg-zinc-950 transition-colors">
-                <div className="mb-14 px-2">
+                <div className="mb-8 px-2">
                     <h2 className="text-sm font-black tracking-[0.3em] text-black dark:text-white uppercase inline-block border-b-4 border-black dark:border-white pb-1">TIMELINE DE NOTÍCIAS</h2>
+                </div>
+
+                {/* ── Audio Station (inline, entre titulo e feed) ── */}
+                <div className="mb-10">
+                    <AudioStation isDark={theme === 'dark'} />
                 </div>
 
                 <div className="flex flex-col gap-14">
                     {feedPosts.map((post, idx) => (
-                        <button 
-                            key={post.id}
+                        <div key={post.id} className="relative">
+                        {isAdmin && (
+                            <button
+                                onClick={e => handleDelete(e, post.id)}
+                                className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center active:scale-90 transition-all shadow-lg"
+                            >
+                                <Trash2 size={12} className="text-white" />
+                            </button>
+                        )}
+                        <button
                             onClick={() => setSelectedArticle(post)}
                             className="flex gap-6 relative group text-left w-full active:scale-[0.98] transition-transform"
                         >
@@ -349,6 +374,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                                 </div>
                             </div>
                         </button>
+                        </div>
                     ))}
                 </div>
             </main>
@@ -420,21 +446,133 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                 </div>
             )}
 
+            {/* ── ADMIN: Floating compose button ── */}
+            {isAdmin && !composeOpen && !selectedArticle && (
+                <button
+                    onClick={() => setComposeOpen(true)}
+                    className="fixed bottom-24 right-4 z-[90] w-14 h-14 rounded-full bg-black dark:bg-white shadow-2xl flex items-center justify-center active:scale-90 transition-all"
+                >
+                    <Plus size={24} className="text-white dark:text-black" strokeWidth={2.5} />
+                </button>
+            )}
+
+            {/* ── ADMIN: Compose modal ── */}
+            {composeOpen && (
+                <div className="fixed inset-0 z-[110] bg-white dark:bg-zinc-950 max-w-md mx-auto flex flex-col overflow-hidden animate-slide-up">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-gray-100 dark:border-zinc-800">
+                        <span className="text-[11px] font-black tracking-[0.3em] uppercase text-black dark:text-white">Novo Post</span>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handlePublish}
+                                disabled={publishing || !form.title.trim() || !form.content.trim()}
+                                className="flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-wider rounded-full active:scale-95 transition-all disabled:opacity-30"
+                            >
+                                <Send size={12} />
+                                {publishing ? 'Publicando...' : 'Publicar'}
+                            </button>
+                            <button onClick={() => setComposeOpen(false)} className="w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition-all">
+                                <X size={16} className="text-black dark:text-white" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Form */}
+                    <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
+                        {/* Title */}
+                        <div>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Título *</label>
+                            <input
+                                type="text"
+                                placeholder="Título do post..."
+                                value={form.title}
+                                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                                className="w-full text-2xl font-black tracking-tight text-black dark:text-white bg-transparent border-b-2 border-gray-200 dark:border-zinc-700 focus:border-black dark:focus:border-white outline-none pb-2 placeholder:text-gray-200 dark:placeholder:text-zinc-800 transition-colors"
+                            />
+                        </div>
+
+                        {/* Summary */}
+                        <div>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Resumo (subtítulo)</label>
+                            <input
+                                type="text"
+                                placeholder="Uma frase de impacto..."
+                                value={form.summary}
+                                onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
+                                className="w-full text-sm font-medium text-black dark:text-white bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 outline-none focus:border-black dark:focus:border-white transition-colors placeholder:text-gray-300 dark:placeholder:text-zinc-700"
+                            />
+                        </div>
+
+                        {/* Category + Highlight row */}
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Categoria</label>
+                                <select
+                                    value={form.category}
+                                    onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                                    className="w-full text-[11px] font-black uppercase tracking-widest text-black dark:text-white bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 outline-none focus:border-black dark:focus:border-white transition-colors"
+                                >
+                                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex flex-col items-center justify-center gap-1">
+                                <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400">Destaque</label>
+                                <button
+                                    onClick={() => setForm(f => ({ ...f, is_highlight: !f.is_highlight }))}
+                                    className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 border-2 ${form.is_highlight ? 'bg-black dark:bg-white border-black dark:border-white' : 'bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800'}`}
+                                >
+                                    <Star size={16} className={form.is_highlight ? 'text-white dark:text-black' : 'text-gray-300 dark:text-zinc-700'} fill={form.is_highlight ? 'currentColor' : 'none'} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Image URL */}
+                        <div>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">URL da Imagem (opcional)</label>
+                            <input
+                                type="url"
+                                placeholder="https://..."
+                                value={form.image_url}
+                                onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))}
+                                className="w-full text-sm text-black dark:text-white bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 outline-none focus:border-black dark:focus:border-white transition-colors placeholder:text-gray-300 dark:placeholder:text-zinc-700"
+                            />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1">
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Conteúdo *</label>
+                            <textarea
+                                placeholder="Escreva o conteúdo completo aqui..."
+                                value={form.content}
+                                onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                                rows={12}
+                                className="w-full text-base leading-relaxed text-black dark:text-white bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 outline-none focus:border-black dark:focus:border-white transition-colors placeholder:text-gray-300 dark:placeholder:text-zinc-700 resize-none"
+                            />
+                        </div>
+
+                        <div className="h-8" />
+                    </div>
+                </div>
+            )}
+
+            {/* ── ADMIN: Delete buttons on feed posts ── */}
+
             <style>{`
                 .scrollbar-hide::-webkit-scrollbar { display: none; }
                 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-                
+
                 @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 .animate-spin-slow { animation: spin-slow 15s linear infinite; }
-                
+
                 @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
                 .animate-slide-up { animation: slide-up 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
-                
+
                 @keyframes equalizer-long { 0%, 100% { height: 4px; } 50% { height: 10px; } }
                 @keyframes equalizer-short { 0%, 100% { height: 6px; } 50% { height: 3px; } }
                 .animate-equalizer-long { animation: equalizer-long 0.6s ease-in-out infinite; }
                 .animate-equalizer-short { animation: equalizer-short 0.6s ease-in-out infinite; }
             `}</style>
+
 
         </div>
     );

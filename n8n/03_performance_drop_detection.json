@@ -1,0 +1,99 @@
+{
+  "name": "ORVAX - Performance Drop Detection (20:00 BRT)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 23 * * *" }]
+        }
+      },
+      "id": "cron",
+      "name": "Cron 20:00 BRT (23:00 UTC)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/detect_performance_drops",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"p_threshold_pct\": 30}"
+      },
+      "id": "detect",
+      "name": "RPC detect_performance_drops",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "id": "split",
+      "name": "Para cada queda",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Você é o mentor do ORVAX, app brasileiro de disciplina pessoal. Escreva 1 mensagem curta (máx 280 caracteres) em português BR, tom direto e acolhedor (sem emojis, sem exclamações), apontando uma queda de desempenho e sugerindo 1 ação concreta. Nunca culpe. Nunca seja genérico.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Pilar que caiu: {{ $json.pillar }} | Variação: -{{ $json.drop_pct }}% vs média 14d | Hábito mais afetado: {{ $json.top_missing_habit || 'nenhum específico' }} | Nome: {{ $json.name || 'amigo' }}\"\n    }\n  ],\n  \"max_tokens\": 120,\n  \"temperature\": 0.7\n}"
+      },
+      "id": "llm",
+      "name": "Gerar mensagem (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/push_notifications",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Para cada queda').item.json.user_id }}\",\n  \"title\": \"Sinal detectado\",\n  \"body\": \"{{ $json.choices[0].message.content }}\",\n  \"kind\": \"drop_alert\",\n  \"meta\": { \"pillar\": \"{{ $('Para cada queda').item.json.pillar }}\", \"drop_pct\": {{ $('Para cada queda').item.json.drop_pct }} }\n}"
+      },
+      "id": "notify",
+      "name": "Gravar notificação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300]
+    }
+  ],
+  "connections": {
+    "Cron 20:00 BRT (23:00 UTC)": { "main": [[{ "node": "RPC detect_performance_drops", "type": "main", "index": 0 }]] },
+    "RPC detect_performance_drops": { "main": [[{ "node": "Para cada queda", "type": "main", "index": 0 }]] },
+    "Para cada queda": { "main": [[{ "node": "Gerar mensagem (OpenAI)", "type": "main", "index": 0 }]] },
+    "Gerar mensagem (OpenAI)": { "main": [[{ "node": "Gravar notificação", "type": "main", "index": 0 }]] },
+    "Gravar notificação": { "main": [[{ "node": "Para cada queda", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "orvax" }, { "name": "retention" }]
+}

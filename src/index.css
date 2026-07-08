@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;700&family=Outfit:wght@200;300;400;600;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,9 +8,6 @@ html, body {
   overflow-x: hidden;
   max-width: 100vw;
 }
-
-
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;700&family=Outfit:wght@200;300;400;600;800&display=swap');
 
 :root {
   --bg-color: #050507;
@@ -215,7 +214,7 @@ body {
   left: -50%;
   width: 200%;
   height: 200%;
-  background-image: url('https://grainy-gradients.vercel.app/noise.svg');
+  /* Noise texture removed due to 403 error from provider */
   opacity: 0.06;
   pointer-events: none;
   z-index: 1;
@@ -465,3 +464,64 @@ body {
     opacity: 0;
   }
 }
+
+/* ═══════════════════════════════════════════════
+   COMPASS DESIGN SYSTEM — Pillar colors & viz
+   Colors ONLY on data visualization, never on
+   backgrounds, text, or structural borders.
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --pillar: #ffffff;
+  --pillar-soft: rgba(255, 255, 255, 0.10);
+  --compass-success: #22c55e;
+  --compass-destructive: #ef4444;
+  --compass-surface-2: #262626;
+}
+
+:root.light {
+  --compass-surface-2: #e5e5e5;
+}
+
+/* Pillar accent colors — scoped to data viz only */
+.compass-pillar-mind           { --pillar: oklch(0.72 0.14 220); --pillar-soft: oklch(0.72 0.14 220 / 0.18); }
+.compass-pillar-health         { --pillar: oklch(0.72 0.18 150); --pillar-soft: oklch(0.72 0.18 150 / 0.18); }
+.compass-pillar-nutrition      { --pillar: oklch(0.78 0.16 130); --pillar-soft: oklch(0.78 0.16 130 / 0.18); }
+.compass-pillar-finance        { --pillar: oklch(0.80 0.16 90);  --pillar-soft: oklch(0.80 0.16 90 / 0.18); }
+.compass-pillar-career         { --pillar: oklch(0.65 0.22 290); --pillar-soft: oklch(0.65 0.22 290 / 0.18); }
+.compass-pillar-goals          { --pillar: oklch(0.62 0.21 255); --pillar-soft: oklch(0.62 0.21 255 / 0.18); }
+.compass-pillar-relationships  { --pillar: oklch(0.72 0.16 15);  --pillar-soft: oklch(0.72 0.16 15 / 0.18); }
+.compass-pillar-internal       { --pillar: oklch(0.75 0.14 295); --pillar-soft: oklch(0.75 0.14 295 / 0.18); }
+.compass-pillar-habits         { --pillar: oklch(0.72 0.19 50);  --pillar-soft: oklch(0.72 0.19 50 / 0.18); }
+.compass-pillar-learning       { --pillar: oklch(0.62 0.20 270); --pillar-soft: oklch(0.62 0.20 270 / 0.18); }
+.compass-pillar-leisure        { --pillar: oklch(0.85 0.15 95);  --pillar-soft: oklch(0.85 0.15 95 / 0.18); }
+.compass-pillar-identity       { --pillar: oklch(0.98 0 0);      --pillar-soft: oklch(0.98 0 0 / 0.12); }
+
+/* Compass animations */
+@keyframes compass-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes compass-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes compass-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Compass utilities */
+.compass-label-meta {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.compass-tabular { font-variant-numeric: tabular-nums; }
+.compass-no-scrollbar::-webkit-scrollbar { display: none; }
+.compass-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

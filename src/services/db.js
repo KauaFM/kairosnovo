@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { appEvents } from '../lib/events';
 
 // [BUG #11 FIX] Helper para obter data local (YYYY-MM-DD) sem deslocamento UTC.
 // new Date().toISOString() converte para UTC antes de extrair a data, causando
@@ -65,17 +66,21 @@ export const getTasks = async (date) => {
 export const createTask = async (task) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
-    return await supabase.from('tasks').insert([{ ...task, user_id: session.user.id }]);
+    const result = await supabase.from('tasks').insert([{ ...task, user_id: session.user.id }]);
+    if (!result.error) appEvents.emit({ type: 'TASK_CHANGED' });
+    return result;
 };
 
 // [BUG #9 FIX] Adicionado filtro user_id para defesa em profundidade além do RLS
 export const updateTaskState = async (taskId, state) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
-    return await supabase.from('tasks')
+    const result = await supabase.from('tasks')
         .update({ state })
         .eq('id', taskId)
         .eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'TASK_CHANGED' });
+    return result;
 };
 
 // [BUG #2 + #9 FIX] deleteTask agora filtra por user_id
@@ -83,10 +88,12 @@ export const updateTaskState = async (taskId, state) => {
 export const deleteTask = async (taskId) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
-    return await supabase.from('tasks')
+    const result = await supabase.from('tasks')
         .delete()
         .eq('id', taskId)
         .eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'TASK_CHANGED' });
+    return result;
 };
 
 // --- CAPITAL (TRANSACTIONS) ---
@@ -121,7 +128,17 @@ export const getTransactions = async (filter = 'all') => {
 export const createTransaction = async (transaction) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
-    return await supabase.from('transactions').insert([{ ...transaction, user_id: session.user.id }]);
+    const result = await supabase.from('transactions').insert([{ ...transaction, user_id: session.user.id }]);
+    if (!result.error) appEvents.emit({ type: 'TRANSACTION_CHANGED' });
+    return result;
+};
+
+export const deleteTransaction = async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const result = await supabase.from('transactions').delete().eq('id', id).eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'TRANSACTION_CHANGED' });
+    return result;
 };
 
 // --- FINANCIAL GOALS ---
@@ -135,12 +152,45 @@ export const getGoals = async () => {
 export const createFinancialGoal = async (goal) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
+
+    // Destructure out 'category' and 'name'
+    const { category, name, title, ...cleanGoal } = goal;
+    const finalTitle = title || name || 'Nova Meta';
+
     const { data, error } = await supabase
         .from('financial_goals')
-        .insert([{ ...goal, user_id: session.user.id, current_amount: 0 }])
+        .insert([{ ...cleanGoal, title: finalTitle, user_id: session.user.id, current_amount: 0 }])
         .select()
         .single();
     if (error) throw error;
+    appEvents.emit({ type: 'GOAL_CHANGED' });
+    return data;
+};
+
+export const deleteFinancialGoal = async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const result = await supabase.from('financial_goals').delete().eq('id', id).eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'GOAL_CHANGED' });
+    return result;
+};
+
+export const updateFinancialGoalProgress = async (id, amountToAdd) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    
+    const { data: currentGoal } = await supabase.from('financial_goals').select('current_amount').eq('id', id).maybeSingle();
+    if (!currentGoal) return null;
+
+    const newAmount = Number(currentGoal.current_amount || 0) + Number(amountToAdd);
+    
+    const { data, error } = await supabase.from('financial_goals')
+        .update({ current_amount: newAmount })
+        .eq('id', id)
+        .eq('user_id', session.user.id)
+        .select()
+        .single();
+    if (data) appEvents.emit({ type: 'GOAL_CHANGED' });
     return data;
 };
 
@@ -158,6 +208,12 @@ export const addMedia = async (media) => {
     return await supabase.from('media_vault').insert([{ ...media, user_id: session.user.id }]);
 };
 
+export const deleteMedia = async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    return await supabase.from('media_vault').delete().eq('id', id).eq('user_id', session.user.id);
+};
+
 // --- TELEMETRY ---
 export const getTelemetryMetrics = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -169,11 +225,17 @@ export const getTelemetryMetrics = async () => {
 export const saveTelemetryMetric = async (metric) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
-    return await supabase.from('telemetry_metrics').upsert([{ ...metric, user_id: session.user.id }]);
+    const result = await supabase.from('telemetry_metrics').upsert([{ ...metric, user_id: session.user.id }]);
+    if (!result.error) appEvents.emit({ type: 'DAY_LOGGED' });
+    return result;
 };
 
 export const deleteTelemetryMetric = async (id) => {
-    return await supabase.from('telemetry_metrics').delete().eq('id', id);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const result = await supabase.from('telemetry_metrics').delete().eq('id', id).eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'DAY_LOGGED' });
+    return result;
 };
 
 // --- BLOG POSTS ---
@@ -191,6 +253,33 @@ export const getBlogPosts = async (highlightsOnly = false) => {
     } catch (e) {
         return [];
     }
+};
+
+export const createBlogPost = async (post) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const dt = new Date();
+    const { data, error } = await supabase.from('blog_posts').insert([{
+        title: post.title,
+        content: post.content,
+        summary: post.summary || '',
+        category: post.category || 'GERAL',
+        image_url: post.image_url || null,
+        author_name: post.author_name || 'ORVAX',
+        is_highlight: post.is_highlight || false,
+        published: true,
+        read_time_min: post.read_time_min || Math.ceil((post.content || '').split(' ').length / 200) || 3,
+        date_day: String(dt.getDate()).padStart(2, '0'),
+        date_month: dt.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', ''),
+        created_at: dt.toISOString(),
+    }]).select().single();
+    if (error) { console.error('createBlogPost error:', error); return null; }
+    return data;
+};
+
+export const deleteBlogPost = async (postId) => {
+    const { error } = await supabase.from('blog_posts').delete().eq('id', postId);
+    if (error) console.error('deleteBlogPost error:', error);
 };
 
 // --- ACHIEVEMENTS ---
@@ -319,6 +408,24 @@ export const updateGoalProgress = async (goalId, progress, status) => {
     return await supabase.from('goals').update(update).eq('id', goalId);
 };
 
+// [ORVAX] Atualiza o valor concreto atual (ex: 1.5 km corridos). O trigger
+// no banco recalcula o progress (%) automaticamente.
+export const updateGoalCurrentValue = async (goalId, currentValue) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    return await supabase
+        .from('goals')
+        .update({ current_value: currentValue, updated_at: new Date().toISOString() })
+        .eq('id', goalId)
+        .eq('user_id', session.user.id);
+};
+
+export const deleteGoal = async (goalId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    return await supabase.from('goals').delete().eq('id', goalId).eq('user_id', session.user.id);
+};
+
 // --- TELEMETRY HISTORY (RADAR CHART SEMANAL) ---
 export const getTelemetryHistory = async (days = 7) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -370,7 +477,10 @@ export const updateNote = async (noteId, updates) => {
 };
 
 export const deleteNote = async (noteId) => {
-    return await supabase.from('user_notes').delete().eq('id', noteId);
+    // [AUDIT FIX] Defense-in-depth: also filter by user_id beyond RLS
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    return await supabase.from('user_notes').delete().eq('id', noteId).eq('user_id', session.user.id);
 };
 
 // --- MONTHLY FINANCIAL SUMMARY (PARA CHARTS) ---
@@ -411,23 +521,276 @@ export const getMonthlyFinancialSummary = async (months = 12) => {
 };
 
 // --- RANK HELPER ---
+// [ORVAX] Fórmula matemática pura: cada passo DOBRA o delta anterior.
+// delta(E- → E) = 100. delta(E → E+) = 200. delta(E+ → D-) = 400. E assim por diante.
+// Isso gera um Ø (singularidade) naturalmente inalcançável — a escala é a vida inteira.
+// minXP é acumulado: minXP[n] = minXP[n-1] + 100 * 2^(n-1)
+export const RANK_DEFS = (() => {
+    const META = [
+        ['E-',  'FASE DE INÉRCIA',          '#ef4444', 'CRÍTICO'],
+        ['E',   'OBSERVADOR PASSIVO',       '#ef4444', 'CRÍTICO'],
+        ['E+',  'DESPERTAR TÉCNICO',        '#f87171', 'ALERTA'],
+        ['D-',  'INICIANTE SISTÊMICO',      '#f97316', 'INSTÁVEL'],
+        ['D',   'OPERADOR DE BAIXA FREQ.',  '#f97316', 'INSTÁVEL'],
+        ['D+',  'CANDIDATO A AGENTE',       '#fb923c', 'ADAPTANDO'],
+        ['C-',  'MÓDULO DE ESTABILIDADE',   '#eab308', 'ESTÁVEL'],
+        ['C',   'OPERADOR DISCIPLINADO',    '#eab308', 'ESTÁVEL'],
+        ['C+',  'TÉCNICO DE PERFORMANCE',   '#facc15', 'ESTÁVEL'],
+        ['B-',  'AGENTE DE CAMPO',          '#3b82f6', 'OPERANTE'],
+        ['B',   'AGENTE KAIROS',            '#3b82f6', 'OPERANTE'],
+        ['B+',  'AGENTE VETERANO',          '#60a5fa', 'AVANÇADO'],
+        ['A-',  'ESPECIALISTA EM FLUXO',    '#38bdf8', 'ELITE'],
+        ['A',   'ELITE COMPUTACIONAL',      '#38bdf8', 'ELITE'],
+        ['A+',  'MESTRE DA EXECUÇÃO',       '#7dd3fc', 'MÁXIMO'],
+        ['S-',  'ARQUÉTIPO SUPERIOR',       '#22c55e', 'SUPREMO'],
+        ['S',   'SOBERANO',                 '#22c55e', 'SUPREMO'],
+        ['S+',  'ENTIDADE DE PERFORMANCE',  '#4ade80', 'SUPREMO'],
+        ['SS-', 'SOBERANO ABSOLUTO',        '#2dd4bf', 'ABSOLUTO'],
+        ['SS',  'DIVINDADE TÉCNICA',        '#2dd4bf', 'ABSOLUTO'],
+        ['SS+', 'VANGUARDA NEURAL',         '#5eead4', 'ABSOLUTO'],
+        ['X-',  'CIFRA DO SISTEMA',         '#f43f5e', 'TRANSCENDENTE'],
+        ['X',   'DREADNOUGHT',              '#f43f5e', 'TRANSCENDENTE'],
+        ['X+',  'NÊMESIS DO CAOS',          '#fb7185', 'TRANSCENDENTE'],
+        ['Ø',   'SINGULARIDADE OMEGA',      null,      'OMEGA'],
+    ];
+    let cum = 0;
+    return META.map(([rank, title, color, status], idx) => {
+        const minXP = cum;
+        // delta pro próximo nível = 100 * 2^idx
+        cum += 100 * Math.pow(2, idx);
+        return { rank, title, minXP, color, status };
+    });
+})();
+
 export const getRankFromXP = (xp) => {
-    if (xp >= 10000) return { rank: 'Ø', title: 'SINGULARIDADE OMEGA', nextAt: null, progress: 100 };
-    if (xp >= 5000) return { rank: 'S', title: 'SISTEMA AUTÔNOMO', nextAt: 10000, progress: ((xp - 5000) / 5000) * 100 };
-    if (xp >= 2000) return { rank: 'A+', title: 'MESTRE DE SISTEMAS', nextAt: 5000, progress: ((xp - 2000) / 3000) * 100 };
-    if (xp >= 1000) return { rank: 'A', title: 'ARQUITETO DE DADOS', nextAt: 2000, progress: ((xp - 1000) / 1000) * 100 };
-    if (xp >= 500) return { rank: 'B', title: 'OPERADOR SENIOR', nextAt: 1000, progress: ((xp - 500) / 500) * 100 };
-    if (xp >= 200) return { rank: 'C', title: 'ANALISTA ALPHA', nextAt: 500, progress: ((xp - 200) / 300) * 100 };
-    if (xp >= 50) return { rank: 'D', title: 'AGENTE NOVATO', nextAt: 200, progress: ((xp - 50) / 150) * 100 };
-    return { rank: 'E', title: 'RECRUTA KRS', nextAt: 50, progress: (xp / 50) * 100 };
+    const RANKS = RANK_DEFS;
+    let currentIdx = 0;
+    for (let i = RANKS.length - 1; i >= 0; i--) {
+        if (xp >= RANKS[i].minXP) { currentIdx = i; break; }
+    }
+
+    const current = RANKS[currentIdx];
+    const next = RANKS[currentIdx + 1];
+    const progress = next
+        ? ((xp - current.minXP) / (next.minXP - current.minXP)) * 100
+        : 100;
+
+    return {
+        rank: current.rank,
+        title: current.title,
+        nextAt: next?.minXP || null,
+        progress,
+        color: current.color,
+        status: current.status,
+        currentMin: current.minXP,
+        deltaToNext: next ? next.minXP - current.minXP : 0
+    };
 };
 
 // --- STREAK (CALCULADO REAL) ---
 export const getStreak = async () => {
+    const act = await getWeekActivity();
+    let streak = 0;
+    // act is an array of 7 booleans (today is index 6, or similar, wait, getWeekActivity returns [mon, tue...])
+    // Instead of guessing, we just count the consecutive true values from the end
+    for (let i = act.length - 1; i >= 0; i--) {
+        if (act[i]) streak++;
+        else if (i !== act.length - 1) break; // if today is false, check yesterday. If yesterday is false, streak breaks.
+    }
+    return streak;
+};
+
+// ============================================================
+// ORVAX CORE — Dashboard unificado (lê v_user_pillars_7d + RPC)
+// ============================================================
+export const getDashboard = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return 0;
-    const { data } = await supabase.rpc('calculate_streak', { p_user_id: session.user.id });
-    return data || 0;
+    if (!session) return null;
+    const { data, error } = await supabase.rpc('get_dashboard');
+    if (error) {
+        console.warn('[getDashboard] RPC falhou:', error.message);
+        return null;
+    }
+    return data;
+};
+
+// Histórico diário (para sparklines dos pilares)
+export const getDailyMetrics = async (days = 30) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const { data } = await supabase
+        .from('daily_metrics')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .gte('day', since.toISOString().slice(0, 10))
+        .order('day', { ascending: true });
+    return data || [];
+};
+
+// Últimos ganhos de XP (para feed de atividade)
+export const getXpLog = async (limit = 20) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const { data } = await supabase
+        .from('xp_log')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    return data || [];
+};
+
+// ============================================================
+// Feed de ATRIBUIÇÃO — XP enriquecido com título/origem
+// Resolve source_id contra tasks/habits/goals para mostrar
+// de ONDE veio cada ganho de XP no dashboard de métricas.
+// ============================================================
+export const getXpFeed = async (limit = 25) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+
+    const { data: logs } = await supabase
+        .from('xp_log')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (!logs || logs.length === 0) return [];
+
+    // Agrupa source_ids por tabela
+    const taskIds = [], habitIds = [], goalIds = [];
+    for (const l of logs) {
+        if (!l.source_id) continue;
+        if (l.source === 'task_done') taskIds.push(l.source_id);
+        else if (l.source === 'habit_done') habitIds.push(l.source_id);
+        else if (l.source === 'goal_progress' || l.source === 'goal_complete') goalIds.push(l.source_id);
+    }
+
+    const [tasksRes, habitsRes, goalsRes] = await Promise.all([
+        taskIds.length
+            ? supabase.from('tasks').select('id, title, category, pillar').in('id', taskIds)
+            : Promise.resolve({ data: [] }),
+        habitIds.length
+            ? supabase.from('habits').select('id, title, pillar').in('id', habitIds)
+            : Promise.resolve({ data: [] }),
+        goalIds.length
+            ? supabase.from('goals').select('id, title, category, progress, current_value, target_value, unit').in('id', goalIds)
+            : Promise.resolve({ data: [] }),
+    ]);
+
+    const taskMap = new Map((tasksRes.data || []).map(t => [t.id, t]));
+    const habitMap = new Map((habitsRes.data || []).map(h => [h.id, h]));
+    const goalMap = new Map((goalsRes.data || []).map(g => [g.id, g]));
+
+    return logs.map(l => {
+        let title = 'Atividade ORVAX';
+        let area = 'sistema';
+        let pillar = null;
+        let detail = null;
+
+        if (l.source === 'task_done') {
+            const t = taskMap.get(l.source_id);
+            if (t) { title = t.title; area = (t.category || 'agenda').toLowerCase(); pillar = t.pillar; }
+            else { title = 'Tarefa concluída'; area = 'agenda'; }
+        } else if (l.source === 'habit_done') {
+            const h = habitMap.get(l.source_id);
+            if (h) { title = h.title; pillar = h.pillar; }
+            else { title = 'Hábito'; }
+            area = 'hábito';
+        } else if (l.source === 'goal_complete') {
+            const g = goalMap.get(l.source_id);
+            title = g ? `✓ Meta: ${g.title}` : 'Meta concluída';
+            area = (g?.category || 'meta').toLowerCase();
+            pillar = 'evolucao';
+        } else if (l.source === 'goal_progress') {
+            const g = goalMap.get(l.source_id);
+            title = g ? `Meta: ${g.title}` : 'Progresso de meta';
+            area = (g?.category || 'meta').toLowerCase();
+            pillar = 'evolucao';
+            if (g?.target_value && g?.unit) {
+                detail = `${g.current_value ?? 0} / ${g.target_value} ${g.unit}`;
+            } else if (g?.progress != null) {
+                detail = `${g.progress}%`;
+            }
+        }
+
+        return {
+            id: l.id,
+            source: l.source,
+            source_id: l.source_id,
+            title,
+            area,
+            pillar,
+            amount: l.amount,
+            detail,
+            created_at: l.created_at,
+        };
+    });
+};
+
+// ============================================================
+// Perfil Público — dados reais de outro usuário para Ranking
+// ============================================================
+export const getPublicProfile = async (userId) => {
+    if (!userId) return null;
+    const { data, error } = await supabase.rpc('get_public_profile', { p_user: userId });
+    if (error) {
+        console.warn('[getPublicProfile] erro:', error.message);
+        return null;
+    }
+    return data;
+};
+
+// ============================================================
+// Friendships
+// ============================================================
+export const listFriends = async () => {
+    const { data, error } = await supabase.rpc('list_friends');
+    if (error) { console.warn('[listFriends]', error.message); return []; }
+    return data || [];
+};
+
+export const listFriendRequests = async () => {
+    const { data, error } = await supabase.rpc('list_friend_requests');
+    if (error) { console.warn('[listFriendRequests]', error.message); return []; }
+    return data || [];
+};
+
+export const searchUsers = async (q) => {
+    if (!q || q.trim().length < 2) return [];
+    const { data, error } = await supabase.rpc('search_users', { q: q.trim() });
+    if (error) { console.warn('[searchUsers]', error.message); return []; }
+    return data || [];
+};
+
+export const sendFriendRequest = async (friendId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { error: { message: 'no-session' } };
+    return await supabase.from('friendships').insert([{
+        requester_id: session.user.id,
+        addressee_id: friendId,
+        status: 'pending',
+    }]).select().single();
+};
+
+export const acceptFriendRequest = async (friendshipId) => {
+    return await supabase
+        .from('friendships')
+        .update({ status: 'accepted' })
+        .eq('id', friendshipId)
+        .select()
+        .single();
+};
+
+export const rejectFriendRequest = async (friendshipId) => {
+    return await supabase.from('friendships').delete().eq('id', friendshipId);
+};
+
+export const removeFriend = async (friendshipId) => {
+    return await supabase.from('friendships').delete().eq('id', friendshipId);
 };
 
 // --- GROUPS ---

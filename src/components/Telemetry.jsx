@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RadarChart from './charts/RadarChart';
 import GoalProgress from './Metrics/GoalProgress';
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { getTelemetryMetrics, getProfile, saveTelemetryMetric, deleteTelemetryMetric, getUserGoals, getTelemetryHistory } from '../services/db';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
-
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { toLocalDateStr } from '../utils/dateUtils';
 
 const getIconForId = (id) => {
@@ -38,107 +38,94 @@ const DeepNodeCard = ({ node }) => {
     const trendColorClass = isUp ? 'text-[#22c55e]' : isDown ? 'text-red-500' : 'text-current opacity-50';
 
     return (
-        <div className="w-full relative glass-panel rounded-[32px] p-6 mb-6 overflow-hidden transition-all hover:-translate-y-1 block" style={{ border: '1px solid var(--border-color)', boxShadow: 'var(--glass-shadow)', backgroundColor: 'var(--glass-bg)' }}>
+        <div className="w-full relative rounded-[28px] border p-6 mb-4 overflow-hidden transition-all hover:scale-[1.005] block" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+            <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-[0.015] pointer-events-none" style={{ backgroundColor: 'var(--text-main)', filter: 'blur(40px)' }}></div>
 
-            {/* Header: Icon, Title, Status */}
-            <div className="flex justify-between items-start mb-8 relative z-10">
-                <div>
-                    <div className="flex items-center gap-2 mb-1.5 opacity-80">
-                        {getIconForId(node.id)}
-                        <span className="text-[12px] font-syncopate font-black uppercase tracking-widest">{node.title}</span>
+            <div className="flex justify-between items-start mb-6 relative z-10">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}>
+                        <div className="opacity-40">{getIconForId(node.id)}</div>
                     </div>
-                    <span className="text-[9px] font-mono opacity-40 uppercase tracking-[0.2em]">{node.subtitle}</span>
+                    <div>
+                        <span className="text-[11px] font-outfit font-bold tracking-tight block">{node.title}</span>
+                        <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.2em]">{node.subtitle}</span>
+                    </div>
                 </div>
-                <div className="text-right">
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] opacity-60">{node.state}</span>
-                </div>
+                <span className="text-[7px] font-mono font-bold uppercase tracking-[0.2em] opacity-25 mt-1">{node.state}</span>
             </div>
 
-            {/* Main Score & Trend */}
-            <div className="flex justify-between items-end mb-8 relative z-10">
+            <div className="flex justify-between items-end mb-6 relative z-10">
                 <div className="flex items-baseline gap-1">
-                    <span className="text-6xl font-outfit font-black tracking-tighter opacity-90">{node.score}</span>
-                    <span className="text-sm font-outfit opacity-30">/100</span>
+                    <span className="text-[48px] font-outfit font-black leading-none opacity-85">{node.score}</span>
+                    <span className="text-[13px] font-outfit opacity-15">/100</span>
                 </div>
                 <div className="flex flex-col items-end">
-                    <span className={`text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2 ${trendColorClass}`}>
-                        {isUp ? <ArrowUpRight size={14} /> : isDown ? <ArrowDownRight size={14} /> : <Minus size={14} />}
+                    <span className={`text-[9px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 mb-2 ${trendColorClass}`}>
+                        {isUp ? <ArrowUpRight size={12} /> : isDown ? <ArrowDownRight size={12} /> : <Minus size={12} />}
                         {node.trend}
                     </span>
-                    {/* Mini 7 day graph simulation */}
-                    <div className="flex items-end gap-[3px] h-8 opacity-40 mix-blend-overlay">
+                    <div className="flex items-end gap-[3px] h-7 opacity-25">
                         {node.history.map((h, i) => (
-                            <div key={i} className="w-2.5 rounded-t-sm bg-current transition-all" style={{ height: `${h}%` }}></div>
+                            <div key={i} className="w-2 rounded-t-sm bg-current transition-all" style={{ height: `${h}%` }}></div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* Sub Metrics Grid */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-5 mb-8 pt-6 border-t relative z-10" style={{ borderColor: 'var(--border-color)' }}>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-6 pt-5 relative z-10" style={{ borderTop: '1px solid var(--border-color)' }}>
                 {node.subMetrics.map(sub => (
                     <div key={sub.label} className="flex flex-col">
-                        <span className="text-[8px] font-mono uppercase tracking-[0.2em] opacity-30 mb-1.5 whitespace-nowrap overflow-hidden text-ellipsis">{sub.label}</span>
+                        <span className="text-[7px] font-mono uppercase tracking-[0.2em] opacity-20 mb-1">{sub.label}</span>
                         <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-space font-bold opacity-80">{sub.value}</span>
-                            <span className="text-[9px] font-mono opacity-40">{sub.unit}</span>
+                            <span className="text-[18px] font-outfit font-bold opacity-70">{sub.value}</span>
+                            <span className="text-[8px] font-mono opacity-25">{sub.unit}</span>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Factors */}
-            <div className="flex flex-col gap-5 px-5 py-5 rounded-3xl border relative z-10" style={{ backgroundColor: 'var(--bg-color)', borderColor: 'var(--border-color)' }}>
-                {/* Positives */}
-                <div className="flex flex-col gap-2.5">
-                    <span className="text-[8px] font-mono uppercase tracking-[0.3em] font-bold text-[#22c55e] opacity-80 mb-1">Fatores Positivos (+)</span>
+            <div className="flex flex-col gap-4 px-4 py-4 rounded-[20px] border relative z-10" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
+                <div className="flex flex-col gap-2">
+                    <span className="text-[7px] font-mono uppercase tracking-[0.25em] font-bold text-[#22c55e] opacity-60">Fatores Positivos</span>
                     {node.factors.pos.map(f => (
                         <div key={f} className="flex items-start gap-2">
-                            <span className="text-xs opacity-50 text-[#22c55e]">›</span>
-                            <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 leading-tight mt-0.5">{f}</span>
+                            <span className="text-[9px] opacity-30 text-[#22c55e] mt-0.5">+</span>
+                            <span className="text-[8px] font-mono opacity-35 leading-relaxed tracking-wider">{f}</span>
                         </div>
                     ))}
                 </div>
-
-                <div className="h-px w-full bg-current opacity-5 rounded-full"></div>
-
-                {/* Negatives */}
-                <div className="flex flex-col gap-2.5">
-                    <span className="text-[8px] font-mono uppercase tracking-[0.3em] font-bold text-red-500 opacity-80 mb-1">Atenção Crítica (-)</span>
+                <div className="h-px w-full opacity-5" style={{ backgroundColor: 'var(--text-main)' }}></div>
+                <div className="flex flex-col gap-2">
+                    <span className="text-[7px] font-mono uppercase tracking-[0.25em] font-bold text-red-500 opacity-60">Atencao Critica</span>
                     {node.factors.crit.map(f => (
                         <div key={f} className="flex items-start gap-2">
-                            <span className="text-xs opacity-50 text-red-500">›</span>
-                            <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 leading-tight mt-0.5">{f}</span>
+                            <span className="text-[9px] opacity-30 text-red-500 mt-0.5">-</span>
+                            <span className="text-[8px] font-mono opacity-35 leading-relaxed tracking-wider">{f}</span>
                         </div>
                     ))}
                 </div>
             </div>
-
-            {/* Ambient minimal glow inside the card */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-current opacity-[0.02] blur-[40px] rounded-full pointer-events-none"></div>
         </div>
     );
 };
 
 const ShadowCardList = ({ nodes }) => {
     return (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
             {nodes.map(node => (
-                <div key={node.id} className="w-full p-5 rounded-3xl flex justify-between items-center relative overflow-hidden group hover:bg-red-500/5 transition-colors border" style={{ borderColor: 'var(--border-color)' }}>
-                    {/* Subtile red hint */}
-                    <div className="absolute top-0 left-0 w-1 h-full bg-red-500 opacity-30 group-hover:opacity-60 transition-opacity"></div>
-                    <div className="absolute inset-0 bg-red-500 opacity-[0.02] pointer-events-none"></div>
+                <div key={node.id} className="w-full p-4 rounded-[24px] border flex justify-between items-center relative overflow-hidden group transition-all hover:scale-[1.01]" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                    <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, rgba(239,68,68,0.3), transparent 50%)' }}></div>
 
-                    <div className="flex flex-col gap-1 pr-4 relative z-10">
-                        <span className="text-[10px] font-syncopate font-bold uppercase tracking-widest text-[#ef4444] opacity-80">{node.title}</span>
-                        <span className="text-[9px] font-mono opacity-40 uppercase tracking-[0.1em]">{node.description}</span>
+                    <div className="flex flex-col gap-0.5 pr-4 relative z-10">
+                        <span className="text-[10px] font-outfit font-bold text-[#ef4444] opacity-70">{node.title}</span>
+                        <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.15em]">{node.description}</span>
                     </div>
                     <div className="flex flex-col items-end shrink-0 relative z-10">
-                        <div className="flex items-baseline gap-1 text-[#ef4444] opacity-90">
-                            <span className="text-xl font-space font-black">{node.value}</span>
-                            <span className="text-[10px] font-mono opacity-70 uppercase">{node.unit}</span>
+                        <div className="flex items-baseline gap-1 text-[#ef4444] opacity-80">
+                            <span className="text-[18px] font-outfit font-black">{node.value}</span>
+                            <span className="text-[8px] font-mono opacity-50">{node.unit}</span>
                         </div>
-                        <span className="text-[8px] font-mono uppercase tracking-[0.3em] font-bold opacity-40 mt-1">{node.status}</span>
+                        <span className="text-[7px] font-mono uppercase tracking-[0.2em] font-bold opacity-25 mt-0.5">{node.status}</span>
                     </div>
                 </div>
             ))}
@@ -152,30 +139,26 @@ const HubNodeCard = ({ node, onClick }) => {
     const trendColorClass = isUp ? 'text-[#22c55e]' : isDown ? 'text-red-500' : 'text-current opacity-50';
 
     return (
-        <button onClick={() => onClick(node)} className="w-full text-left relative glass-panel rounded-3xl p-5 mb-4 overflow-hidden transition-all hover:bg-current/5 block group" style={{ border: '1px solid var(--border-color)' }}>
+        <button onClick={() => onClick(node)} className="w-full text-left relative rounded-[24px] border p-4 mb-2 overflow-hidden transition-all hover:scale-[1.01] active:scale-[0.99] block group" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
             <div className="flex justify-between items-center relative z-10 w-full">
-                {/* Left Side: Icon & Title */}
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl border opacity-80 group-hover:opacity-100 transition-opacity" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                    <div className="w-10 h-10 rounded-2xl border flex items-center justify-center opacity-40 group-hover:opacity-70 transition-opacity" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
                         {getIconForId(node.id)}
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[11px] font-syncopate font-black uppercase tracking-wider">{node.title}</span>
-                        <span className="text-[8px] font-mono opacity-40 uppercase tracking-[0.2em] mt-0.5">{node.state}</span>
+                        <span className="text-[10px] font-outfit font-bold tracking-tight">{node.title}</span>
+                        <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.2em] mt-0.5">{node.state}</span>
                     </div>
                 </div>
-
-                {/* Right Side: Score & Trend */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end">
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-space font-black opacity-90">{node.score}</span>
-                        </div>
-                        <span className={`text-[8px] font-mono font-bold uppercase tracking-widest flex items-center gap-1 ${trendColorClass}`}>
+                        <span className="text-[22px] font-outfit font-black leading-none opacity-80">{node.score}</span>
+                        <span className={`text-[8px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5 ${trendColorClass}`}>
                             {isUp ? <ArrowUpRight size={10} /> : isDown ? <ArrowDownRight size={10} /> : <Minus size={10} />}
                             {node.trend}
                         </span>
                     </div>
+                    <ChevronRight size={14} className="opacity-10 group-hover:opacity-30 transition-opacity" />
                 </div>
             </div>
         </button>
@@ -187,17 +170,23 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
     const [coreNodes, setCoreNodes] = useState([]);
     const [expansionNodes, setExpansionNodes] = useState([]);
     const [shadowMetrics, setShadowMetrics] = useState([]);
+    // [ORVAX CORE] Sem fallbacks fakes: partimos de 0 e substituímos
+    // com os valores reais quando fetchTelemetry termina. Se o usuário
+    // não registrou nada ainda, o score fica 0 e a UI mostra estado vazio.
     const [globalStats, setGlobalStats] = useState({
-        score: 84,
-        trend: '+2.4%',
-        trendDir: 'up',
-        state: 'EM ASCENSÃO'
+        score: 0,
+        trend: '0%',
+        trendDir: 'neutral',
+        state: 'SEM DADOS'
     });
 
     const [showAddForm, setShowAddForm] = useState(false);
     const [newMetric, setNewMetric] = useState({ title: '', value: 50, type: 'CORE_NODE' });
     const [userGoals, setUserGoals] = useState([]);
     const [lastWeekRadar, setLastWeekRadar] = useState(null);
+
+    const unsubscribeRef = useRef([]);
+    const { subscribeToDailyActivity } = useRealtimeSync();
 
     const handleAddMetric = async (e) => {
         e.preventDefault();
@@ -321,7 +310,22 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
 
     useEffect(() => {
         fetchTelemetry();
-    }, []);
+
+        // Set up real-time listeners for daily_activity changes
+        const unsubscribeDailyActivity = subscribeToDailyActivity(() => {
+            fetchTelemetry();
+        });
+
+        if (unsubscribeDailyActivity) {
+            unsubscribeRef.current.push(unsubscribeDailyActivity);
+        }
+
+        // Cleanup function - unsubscribe from all listeners
+        return () => {
+            unsubscribeRef.current.forEach(unsubscribe => unsubscribe?.());
+            unsubscribeRef.current = [];
+        };
+    }, [subscribeToDailyActivity]);
 
     const allNodes = [...coreNodes, ...expansionNodes];
     const findScore = (id, fallback) => allNodes.find(n => n.id === id)?.score || fallback;
@@ -337,168 +341,13 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
                         <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
                              style={{ backgroundImage: 'radial-gradient(var(--text-main) 1px, transparent 1px)', backgroundSize: '32px 32px' }} 
                         />
-                        
-                        {/* Hub Header */}
-                        <div className="mb-4 px-6 flex justify-between items-end pt-2">
-                            <div>
-                                <h2 className="text-[10px] font-mono opacity-30 tracking-[0.4em] uppercase mb-1">Navegação Sistêmica</h2>
-                                <h1 className="text-2xl font-syncopate font-black tracking-widest uppercase opacity-90">HUB TELEMETRIA</h1>
-                            </div>
-                            <button 
-                                onClick={() => setShowAddForm(true)}
-                                className="p-2 rounded-xl border border-current/10 hover:bg-current/5 transition-colors"
-                            >
-                                <Plus size={18} />
-                            </button>
-                        </div>
 
-                        <AnimatePresence>
-                            {showAddForm && (
-                                <motion.div 
-                                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                                    className="px-6 mb-12"
-                                >
-                                    <div className="glass-panel p-8 rounded-[40px] relative overflow-hidden group border border-current/10 shadow-2xl">
-                                        <div className="absolute inset-0 bg-current opacity-[0.01] pointer-events-none"></div>
-                                        
-                                        <div className="relative z-10">
-                                            <div className="flex justify-between items-center mb-10">
-                                                <div>
-                                                    <h3 className="text-[12px] font-syncopate font-black uppercase tracking-[0.4em] mb-1 opacity-90">
-                                                        Protocolo de Métrica
-                                                    </h3>
-                                                    <span className="text-[8px] font-mono uppercase tracking-[0.2em] opacity-40">Novo Identificador Sistêmico</span>
-                                                </div>
-                                                <div className="w-10 h-10 rounded-2xl border border-current/10 flex items-center justify-center opacity-40">
-                                                    <Plus size={16} />
-                                                </div>
-                                            </div>
-
-                                            <form onSubmit={handleAddMetric} className="flex flex-col gap-8">
-                                                {/* Título */}
-                                                <div className="flex flex-col gap-3">
-                                                    <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-30 px-1 italic">› IDENTIFICADOR</label>
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="EX: PERFORMANCE COGNITIVA"
-                                                        className="bg-transparent border-b border-current/20 py-4 text-sm font-syncopate font-black uppercase focus:border-current transition-all outline-none placeholder:opacity-20 tracking-widest"
-                                                        value={newMetric.title}
-                                                        onChange={e => setNewMetric({...newMetric, title: e.target.value})}
-                                                    />
-                                                </div>
-
-                                                <div className="grid grid-cols-1 gap-10">
-                                                    {/* Segmented Selector for Type */}
-                                                    <div className="flex flex-col gap-4">
-                                                        <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-30 px-1 italic">› CLASSIFICAÇÃO</label>
-                                                        <div className="flex p-1.5 bg-current/[0.05] rounded-[24px] border border-current/10 gap-1">
-                                                            {[
-                                                                { id: 'CORE_NODE', label: 'NÚCLEO' },
-                                                                { id: 'EXPANSION_NODE', label: 'EXPANSÃO' },
-                                                                { id: 'SHADOW_METRIC', label: 'SOMBRA' }
-                                                            ].map((opt) => (
-                                                                <button
-                                                                    key={opt.id}
-                                                                    type="button"
-                                                                    onClick={() => setNewMetric({...newMetric, type: opt.id})}
-                                                                    className={`flex-1 py-3 text-[9px] font-mono font-bold rounded-[18px] transition-all duration-300 tracking-[0.15em] ${
-                                                                        newMetric.type === opt.id 
-                                                                        ? 'bg-[var(--text-main)] text-[var(--bg-color)] shadow-xl scale-[1.02]' 
-                                                                        : 'opacity-40 hover:opacity-70 hover:bg-current/10 text-current'
-                                                                    }`}
-                                                                >
-                                                                    {opt.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Input de Score */}
-                                                    <div className="flex flex-col gap-3">
-                                                        <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-30 px-1 italic">› VETOR INICIAL (SCORE)</label>
-                                                        <div className="relative flex items-center">
-                                                            <input 
-                                                                type="number" 
-                                                                placeholder="00"
-                                                                className="w-full bg-transparent border-b border-current/10 py-5 text-4xl font-outfit font-black tracking-tight focus:border-[var(--text-main)] transition-all outline-none"
-                                                                value={newMetric.value}
-                                                                onChange={e => setNewMetric({...newMetric, value: e.target.value})}
-                                                                max="100"
-                                                            />
-                                                            <span className="absolute right-4 bottom-6 text-[11px] font-mono font-bold opacity-20 tracking-widest">/ 100</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Botões */}
-                                                <div className="flex gap-4 mt-6 pt-6 border-t border-current/5">
-                                                    <button 
-                                                        type="submit" 
-                                                        className="flex-[2] py-5 bg-[var(--text-main)] text-[var(--bg-color)] rounded-[22px] font-syncopate font-black text-[11px] uppercase tracking-[0.25em] shadow-2xl hover:brightness-110 active:scale-95 group relative overflow-hidden transition-all"
-                                                    >
-                                                        <span className="relative z-10">Inicializar Métrica</span>
-                                                        <motion.div 
-                                                            className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"
-                                                            whileHover={{ x: ['100%', '-100%'] }}
-                                                            transition={{ duration: 0.5, repeat: Infinity }}
-                                                        />
-                                                    </button>
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => setShowAddForm(false)} 
-                                                        className="flex-1 py-5 border border-current/10 rounded-[22px] font-mono font-black text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 hover:bg-current/5 transition-all"
-                                                    >
-                                                        Abortar
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        <div className="px-6 flex flex-col">
-                            {/* Score Global Card */}
-                            <ScrollReveal delay={0.1} className="w-full glass-panel p-8 rounded-[32px] mb-8 relative overflow-hidden transition-all hover:-translate-y-1 block" style={{ border: '1px solid var(--border-color)', boxShadow: 'var(--glass-shadow)' }}>
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-current opacity-[0.02] blur-[50px] rounded-full pointer-events-none"></div>
-                                <div className="flex justify-between items-start mb-8 relative z-10">
-                                    <div>
-                                        <h3 className="text-[10px] font-mono font-bold tracking-[0.5em] uppercase opacity-40 mb-2">Score Global</h3>
-                                        <div className="flex items-baseline relative">
-                                            <span className="text-7xl font-outfit font-black tracking-tighter opacity-90">{globalStats.score}</span>
-                                            <span className="text-sm font-outfit opacity-30 ml-2">/100</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className={`text-[11px] font-mono font-bold tracking-[0.2em] mb-1 flex items-center gap-1.5 ${globalStats.trendDir === 'up' ? 'text-[#22c55e]' : globalStats.trendDir === 'down' ? 'text-red-500' : 'opacity-40'}`}>
-                                            {globalStats.trendDir === 'up' ? <ArrowUpRight size={14} /> : globalStats.trendDir === 'down' ? <ArrowDownRight size={14} /> : <Minus size={14} />} {globalStats.trend}
-                                        </span>
-                                        <span className="text-[8px] font-mono tracking-[0.3em] uppercase opacity-40">Semana</span>
-                                    </div>
+                        <div className="px-5 flex flex-col pt-6">
+                            <ScrollReveal delay={0.15} className="mb-8">
+                                <div className="flex items-center gap-2 mb-4 px-1">
+                                    <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">mapa de equilibrio</span>
                                 </div>
-                                <div className="w-full flex items-center gap-4 mb-6 relative z-10">
-                                    <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-current/10">
-                                        <div className="h-full bg-current opacity-80 rounded-full" style={{ width: `${globalStats.score}%` }}></div>
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center text-[10px] font-syncopate font-black tracking-[0.2em] uppercase relative z-10 pt-4 border-t border-current/10">
-                                    <span className="opacity-40">Status Operacional</span>
-                                    <div className="flex items-center gap-3">
-                                        <span className="opacity-90 tracking-widest">{globalStats.state}</span>
-                                        <div className={`w-2 h-2 rounded-full animate-pulse shadow-lg ${globalStats.trendDir === 'up' ? 'bg-[#22c55e] shadow-[#22c55e]/50' : 'bg-red-500 shadow-red-500/50'}`}></div>
-                                    </div>
-                                </div>
-                            </ScrollReveal>
-
-                            <ScrollReveal delay={0.15} className="mb-12">
-                                <div className="flex items-center gap-3 mb-6 opacity-40 pl-3 border-l-[3px] border-current">
-                                    <Compass size={16} />
-                                    <h2 className="text-[11px] font-syncopate font-bold uppercase tracking-widest">Mapa de Equilíbrio</h2>
-                                </div>
-                                <div className="glass-panel p-6 rounded-[32px] overflow-hidden">
+                                <div className="rounded-[28px] border p-5 overflow-hidden" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
                                     <RadarChart
                                         data={{
                                             BioFisico: findScore('BioFisico', 50),
@@ -519,10 +368,10 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
                             </ScrollReveal>
 
                             {coreNodes.length > 0 && (
-                                <ScrollReveal delay={0.2} className="mb-8">
-                                    <div className="flex items-center gap-3 mb-6 opacity-40 pl-3 border-l-[3px] border-current">
-                                        <Zap size={16} />
-                                        <h2 className="text-[11px] font-syncopate font-bold uppercase tracking-widest">Nódulos Centrais</h2>
+                                <ScrollReveal delay={0.2} className="mb-6">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
+                                        <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">nodulos centrais</span>
+                                        <span className="text-[8px] font-mono opacity-10">{coreNodes.filter(n => n.id !== 'Capital').length}</span>
                                     </div>
                                     {coreNodes.filter(n => n.id !== 'Capital').map(node => (
                                         <HubNodeCard key={node.id} node={node} onClick={setActiveNode} />
@@ -531,10 +380,10 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
                             )}
 
                             {expansionNodes.length > 0 && (
-                                <ScrollReveal delay={0.1} className="mb-8">
-                                    <div className="flex items-center gap-3 mb-6 opacity-40 pl-3 border-l-[3px] border-current">
-                                        <Target size={16} />
-                                        <h2 className="text-[11px] font-syncopate font-bold uppercase tracking-widest">Nódulos de Expansão</h2>
+                                <ScrollReveal delay={0.1} className="mb-6">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
+                                        <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">nodulos de expansao</span>
+                                        <span className="text-[8px] font-mono opacity-10">{expansionNodes.filter(n => n.id !== 'Capital').length}</span>
                                     </div>
                                     {expansionNodes.filter(n => n.id !== 'Capital').map(node => (
                                         <HubNodeCard key={node.id} node={node} onClick={setActiveNode} />
@@ -543,26 +392,25 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
                             )}
 
                             {(coreNodes.length > 0 || expansionNodes.length > 0) && shadowMetrics.length > 0 && (
-                                <div className="w-full h-px bg-current opacity-5 mb-10 mt-6 mx-auto rounded-full"></div>
+                                <div className="w-full h-px opacity-5 mb-6 mt-2" style={{ backgroundColor: 'var(--text-main)' }}></div>
                             )}
 
                             {shadowMetrics.length > 0 && (
-                                <ScrollReveal delay={0.1} className="mb-12">
-                                    <div className="flex items-center justify-between mb-6 pl-3 border-l-[3px] border-red-500 opacity-60">
-                                        <div className="flex items-center gap-3 text-red-500">
-                                            <ShieldAlert size={16} />
-                                            <h2 className="text-[11px] font-syncopate font-bold uppercase tracking-widest">Métricas de Sombra</h2>
+                                <ScrollReveal delay={0.1} className="mb-8">
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" style={{ boxShadow: '0 0 6px rgba(239,68,68,0.4)' }}></div>
+                                            <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold text-red-400">metricas de sombra</span>
                                         </div>
-                                        <span className="text-[8px] font-mono uppercase tracking-[0.2em] opacity-50">Regressores</span>
+                                        <span className="text-[7px] font-mono uppercase tracking-[0.2em] opacity-15">{shadowMetrics.length}</span>
                                     </div>
                                     <ShadowCardList nodes={shadowMetrics} />
                                 </ScrollReveal>
                             )}
 
                             <ScrollReveal delay={0.15} className="mb-20">
-                                <div className="flex items-center gap-3 mb-6 opacity-40 pl-3 border-l-[3px] border-current">
-                                    <Target size={16} />
-                                    <h2 className="text-[11px] font-syncopate font-bold uppercase tracking-widest">Vetor de Progresso</h2>
+                                <div className="flex items-center gap-2 mb-3 px-1">
+                                    <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">vetor de progresso</span>
                                 </div>
                                 <div className="flex flex-col gap-4">
                                     {userGoals.length > 0 ? userGoals.map(goal => (
@@ -597,6 +445,7 @@ const Telemetry = ({ cfiScore = 0, theme, toggleTheme }) => {
                     </div>
                 </div>
             )}
+
         </div>
     );
 };

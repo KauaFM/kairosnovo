@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Lock, Sword, Sparkles, Flame, Anchor, Zap, Crosshair, Shield, Brain, Target, Heart, Lightbulb, TrendingUp, BookOpen, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Lock, Sword, Sparkles, Flame, Anchor, Zap, Crosshair, Shield, Brain, Target, Heart, Lightbulb, TrendingUp, BookOpen, RefreshCw, Wind, Eye, Feather, Landmark, Scale, Mountain, Atom } from 'lucide-react';
 import { updateSelectedMentor, getSelectedMentor } from '../services/db';
+import { clearMentorCache } from '../services/mentor';
 
 export const MENTORS = [
     {
@@ -77,8 +78,118 @@ export const MENTORS = [
         ],
         locked: false,
     },
+    {
+        id: 'sereno',
+        name: 'Sereno',
+        subtitle: 'O Monge',
+        archetype: 'A Mente Silenciosa',
+        gender: 'M',
+        icon: Wind,
+        accentColor: '#7C9885',
+        tags: ['Presença', 'Serenidade'],
+        profile: 'Quietude, presença e clareza. Ele não te apressa — te ensina a habitar o agora e agir sem ruído interno.',
+        quote: 'A pressa é a inimiga da profundidade.',
+        personality: [
+            { label: 'Calmo', icon: Wind },
+            { label: 'Presente', icon: Eye },
+            { label: 'Paciente', icon: Anchor },
+            { label: 'Consciente', icon: Brain },
+            { label: 'Leve', icon: Feather },
+        ],
+        stats: [
+            { label: 'Serenidade', value: 99 },
+            { label: 'Presença', value: 97 },
+            { label: 'Clareza', value: 90 },
+            { label: 'Intensidade', value: 45 },
+        ],
+        method: ['Atenção plena', 'Desapego do ruído', 'Respiração e foco', 'Ação sem ansiedade'],
+        questions: [
+            'O que você está evitando sentir agora?',
+            'Essa pressa é necessária ou é medo?',
+            'Onde está sua mente enquanto seu corpo está aqui?',
+        ],
+        phrases: [
+            'A pressa é a inimiga da profundidade.',
+            'Você não precisa de mais tempo. Precisa de mais presença.',
+            'O silêncio também é resposta.',
+        ],
+        locked: false,
+    },
+    {
+        id: 'aurelio',
+        name: 'Aurélio',
+        subtitle: 'O Estoico',
+        archetype: 'O Filósofo da Razão',
+        gender: 'M',
+        icon: Landmark,
+        accentColor: '#8A94A6',
+        tags: ['Razão', 'Virtude'],
+        profile: 'Razão fria e virtude inabalável. Ele transforma adversidade em treino e te ensina a separar o que você controla do que não controla.',
+        quote: 'Você não controla o evento. Controla a resposta.',
+        personality: [
+            { label: 'Racional', icon: Scale },
+            { label: 'Firme', icon: Shield },
+            { label: 'Equânime', icon: Anchor },
+            { label: 'Virtuoso', icon: Target },
+            { label: 'Imperturbável', icon: Mountain },
+        ],
+        stats: [
+            { label: 'Razão', value: 98 },
+            { label: 'Disciplina', value: 94 },
+            { label: 'Equanimidade', value: 96 },
+            { label: 'Empatia', value: 60 },
+        ],
+        method: ['Dicotomia do controle', 'Adversidade como treino', 'Virtude acima do resultado', 'Memento mori'],
+        questions: [
+            'Isso está sob seu controle ou não?',
+            'O que a sua melhor versão faria agora?',
+            'Você reage ao fato ou à sua opinião sobre ele?',
+        ],
+        phrases: [
+            'Você não controla o evento. Controla a resposta.',
+            'Sofremos mais na imaginação do que na realidade.',
+            'O obstáculo é o caminho.',
+        ],
+        locked: false,
+    },
+    {
+        id: 'vinci',
+        name: 'Vinci',
+        subtitle: 'O Gênio',
+        archetype: 'A Mente Polímata',
+        gender: 'M',
+        icon: Atom,
+        accentColor: '#5E9EFF',
+        tags: ['Curiosidade', 'Criação'],
+        profile: 'Curiosidade infinita e pensamento por primeiros princípios. Ele conecta áreas distantes, reformula problemas e te ensina a pensar como um inventor.',
+        quote: 'A imaginação é mais importante que o conhecimento.',
+        personality: [
+            { label: 'Curioso', icon: Eye },
+            { label: 'Criativo', icon: Lightbulb },
+            { label: 'Analítico', icon: Brain },
+            { label: 'Inventivo', icon: Atom },
+            { label: 'Visionário', icon: Sparkles },
+        ],
+        stats: [
+            { label: 'Criatividade', value: 99 },
+            { label: 'Raciocínio', value: 97 },
+            { label: 'Curiosidade', value: 100 },
+            { label: 'Disciplina', value: 75 },
+        ],
+        method: ['Primeiros princípios', 'Experimentos mentais', 'Conexão entre áreas', 'Observação obsessiva'],
+        questions: [
+            'E se o contrário fosse verdade?',
+            'Qual é o princípio mais básico aqui?',
+            'O que isso tem a ver com algo totalmente diferente?',
+        ],
+        phrases: [
+            'Não decore — entenda os primeiros princípios.',
+            'A pergunta certa vale mais que dez respostas.',
+            'Imagine antes de calcular.',
+        ],
+        locked: false,
+    },
     { id: 'goggins',  name: 'Comandante', archetype: 'Intensidade Absoluta',  icon: Flame,     locked: true },
-    { id: 'aurelius', name: 'Monge',       archetype: 'Imperturbabilidade',    icon: Anchor,    locked: true },
     { id: 'robbins',  name: 'Visionário',  archetype: 'Energia & Abundância',  icon: Zap,       locked: true },
     { id: 'newport',  name: 'Foco',        archetype: 'Produtividade Máxima',  icon: Crosshair, locked: true },
     { id: 'willink',  name: 'Forjador',    archetype: 'Honra e Liderança',     icon: Shield,    locked: true },
@@ -103,6 +214,7 @@ const StatBar = ({ label, value, color }) => (
 /* ─── Mentor Detail View ────────────────────────────────── */
 const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
     const accent = mentor.accentColor;
+    const HeroIcon = mentor.icon;
 
     return (
         <div className="animate-in fade-in duration-500">
@@ -111,12 +223,19 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
                 className="relative w-full overflow-hidden"
                 style={{ aspectRatio: '3/4', maxHeight: '65vw', borderRadius: '24px', boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)` }}
             >
-                <img
-                    src={mentor.image}
-                    alt={mentor.name}
-                    className="w-full h-full object-cover"
-                    style={{ objectPosition: 'top center' }}
-                />
+                {mentor.image ? (
+                    <img
+                        src={mentor.image}
+                        alt={mentor.name}
+                        className="w-full h-full object-cover"
+                        style={{ objectPosition: 'top center' }}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center relative" style={{ background: 'linear-gradient(160deg, #16161c, #0a0a0b)' }}>
+                        <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 38%, ${accent}33, transparent 62%)` }} />
+                        {HeroIcon && <HeroIcon size={116} strokeWidth={0.8} style={{ color: accent }} className="relative z-10 opacity-90" />}
+                    </div>
+                )}
 
                 {/* Gradient overlay */}
                 <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%)` }} />
@@ -168,7 +287,7 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
 
                 {/* Quote */}
                 <div className="pl-4" style={{ borderLeft: `2px solid ${accent}60` }}>
-                    <p className="text-[12px] font-mono italic opacity-80">"{mentor.quote}"</p>
+                    <p className="text-[12px] font-mono italic opacity-80">&quot;{mentor.quote}&quot;</p>
                 </div>
 
                 {/* Method */}
@@ -189,7 +308,7 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
                     <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Perguntas que provoca</span>
                     <div className="flex flex-col gap-2">
                         {mentor.questions.map((q, i) => (
-                            <p key={i} className="text-[10px] font-mono opacity-60 italic pl-3 py-1 border-l" style={{ borderColor: `${accent}50` }}>"{q}"</p>
+                            <p key={i} className="text-[10px] font-mono opacity-60 italic pl-3 py-1 border-l" style={{ borderColor: `${accent}50` }}>&quot;{q}&quot;</p>
                         ))}
                     </div>
                 </div>
@@ -253,8 +372,10 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
     const handleActivate = async () => {
         setIsSaving(true);
         try {
-            // Salvar no Supabase (para o agente WhatsApp usar)
+            // Salvar no Supabase (para o agente WhatsApp usar a MESMA persona).
+            // Limpa o cache local da persona para forçar refetch imediato.
             await updateSelectedMentor(focusedId);
+            clearMentorCache();
             if (onSelectMentor) onSelectMentor(focusedId);
         } catch (err) {
             console.error('Erro ao salvar mentor:', err);
@@ -304,7 +425,7 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
                     /* ── GRID VIEW ── */
                     <div className="pt-5 flex flex-col gap-6">
                         <p className="text-[10px] font-mono opacity-35 uppercase tracking-widest text-center">
-                            "O mentor certo acelera a transformação exata."
+                            &quot;O mentor certo acelera a transformação exata.&quot;
                         </p>
 
                         {/* Unlocked — 2 col grid com cards hero */}
@@ -313,6 +434,7 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
                             <div className="grid grid-cols-2 gap-3">
                                 {unlocked.map(mentor => {
                                     const isActive = selectedMentorId === mentor.id;
+                                    const MIcon = mentor.icon;
                                     return (
                                         <button
                                             key={mentor.id}
@@ -320,12 +442,19 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
                                             className="relative overflow-hidden group active:scale-[0.96] transition-all duration-200"
                                             style={{ borderRadius: '20px', aspectRatio: '2/3', boxShadow: isActive ? `0 0 0 2px ${mentor.accentColor}, 0 12px 40px rgba(0,0,0,0.3)` : '0 4px 20px rgba(0,0,0,0.15)', border: `1px solid ${isActive ? mentor.accentColor : 'rgba(255,255,255,0.06)'}` }}
                                         >
-                                            <img
-                                                src={mentor.image}
-                                                alt={mentor.name}
-                                                className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-700"
-                                                style={{ objectPosition: 'top center' }}
-                                            />
+                                            {mentor.image ? (
+                                                <img
+                                                    src={mentor.image}
+                                                    alt={mentor.name}
+                                                    className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-700"
+                                                    style={{ objectPosition: 'top center' }}
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center relative" style={{ background: 'linear-gradient(160deg, #16161c, #0a0a0b)' }}>
+                                                    <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 40%, ${mentor.accentColor}30, transparent 65%)` }} />
+                                                    {MIcon && <MIcon size={46} strokeWidth={1} style={{ color: mentor.accentColor }} className="relative z-10 opacity-90 group-hover:scale-110 transition-transform duration-500" />}
+                                                </div>
+                                            )}
                                             {/* Dark gradient from bottom */}
                                             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)' }} />
 
