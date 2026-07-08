@@ -3,6 +3,8 @@
 // Agregações no cliente sobre `transactions` e `financial_goals`.
 // =============================================================
 import { supabase } from '../../../lib/supabase';
+import { appEvents } from '../../../lib/events';
+import { isIncomeTx, toDbTxType } from '../../../lib/txType';
 import type { FinanceSnapshot, FinancialGoal, SeriesPoint, Transaction } from '../types';
 
 const WD_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -30,7 +32,12 @@ export async function listTransactions(days = 30): Promise<Transaction[]> {
     .gte('date', toDateStr(since))
     .order('date', { ascending: true });
   if (error) throw error;
-  return (data || []) as Transaction[];
+  // Normaliza o type na borda: o banco guarda 'in'/'out' (convenção do
+  // agente/Cofre), mas este módulo trabalha com 'income'/'expense'.
+  return (data || []).map((r: any) => ({
+    ...r,
+    type: isIncomeTx(r) ? 'income' : 'expense',
+  })) as Transaction[];
 }
 
 export async function listGoals(): Promise<FinancialGoal[]> {
@@ -57,14 +64,17 @@ export async function createTransaction(tx: {
   const payload = {
     user_id:     user.id,
     amount:      Math.abs(tx.amount),
-    type:        tx.type,
+    // Grava na convenção canônica do banco ('in'/'out') — a mesma do
+    // agente WhatsApp, do n8n e do RPC get_aspect_dashboard.
+    type:        toDbTxType(tx.type),
     category:    tx.category ?? null,
     description: tx.description ?? null,
     date:        tx.date || toDateStr(new Date()),
   };
   const { data, error } = await supabase.from('transactions').insert(payload).select().single();
   if (error) throw error;
-  return data as Transaction;
+  appEvents.emit({ type: 'TRANSACTION_CHANGED' });
+  return { ...data, type: tx.type } as Transaction;
 }
 
 export async function createGoal(goal: {
@@ -171,7 +181,7 @@ export async function getFinanceSnapshot(days = 30): Promise<FinanceSnapshot> {
     const slot = heatMap.get(t.date);
     if (!slot) continue;
     slot.c += 1;
-    slot.net += (t.type === 'income' ? 1 : -1) * Number(t.amount);
+    slot.net += (isIncomeTx(t) ? 1 : -1) * Number(t.amount);
   }
   const heatmap = Array.from(heatMap.entries()).map(([d, v]) => ({ d, ...v }));
 

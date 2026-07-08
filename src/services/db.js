@@ -505,7 +505,8 @@ export const getMonthlyFinancialSummary = async (months = 12) => {
         const month = t.date.substring(0, 7); // YYYY-MM
         if (!monthMap[month]) monthMap[month] = { income: 0, expense: 0, net: 0 };
         const amount = Math.abs(parseFloat(t.amount) || 0);
-        if (t.type === 'in') {
+        // aceita convenção canônica ('in') e legado do módulo Life OS ('income')
+        if (t.type === 'in' || t.type === 'income') {
             monthMap[month].income += amount;
             monthMap[month].net += amount;
         } else {

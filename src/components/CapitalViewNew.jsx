@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTransactions, getGoals, createTransaction, createFinancialGoal, getMonthlyFinancialSummary, deleteTransaction, deleteFinancialGoal, updateFinancialGoalProgress } from '../services/db';
 import { supabase } from '../lib/supabase';
+import { isIncomeTx, isExpenseTx } from '../lib/txType';
 
 import { toLocalDateStr } from '../utils/dateUtils';
 import { useCompassPillar } from '../features/metrics/compass/hooks/useCompassData';
@@ -541,13 +542,13 @@ export default function CapitalViewNew({ onBack, theme }) {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const totals = useMemo(() => {
-        const income = transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + t.amount, 0);
-        const expense = transactions.filter(t => t.type === 'out').reduce((sum, t) => sum + t.amount, 0);
+        const income = transactions.filter(isIncomeTx).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const expense = transactions.filter(isExpenseTx).reduce((sum, t) => sum + Number(t.amount || 0), 0);
         return { income, expense, balance: income - expense };
     }, [transactions]);
 
     const categoriesAggregation = useMemo(() => {
-        const outTxs = transactions.filter(t => t.type === 'out');
+        const outTxs = transactions.filter(isExpenseTx);
         const map = {};
         let totalVal = 0;
         outTxs.forEach(t => {
@@ -839,8 +840,8 @@ export default function CapitalViewNew({ onBack, theme }) {
                                                     <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{tx.category} · {new Date(tx.date || tx.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <span className="text-[13px] font-mono font-black" style={{ color: tx.type === 'in' ? '#22c55e' : '#ef4444' }}>
-                                                        {tx.type === 'in' ? '+' : '-'} R$ {tx.amount.toLocaleString('pt-BR')}
+                                                    <span className="text-[13px] font-mono font-black" style={{ color: isIncomeTx(tx) ? '#22c55e' : '#ef4444' }}>
+                                                        {isIncomeTx(tx) ? '+' : '-'} R$ {tx.amount.toLocaleString('pt-BR')}
                                                     </span>
                                                     <button onClick={(e) => handleDeleteTransaction(tx.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir Transação">
                                                         <Trash2 size={12} />

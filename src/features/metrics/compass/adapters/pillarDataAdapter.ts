@@ -5,13 +5,14 @@ import type { CompassPillarSlug } from '../pillars';
 import { COMPASS_PILLAR_BY_SLUG } from '../pillars';
 import { TELEMETRY_TO_COMPASS } from '../pillarMapping';
 import { createEmptyPillarData } from './emptyStates';
-import { 
-  getTelemetryHistory, 
-  getDailyMetrics, 
-  getTransactions, 
-  getMonthlyFinancialSummary, 
-  getGoals 
+import {
+  getTelemetryHistory,
+  getDailyMetrics,
+  getTransactions,
+  getMonthlyFinancialSummary,
+  getGoals
 } from '../../../../services/db';
+import { isIncomeTx, isExpenseTx } from '../../../../lib/txType';
 
 const DAYS_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -33,8 +34,8 @@ export async function buildPillarData(slug: CompassPillarSlug, context?: any): P
 
     // 2. Pillar Specific Logic: FINANCE (Strictly synced with Vault)
     if (slug === 'finance') {
-      const income = transactions.filter((t: any) => t.type === 'in').reduce((acc: number, t: any) => acc + t.amount, 0);
-      const expense = transactions.filter((t: any) => t.type === 'out').reduce((acc: number, t: any) => acc + t.amount, 0);
+      const income = transactions.filter(isIncomeTx).reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+      const expense = transactions.filter(isExpenseTx).reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
       const score = income - expense;
 
       // Monthly history (Real only)

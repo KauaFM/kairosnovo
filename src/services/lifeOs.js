@@ -138,7 +138,8 @@ export async function createGoal({ title, description, deadline }) {
       description: description || null,
       deadline: deadline || null,
       progress: 0,
-      status: 'active',
+      // 'ativo' = default do banco e valor filtrado por getUserGoals()
+      status: 'ativo',
     })
     .select().single();
   if (error) throw error;

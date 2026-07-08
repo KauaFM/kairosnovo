@@ -21,6 +21,7 @@ import EventNotifier from './components/EventNotifier';
 import { callMentor, clearMentorCache } from './services/mentor';
 import { getSelectedMentor } from './services/db';
 import { supabase } from './lib/supabase';
+import { appEvents } from './lib/events';
 
 import { OrvaxHeader, ScrollContainer } from './components/BaseLayout';
 
@@ -127,6 +128,27 @@ export default function App() {
             subscription?.unsubscribe();
         };
     }, []);
+
+    // Ponte realtime → barramento interno de eventos.
+    // Mudanças feitas FORA desta aba (agente WhatsApp/n8n, outro
+    // dispositivo, outra aba) chegam via Supabase Realtime e são
+    // re-emitidas no appEvents — assim todas as telas que escutam
+    // o barramento (Compass, ExecutionBoard, etc.) atualizam sozinhas.
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        const emit = (type) => () => appEvents.emit({ type });
+        const ch = supabase
+            .channel('orvax-live-bridge')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, emit('TRANSACTION_CHANGED'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, emit('HABIT_CHANGED'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_logs' }, emit('HABIT_CHANGED'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, emit('TASK_CHANGED'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'universal_events' }, emit('TASK_CHANGED'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, emit('GOAL_CHANGED'))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_goals' }, emit('GOAL_CHANGED'))
+            .subscribe();
+        return () => { supabase.removeChannel(ch); };
+    }, [isAuthenticated]);
 
     // --- MENTOR STATES ---
     const [isModalOpen, setIsModalOpen] = useState(false);

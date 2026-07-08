@@ -14,6 +14,9 @@ import { PILLARS, getPillar } from '../../pillars';
 import type { CreateKind, CreatePayload, PillarKey } from '../../types';
 import { supabase } from '../../../../lib/supabase';
 import { createTransaction, createGoal as createFinancialGoal } from '../../services/finance';
+import { createHabit as createHabitSvc } from '../../../../services/habits';
+import { ASPECT_TO_PILLAR } from '../../../../services/lifeOs';
+import { todayLocalStr } from '../../../../utils/dateUtils';
 import { useXpAward } from '../../hooks/useXpAward';
 
 const IconOf = (n: string) => (Icons as any)[n] || Icons.Circle;
@@ -37,6 +40,25 @@ const KIND_OPTIONS: KindOpt[] = [
   { kind: 'transaction', label: 'Dinheiro',  friendly: 'Entrou ou saiu',     Icon: ArrowUpRight, xp: 4, desc: 'Registrar receita ou despesa real' },
 ];
 
+// Sugestões de unidade pra metas (chips de 1 toque)
+const UNIT_SUGGESTIONS = ['R$', 'kg', 'km', 'horas', 'livros', '%'];
+
+// Opções de antecedência do lembrete (minutos)
+const REMIND_OPTIONS = [
+  { min: 0,    label: 'Na hora' },
+  { min: 15,   label: '15 min' },
+  { min: 60,   label: '1 hora' },
+  { min: 1440, label: '1 dia' },
+];
+
+// "1.234,56" · "1234,56" · "1234.56" → número
+const parseNum = (s: string) => {
+  let clean = String(s).trim();
+  if (clean.includes(',')) clean = clean.replace(/\./g, '').replace(',', '.');
+  const n = Number(clean);
+  return Number.isFinite(n) ? n : 0;
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -53,10 +75,27 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
   const [amount, setAmount] = useState<string>('');
   const [txType, setTxType] = useState<'income' | 'expense'>('expense');
   const [category, setCategory] = useState('');
-  const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState<string>(() => todayLocalStr());
   const [time, setTime] = useState('');
   const [deadline, setDeadline] = useState('');
   const [target, setTarget] = useState('');
+  // hábito
+  const [habitFreq, setHabitFreq] = useState<'daily' | 'weekly'>('daily');
+  const [habitTimes, setHabitTimes] = useState(3);
+  const [habitCue, setHabitCue] = useState('');
+  const [habitReward, setHabitReward] = useState('');
+  // meta
+  const [unit, setUnit] = useState('');
+  const [currentValue, setCurrentValue] = useState('');
+  const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal');
+  // evento
+  const [timeEnd, setTimeEnd] = useState('');
+  const [location, setLocation] = useState('');
+  // lembrete
+  const [remindBefore, setRemindBefore] = useState(15);
+  // pagamento
+  const [recurring, setRecurring] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -69,7 +108,12 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
       setPillar(defaultPillar || 'productivity');
       setTitle(''); setDescription(''); setAmount(''); setTxType('expense');
       setCategory(''); setTime(''); setDeadline(''); setTarget('');
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(todayLocalStr());
+      setHabitFreq('daily'); setHabitTimes(3); setHabitCue(''); setHabitReward('');
+      setUnit(''); setCurrentValue(''); setPriority('normal');
+      setTimeEnd(''); setLocation('');
+      setRemindBefore(15);
+      setRecurring(false);
       setErr(null);
     }
   }, [open, defaultKind, defaultPillar]);
@@ -85,8 +129,12 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
       setErr('preencha o título pra continuar');
       return;
     }
-    if (kind === 'transaction' && !amount) {
+    if ((kind === 'transaction' || kind === 'payment') && !amount) {
       setErr('informe o valor em reais');
+      return;
+    }
+    if (kind === 'goal' && target && parseNum(target) <= 0) {
+      setErr('o valor-alvo precisa ser maior que zero');
       return;
     }
 
@@ -95,35 +143,53 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('sem sessão — entre de novo');
 
+      // Pilar legado (PT-BR) — é o que os triggers SQL entendem pra
+      // vincular o item à área da vida certa (pillar_to_aspect).
+      const legacyPillar =
+        (ASPECT_TO_PILLAR as Record<string, string>)[pillarCfg.aspectKey] || 'disciplina';
+
       switch (kind) {
         case 'task': {
-          await supabase.from('tasks').insert({
+          const { error } = await supabase.from('tasks').insert({
             user_id: user.id, title, category: description || category || null,
-            scheduled_date: date, pillar: pillarCfg.aspectKey, state: 'pending',
+            scheduled_date: date, pillar: legacyPillar, state: 'pending',
           });
+          if (error) throw error;
           break;
         }
         case 'habit': {
-          await supabase.from('habits').insert({
-            user_id: user.id, title, pillar: pillarCfg.aspectKey,
-            active: true, xp_reward: 10,
+          // Serviço oficial: estima o XP pela complexidade (IA) e
+          // dispara HABIT_CHANGED pra UI atualizar em tempo real.
+          const { error } = await createHabitSvc({
+            title,
+            cue: habitCue.trim() || null,
+            reward: habitReward.trim() || null,
+            frequency: habitFreq,
+            target_count: habitFreq === 'weekly' ? habitTimes : 1,
+            pillar: legacyPillar,
           });
+          if (error) throw new Error(error.message || 'erro ao criar hábito');
           break;
         }
         case 'goal': {
           if (pillar === 'finance') {
             await createFinancialGoal({
               title,
-              target_amount: Number(target) || 0,
+              target_amount: parseNum(target) || 0,
+              current_amount: parseNum(currentValue) || 0,
               deadline: deadline || undefined,
             });
           } else {
-            await supabase.from('goals').insert({
+            // status 'ativo' = default do banco e filtro das listagens
+            const { error } = await supabase.from('goals').insert({
               user_id: user.id, title, description: description || null,
-              deadline: deadline || null, progress: 0, status: 'active',
+              deadline: deadline || null, status: 'ativo', priority,
               category: pillarCfg.aspectKey, aspect_key: pillarCfg.aspectKey,
-              target_value: Number(target) || null,
+              target_value: target ? parseNum(target) : null,
+              current_value: currentValue ? parseNum(currentValue) : 0,
+              unit: unit.trim() || null,
             });
+            if (error) throw error;
           }
           break;
         }
@@ -131,18 +197,29 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
         case 'reminder':
         case 'payment': {
           const startsAt = time
-            ? new Date(`${date}T${time}:00`).toISOString()
-            : new Date(`${date}T09:00:00`).toISOString();
-          await supabase.from('universal_events').insert({
+            ? new Date(`${date}T${time}:00`)
+            : new Date(`${date}T09:00:00`);
+          let endsAt: Date | null = null;
+          if (kind === 'event' && time && timeEnd) {
+            const candidate = new Date(`${date}T${timeEnd}:00`);
+            if (candidate > startsAt) endsAt = candidate;
+          }
+          const { error } = await supabase.from('universal_events').insert({
             user_id: user.id, title, description: description || null,
             aspect_key: pillarCfg.aspectKey,
-            event_type: kind, starts_at: startsAt, all_day: !time,
+            event_type: kind, starts_at: startsAt.toISOString(), all_day: !time,
+            ends_at: endsAt ? endsAt.toISOString() : null,
+            location: kind === 'event' ? (location.trim() || null) : null,
+            remind_before_min: kind === 'reminder' ? remindBefore : null,
+            recurrence: kind === 'payment' && recurring ? 'monthly' : null,
+            metadata: kind === 'payment' && amount ? { amount: parseNum(amount) } : {},
           });
+          if (error) throw error;
           break;
         }
         case 'transaction': {
           await createTransaction({
-            amount: Number(amount),
+            amount: parseNum(amount),
             type: txType,
             category: category || null,
             description: description || title || null,
@@ -155,8 +232,9 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
       await awardXp({ amount: currentKind.xp, reason: `create:${kind}`, pillar });
 
       onCreated?.({
-        kind, pillar, title, description, amount: amount ? Number(amount) : undefined,
-        txType, category, date, time, deadline, target: target ? Number(target) : undefined,
+        kind, pillar, title, description, amount: amount ? parseNum(amount) : undefined,
+        txType, category, date, time, deadline,
+        target: target ? parseNum(target) : undefined, unit: unit || undefined,
       });
       onClose();
     } catch (e: any) {
@@ -281,54 +359,88 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Ex: Viagem de fim de ano"
-                    className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400"
+                    placeholder={
+                      kind === 'habit' ? 'Ex: Ler 20 minutos'
+                      : kind === 'goal' ? 'Ex: Correr 10km'
+                      : kind === 'event' ? 'Ex: Consulta dentista'
+                      : kind === 'payment' ? 'Ex: Fatura do cartão'
+                      : 'Ex: Viagem de fim de ano'
+                    }
+                    className={inputCls}
                   />
                 </Field>
               )}
 
+              {/* ── HÁBITO ── */}
+              {kind === 'habit' && (
+                <>
+                  <Field label="Com que frequência?" help="Todo dia ou algumas vezes por semana">
+                    <div className="grid grid-cols-2 gap-2">
+                      <SegButton active={habitFreq === 'daily'} onClick={() => setHabitFreq('daily')}>
+                        TODO DIA
+                      </SegButton>
+                      <SegButton active={habitFreq === 'weekly'} onClick={() => setHabitFreq('weekly')}>
+                        {habitFreq === 'weekly' ? `${habitTimes}X POR SEMANA` : 'X POR SEMANA'}
+                      </SegButton>
+                    </div>
+                    {habitFreq === 'weekly' && (
+                      <div className="grid grid-cols-7 gap-1 mt-2">
+                        {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setHabitTimes(n)}
+                            className={[
+                              'h-9 rounded-lg border text-[11px] font-mono font-bold transition-all active:scale-95',
+                              habitTimes === n
+                                ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                                : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
+                            ].join(' ')}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </Field>
+
+                  <Field label="Gatilho" help="Opcional — quando você vai fazer?">
+                    <input
+                      value={habitCue}
+                      onChange={(e) => setHabitCue(e.target.value)}
+                      placeholder="Ex: Logo depois do café da manhã"
+                      className={inputCls}
+                    />
+                  </Field>
+
+                  <Field label="Recompensa" help="Opcional — o que você ganha com isso?">
+                    <input
+                      value={habitReward}
+                      onChange={(e) => setHabitReward(e.target.value)}
+                      placeholder="Ex: Mais energia durante o dia"
+                      className={inputCls}
+                    />
+                  </Field>
+                </>
+              )}
+
+              {/* ── DINHEIRO (transação) ── */}
               {kind === 'transaction' && (
                 <>
                   <Field label="Entrou ou saiu?" help="Dinheiro que entrou na conta (receita) ou saiu (despesa)">
                     <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setTxType('expense')}
-                        className={[
-                          'flex items-center justify-center gap-2 py-3 rounded-xl border text-[11px] font-mono font-bold tracking-wider transition-all active:scale-95',
-                          txType === 'expense'
-                            ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-md'
-                            : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
-                        ].join(' ')}
-                      >
+                      <SegButton active={txType === 'expense'} onClick={() => setTxType('expense')}>
                         <ArrowDownRight size={16} strokeWidth={txType === 'expense' ? 2.6 : 2} />
                         SAIU
-                      </button>
-                      <button
-                        onClick={() => setTxType('income')}
-                        className={[
-                          'flex items-center justify-center gap-2 py-3 rounded-xl border text-[11px] font-mono font-bold tracking-wider transition-all active:scale-95',
-                          txType === 'income'
-                            ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-md'
-                            : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
-                        ].join(' ')}
-                      >
+                      </SegButton>
+                      <SegButton active={txType === 'income'} onClick={() => setTxType('income')}>
                         <ArrowUpRight size={16} strokeWidth={txType === 'income' ? 2.6 : 2} />
                         ENTROU
-                      </button>
+                      </SegButton>
                     </div>
                   </Field>
 
                   <Field label="Valor" help="Em reais">
-                    <div className="flex items-center gap-2 border border-zinc-200 dark:border-white/10 rounded-xl px-3 focus-within:border-zinc-900 dark:focus-within:border-white">
-                      <span className="text-[12px] font-mono font-bold text-zinc-500">R$</span>
-                      <input
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
-                        placeholder="0,00"
-                        inputMode="decimal"
-                        className="flex-1 bg-transparent py-2.5 text-sm font-mono focus:outline-none placeholder:text-zinc-400"
-                      />
-                    </div>
+                    <MoneyInput value={amount} onChange={setAmount} />
                   </Field>
 
                   <Field label="Categoria" help="Pra onde foi / de onde veio">
@@ -336,7 +448,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       placeholder="mercado, transporte, salário…"
-                      className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400"
+                      className={inputCls}
                     />
                   </Field>
 
@@ -345,54 +457,142 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Ex: Mercado Extra"
-                      className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400"
+                      className={inputCls}
                     />
                   </Field>
                 </>
               )}
 
-              {(kind === 'task' || kind === 'habit' || kind === 'event' || kind === 'reminder' || kind === 'payment') && (
-                <Field label="Descrição" help="Opcional — detalhes que ajudam a lembrar">
+              {/* ── PAGAR ── */}
+              {kind === 'payment' && (
+                <>
+                  <Field label="Valor" help="Quanto custa, em reais">
+                    <MoneyInput value={amount} onChange={setAmount} />
+                  </Field>
+                  <Field label="Repete todo mês?" help="Assinatura, aluguel, mensalidade">
+                    <div className="grid grid-cols-2 gap-2">
+                      <SegButton active={!recurring} onClick={() => setRecurring(false)}>
+                        SÓ UMA VEZ
+                      </SegButton>
+                      <SegButton active={recurring} onClick={() => setRecurring(true)}>
+                        <Repeat size={14} strokeWidth={recurring ? 2.6 : 2} />
+                        TODO MÊS
+                      </SegButton>
+                    </div>
+                  </Field>
+                </>
+              )}
+
+              {/* descrição livre (tipos que salvam esse campo) */}
+              {(kind === 'task' || kind === 'goal' || kind === 'event' || kind === 'reminder' || kind === 'payment') && (
+                <Field
+                  label="Descrição"
+                  help={kind === 'goal' ? 'Opcional — por que essa meta importa?' : 'Opcional — detalhes que ajudam a lembrar'}
+                >
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={2}
-                    placeholder="detalhes adicionais…"
-                    className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white resize-none placeholder:text-zinc-400"
+                    placeholder={kind === 'goal' ? 'quando bater vontade de desistir, é isso que segura…' : 'detalhes adicionais…'}
+                    className={`${inputCls} resize-none`}
                   />
                 </Field>
               )}
 
+              {/* ── META ── */}
               {kind === 'goal' && (
                 <>
-                  <Field label="Alvo (valor)" help="Número a alcançar">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Alvo (valor)" help="Número a alcançar">
+                      <input
+                        value={target}
+                        onChange={(e) => setTarget(e.target.value.replace(/[^0-9.,]/g, ''))}
+                        placeholder={pillar === 'finance' ? '10000' : '10'}
+                        inputMode="decimal"
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Unidade" help="km, R$, livros…">
+                      <input
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        placeholder="km"
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 -mt-1">
+                    {UNIT_SUGGESTIONS.map((u) => (
+                      <button
+                        key={u}
+                        onClick={() => setUnit(u)}
+                        className={[
+                          'h-7 px-2.5 rounded-full border text-[10px] font-mono font-bold transition-all active:scale-95',
+                          unit === u
+                            ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                            : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
+                        ].join(' ')}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Field label="Já tenho hoje" help="Opcional — seu ponto de partida">
                     <input
-                      value={target}
-                      onChange={(e) => setTarget(e.target.value.replace(/[^0-9.,]/g, ''))}
-                      placeholder={pillar === 'finance' ? '10000' : '100'}
+                      value={currentValue}
+                      onChange={(e) => setCurrentValue(e.target.value.replace(/[^0-9.,]/g, ''))}
+                      placeholder="0"
                       inputMode="decimal"
-                      className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400"
+                      className={inputCls}
                     />
                   </Field>
-                  <Field label="Prazo" help="Data limite pra realizar">
-                    <input
-                      type="date"
-                      value={deadline}
-                      onChange={(e) => setDeadline(e.target.value)}
-                      className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white"
-                    />
-                  </Field>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Prazo" help="Data limite">
+                      <input
+                        type="date"
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Prioridade" help="Importância">
+                      <div className="grid grid-cols-3 gap-1">
+                        {([
+                          { v: 'low',    l: '−' },
+                          { v: 'normal', l: '=' },
+                          { v: 'high',   l: '!' },
+                        ] as const).map((p) => (
+                          <button
+                            key={p.v}
+                            onClick={() => setPriority(p.v)}
+                            title={p.v === 'low' ? 'Baixa' : p.v === 'normal' ? 'Normal' : 'Alta'}
+                            className={[
+                              'h-[42px] rounded-xl border text-[13px] font-mono font-bold transition-all active:scale-95',
+                              priority === p.v
+                                ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                                : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
+                            ].join(' ')}
+                          >
+                            {p.l}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
                 </>
               )}
 
+              {/* ── data/hora ── */}
               {(kind === 'task' || kind === 'event' || kind === 'reminder' || kind === 'payment' || kind === 'transaction') && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Data" help="Quando">
+                  <Field label="Data" help={kind === 'payment' ? 'Vencimento' : 'Quando'}>
                     <input
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+                      className={inputCls}
                     />
                   </Field>
                   {(kind === 'event' || kind === 'reminder' || kind === 'payment') && (
@@ -401,11 +601,56 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                         type="time"
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
-                        className="w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white"
+                        className={inputCls}
                       />
                     </Field>
                   )}
                 </div>
+              )}
+
+              {/* ── EVENTO: término + local ── */}
+              {kind === 'event' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Termina às" help="Opcional">
+                    <input
+                      type="time"
+                      value={timeEnd}
+                      onChange={(e) => setTimeEnd(e.target.value)}
+                      disabled={!time}
+                      className={`${inputCls} disabled:opacity-40`}
+                    />
+                  </Field>
+                  <Field label="Local" help="Opcional">
+                    <input
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Ex: Clínica centro"
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {/* ── LEMBRETE: avisar antes ── */}
+              {kind === 'reminder' && (
+                <Field label="Avisar antes" help="Quanto tempo antes do horário">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {REMIND_OPTIONS.map((o) => (
+                      <button
+                        key={o.min}
+                        onClick={() => setRemindBefore(o.min)}
+                        className={[
+                          'h-9 rounded-lg border text-[10px] font-mono font-bold transition-all active:scale-95',
+                          remindBefore === o.min
+                            ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                            : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
+                        ].join(' ')}
+                      >
+                        {o.label.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
               )}
             </div>
           </div>
@@ -439,6 +684,9 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
   );
 }
 
+const inputCls =
+  'w-full bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400';
+
 function Field({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
@@ -449,6 +697,39 @@ function Field({ label, help, children }: { label: string; help?: string; childr
         {help && <span className="text-[9px] text-zinc-500 dark:text-zinc-500">{help}</span>}
       </div>
       {children}
+    </div>
+  );
+}
+
+function SegButton({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        'flex items-center justify-center gap-2 py-3 rounded-xl border text-[11px] font-mono font-bold tracking-wider transition-all active:scale-95',
+        active
+          ? 'border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-md'
+          : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MoneyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2 border border-zinc-200 dark:border-white/10 rounded-xl px-3 focus-within:border-zinc-900 dark:focus-within:border-white">
+      <span className="text-[12px] font-mono font-bold text-zinc-500">R$</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
+        placeholder="0,00"
+        inputMode="decimal"
+        className="flex-1 bg-transparent py-2.5 text-sm font-mono focus:outline-none placeholder:text-zinc-400"
+      />
     </div>
   );
 }
