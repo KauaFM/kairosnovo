@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, CheckCircle2, X, Activity, Brain, Target, Zap, ChevronRight, Plus, Dumbbell, BookOpen, Users, Timer, Flame, Trash2, BellRing } from 'lucide-react';
+import { Clock, CheckCircle2, X, Activity, Brain, Target, Zap, ChevronRight, Plus, Dumbbell, BookOpen, Users, Timer, Flame, Trash2, BellRing, Repeat, CheckSquare } from 'lucide-react';
 import { getTasks, updateTaskState, createTask, deleteTask } from '../../../services/db';
-import { listHabitsWithTodayStatus, checkInHabit, deleteHabit, undoCheckInHabit } from '../../../services/habits';
+import { listHabitsWithTodayStatus, checkInHabit, deleteHabit, undoCheckInHabit, createHabit } from '../../../services/habits';
+import { toLocalDateStr } from '../../../utils/dateUtils';
 import { appEvents } from '../../../lib/events';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Vetor do form → pilar legado (o que os triggers SQL entendem)
+const CATEGORY_TO_PILLAR: Record<string, string> = {
+  FOCO: 'foco', TREINO: 'energia', ESTUDO: 'evolucao', SOCIAL: 'social',
+};
 
 interface ExecutionItem {
   id: string | number;
@@ -20,11 +26,16 @@ export function ExecutionBoard() {
   const [loading, setLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', time_start: '09:00', category: 'FOCO', duration: '1h', is_important: false });
+  // 'task' = diretriz única (hoje) · 'habit' = rotina recorrente
+  const [mode, setMode] = useState<'task' | 'habit'>('task');
+  const [habitFreq, setHabitFreq] = useState<'daily' | 'weekly'>('daily');
+  const [habitTimes, setHabitTimes] = useState(3);
+  const [saving, setSaving] = useState(false);
+  const [formErr, setFormErr] = useState<string | null>(null);
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
-    const toLocalDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    
+
     // 1. Fetch Tasks for today
     const tasks = await getTasks(toLocalDateStr());
     
@@ -48,8 +59,8 @@ export function ExecutionBoard() {
       time: h.cue || '--:--', // Habits often have cue like "08:00" or just a text
       title: h.title,
       type: 'H',
-      status: h.doneToday ? 'done' : 'pending',
-      category: h.pillar || 'hábito',
+      status: h.done_today ? 'done' : 'pending',
+      category: h.frequency === 'weekly' ? `${h.target_count || 1}×/SEM` : 'DIÁRIO',
       raw: h
     }));
 
@@ -98,12 +109,61 @@ export function ExecutionBoard() {
     }
   };
 
-  const handleAddTask = async () => {
-    if (!newTask.title) return;
-    const toLocalDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    await createTask({ ...newTask, scheduled_date: toLocalDateStr() });
+  const resetForm = () => {
     setNewTask({ title: '', time_start: '09:00', category: 'FOCO', duration: '1h', is_important: false });
-    setShowAddTask(false);
+    setHabitFreq('daily');
+    setHabitTimes(3);
+    setFormErr(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!newTask.title.trim()) {
+      setFormErr('Defina o título da diretriz.');
+      return;
+    }
+    setSaving(true);
+    setFormErr(null);
+    try {
+      const pillar = CATEGORY_TO_PILLAR[newTask.category] || 'disciplina';
+
+      if (mode === 'habit') {
+        // Rotina recorrente → habits (XP estimado por IA no serviço).
+        // O horário vira o cue: aparece na timeline e ancora a rotina.
+        const { error } = await createHabit({
+          title: newTask.title.trim(),
+          cue: newTask.time_start || null,
+          frequency: habitFreq,
+          target_count: habitFreq === 'weekly' ? habitTimes : 1,
+          pillar,
+        });
+        if (error) throw new Error(error.message || 'falha ao criar rotina');
+      } else {
+        const payload: Record<string, any> = {
+          title: newTask.title.trim(),
+          time_start: newTask.time_start,
+          category: newTask.category,
+          duration: newTask.duration,
+          pillar,
+          scheduled_date: toLocalDateStr(),
+          ...(newTask.is_important ? { is_important: true } : {}),
+        };
+        let res: any = await createTask(payload);
+        // Banco ainda sem a coluna is_important → salva sem a flag
+        if (res?.error && String(res.error.message || '').includes('is_important')) {
+          delete payload.is_important;
+          res = await createTask(payload);
+        }
+        if (res?.error) throw new Error(res.error.message);
+      }
+
+      resetForm();
+      setShowAddTask(false);
+    } catch (e: any) {
+      console.error('[ExecutionBoard]', e);
+      setFormErr(e?.message || 'Falha ao protocolar. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (e: React.MouseEvent, item: ExecutionItem) => {
@@ -202,7 +262,32 @@ export function ExecutionBoard() {
                   <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90">Registro Operacional</h3>
                   <Clock size={16} className="opacity-20" />
                 </div>
-                
+
+                {/* Modo: diretriz única ou rotina recorrente */}
+                <div className="grid grid-cols-2 gap-2 mb-6">
+                  {([
+                    { id: 'task' as const,  label: 'Tarefa Única', sub: 'só hoje',        Icon: CheckSquare },
+                    { id: 'habit' as const, label: 'Rotina · Hábito', sub: 'se repete',   Icon: Repeat },
+                  ]).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => { setMode(m.id); setFormErr(null); }}
+                      className={`flex items-center justify-center gap-2 py-4 rounded-[20px] border transition-all duration-300 ${
+                        mode === m.id
+                        ? 'bg-[var(--text-main)] text-[var(--bg-color)] border-[var(--text-main)] shadow-lg'
+                        : 'bg-current/[0.02] border-current/10 opacity-50 hover:opacity-100 text-current'
+                      }`}
+                    >
+                      <m.Icon size={14} />
+                      <span className="flex flex-col items-start leading-tight">
+                        <span className="text-[9px] font-syncopate font-black uppercase tracking-widest">{m.label}</span>
+                        <span className="text-[7px] font-mono uppercase tracking-widest opacity-60">{m.sub}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex flex-col gap-6 md:gap-8">
                   {/* Título */}
                   <div className="flex flex-col gap-3 relative">
@@ -256,7 +341,9 @@ export function ExecutionBoard() {
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2 mb-1">
                           <Clock size={12} className="opacity-40" />
-                          <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Horário de Início</label>
+                          <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">
+                            {mode === 'habit' ? 'Horário Âncora (Gatilho)' : 'Horário de Início'}
+                          </label>
                         </div>
                         <input 
                           type="time" 
@@ -265,60 +352,130 @@ export function ExecutionBoard() {
                           onChange={e => setNewTask({...newTask, time_start: e.target.value})}
                         />
                       </div>
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Timer size={12} className="opacity-40" />
-                          <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Bloco de Duração</label>
+                      {mode === 'task' ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Timer size={12} className="opacity-40" />
+                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Bloco de Duração</label>
+                          </div>
+                          <div className="grid grid-cols-4 gap-2">
+                            {['15m', '30m', '1h', '2h+'].map((dur) => {
+                              const currentDur = newTask.duration || '1h';
+                              return (
+                                <button
+                                  key={dur}
+                                  type="button"
+                                  onClick={() => setNewTask({...newTask, duration: dur})}
+                                  className={`py-3 text-[10px] font-space font-bold rounded-[16px] transition-all duration-300 border ${
+                                    currentDur === dur
+                                    ? 'bg-[var(--orvax-green)]/10 border-[var(--orvax-green)]/40 text-[var(--orvax-green)] shadow-inner'
+                                    : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
+                                  }`}
+                                >
+                                  {dur}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          {['15m', '30m', '1h', '2h+'].map((dur) => {
-                            const currentDur = newTask.duration || '1h';
-                            return (
-                              <button
-                                key={dur}
-                                type="button"
-                                onClick={() => setNewTask({...newTask, duration: dur})}
-                                className={`py-3 text-[10px] font-space font-bold rounded-[16px] transition-all duration-300 border ${
-                                  currentDur === dur 
-                                  ? 'bg-[var(--orvax-green)]/10 border-[var(--orvax-green)]/40 text-[var(--orvax-green)] shadow-inner' 
-                                  : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
-                                }`}
-                              >
-                                {dur}
-                              </button>
-                            );
-                          })}
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Repeat size={12} className="opacity-40" />
+                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Ciclo de Repetição</label>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setHabitFreq('daily')}
+                              className={`py-3 text-[9px] font-syncopate font-bold uppercase tracking-widest rounded-[16px] transition-all duration-300 border ${
+                                habitFreq === 'daily'
+                                ? 'bg-[var(--orvax-green)]/10 border-[var(--orvax-green)]/40 text-[var(--orvax-green)] shadow-inner'
+                                : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
+                              }`}
+                            >
+                              Todo Dia
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setHabitFreq('weekly')}
+                              className={`py-3 text-[9px] font-syncopate font-bold uppercase tracking-widest rounded-[16px] transition-all duration-300 border ${
+                                habitFreq === 'weekly'
+                                ? 'bg-[var(--orvax-green)]/10 border-[var(--orvax-green)]/40 text-[var(--orvax-green)] shadow-inner'
+                                : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
+                              }`}
+                            >
+                              {habitFreq === 'weekly' ? `${habitTimes}× / Semana` : '×/ Semana'}
+                            </button>
+                          </div>
+                          {habitFreq === 'weekly' && (
+                            <div className="grid grid-cols-7 gap-1">
+                              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() => setHabitTimes(n)}
+                                  className={`py-2.5 text-[10px] font-space font-bold rounded-[12px] transition-all border ${
+                                    habitTimes === n
+                                    ? 'bg-[var(--text-main)] text-[var(--bg-color)] border-[var(--text-main)]'
+                                    : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
+                                  }`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Priority Toggle */}
-                  <div className="pb-2">
-                    <button
-                      type="button"
-                      onClick={() => setNewTask({...newTask, is_important: !newTask.is_important})}
-                      className={`w-full flex items-center justify-center gap-3 py-4 rounded-[20px] transition-all border font-syncopate font-bold uppercase tracking-widest text-[9px] md:text-[10px] ${
-                        newTask.is_important
-                        ? 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                        : 'border-current/10 bg-current/[0.02] opacity-50 hover:opacity-100 text-current'
-                      }`}
-                    >
-                      <BellRing size={14} className={newTask.is_important ? "animate-pulse" : ""} />
-                      {newTask.is_important ? "Prioridade Máxima Ativada" : "Marcar como Prioridade (Alerta)"}
-                    </button>
-                  </div>
+                  {/* Priority Toggle (só tarefa) */}
+                  {mode === 'task' && (
+                    <div className="pb-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewTask({...newTask, is_important: !newTask.is_important})}
+                        className={`w-full flex items-center justify-center gap-3 py-4 rounded-[20px] transition-all border font-syncopate font-bold uppercase tracking-widest text-[9px] md:text-[10px] ${
+                          newTask.is_important
+                          ? 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                          : 'border-current/10 bg-current/[0.02] opacity-50 hover:opacity-100 text-current'
+                        }`}
+                      >
+                        <BellRing size={14} className={newTask.is_important ? "animate-pulse" : ""} />
+                        {newTask.is_important ? "Prioridade Máxima Ativada" : "Marcar como Prioridade (Alerta)"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hint do modo rotina */}
+                  {mode === 'habit' && (
+                    <p className="text-[8px] font-mono uppercase tracking-widest opacity-40 leading-relaxed px-1 -mt-2">
+                      A rotina entra na timeline todos os dias no horário definido.
+                      XP calibrado automaticamente pela complexidade.
+                    </p>
+                  )}
+
+                  {/* Erro visível — nada de falha silenciosa */}
+                  {formErr && (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-[16px] border border-red-500/40 bg-red-500/10 text-red-500">
+                      <X size={12} className="shrink-0" />
+                      <span className="text-[9px] font-mono uppercase tracking-widest">{formErr}</span>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex gap-3 pt-6 border-t border-current/10">
-                    <button 
-                      onClick={handleAddTask} 
-                      className="flex-[2] py-4 md:py-5 rounded-[20px] text-[10px] md:text-[11px] font-syncopate font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:brightness-110 bg-[var(--text-main)] text-[var(--bg-color)]"
+                    <button
+                      onClick={handleSubmit}
+                      disabled={saving}
+                      className="flex-[2] py-4 md:py-5 rounded-[20px] text-[10px] md:text-[11px] font-syncopate font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:brightness-110 bg-[var(--text-main)] text-[var(--bg-color)] disabled:opacity-40"
                     >
-                      Protocolar DIRETRIZ
+                      {saving ? 'Protocolando…' : mode === 'habit' ? 'Protocolar ROTINA' : 'Protocolar DIRETRIZ'}
                     </button>
                     <button
-                      onClick={() => setShowAddTask(false)}
+                      onClick={() => { resetForm(); setShowAddTask(false); }}
                       className="flex-1 py-4 md:py-5 border border-current/20 rounded-[20px] opacity-60 text-[9px] md:text-[10px] font-mono uppercase tracking-widest hover:opacity-100 hover:bg-current/10 transition-all text-current"
                     >
                       Abortar
