@@ -4,11 +4,18 @@ import type { CompassPillarSlug } from '../pillars';
 import { COMPASS_PILLARS } from '../pillars';
 import { buildPillarData } from './pillarDataAdapter';
 import { getStreak, getWeekActivity, getProfile, getMonthlyFinancialSummary, getDailyMetrics, getTelemetryHistory, getDailyStats, getTransactions, getDashboard } from '../../../../services/db';
-import { listHabitsWithTodayStatus } from '../../../../services/habits';
+import { listHabitsWithTodayStatus, getRecentHabitLogs } from '../../../../services/habits';
+import { toLocalDateStr } from '../../../../utils/dateUtils';
+
+/** Score comparável 0-100 do pilar (aderência/consistência), com fallback ao score bruto clampado. */
+const pillarVitality = (d: any): number => {
+  const v = (d && typeof d.scoreNormalized === 'number') ? d.scoreNormalized : (d?.score ?? 0);
+  return Math.max(0, Math.min(100, Math.round(v)));
+};
 
 export async function buildGlobalMetrics(): Promise<GlobalMetrics> {
   try {
-    const [streakVal, weekAct, profile, monthlyFin, yearMetrics, telemetry, dailyStats, habits, transactions, dashboard] = await Promise.all([
+    const [streakVal, weekAct, profile, monthlyFin, yearMetrics, telemetry, dailyStats, habits, habitLogs, transactions, dashboard] = await Promise.all([
       getStreak().catch(() => 0),
       getWeekActivity().catch(() => []),
       getProfile().catch(() => null),
@@ -17,6 +24,7 @@ export async function buildGlobalMetrics(): Promise<GlobalMetrics> {
       getTelemetryHistory(30).catch(() => []),
       getDailyStats().catch(() => ({ tasks_completed: 0, tasks_total: 0, focus_minutes: 0 })),
       listHabitsWithTodayStatus().catch(() => []),
+      getRecentHabitLogs(365).catch(() => []),
       getTransactions('MES').catch(() => []),
       getDashboard().catch(() => null),
     ]);
@@ -28,6 +36,7 @@ export async function buildGlobalMetrics(): Promise<GlobalMetrics> {
       streak: streakVal,
       dailyStats,
       habits,
+      habitLogs,
       transactions
     };
 
@@ -42,30 +51,37 @@ export async function buildGlobalMetrics(): Promise<GlobalMetrics> {
     const nonEmpty = pillarResults.filter(r => !r.data.isEmpty && r.data.hasRealData);
     const hasData = nonEmpty.length > 0;
 
-    const scores = nonEmpty.map(r => r.data.score);
+    // Score médio usa a vitalidade normalizada 0-100 (comparável entre pilares)
+    const scores = nonEmpty.map(r => pillarVitality(r.data));
     const scoreAvg = scores.length > 0 ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0;
-    
-    const prevScores = nonEmpty.map(r => r.data.scorePrev);
-    const scoreAvgPrev = prevScores.length > 0 ? Math.round(prevScores.reduce((s, v) => s + v, 0) / prevScores.length) : 0;
-    
-    const delta7 = scoreAvg - scoreAvgPrev;
+
     const critical = nonEmpty.filter(r => r.data.status === 'critico').length;
     const rising = nonEmpty.filter(r => r.data.delta7 > 0).length;
 
+    // Radar (Mapa de Equilíbrio): valores 0-100 normalizados, nunca scores brutos
     const balance = COMPASS_PILLARS.map(p => {
       const res = pillarResults.find(r => r.slug === p.slug);
       return {
         key: p.slug,
         label: p.name.toUpperCase(),
-        value: res?.data.score || 0,
-        valuePast: res?.data.scorePrev || 0,
+        value: res ? pillarVitality(res.data) : 0,
+        valuePast: 0,
       };
     });
 
-    // Week activity (Real data)
+    // Consistência da semana: dias com atividade REAL (check-in de hábito) nos
+    // últimos 7 dias, unindo com daily_activity (que só cobre tarefas/foco).
+    const weekCut = toLocalDateStr(new Date(Date.now() - 6 * 864e5));
+    const habitDays = new Set(
+      (habitLogs as any[])
+        .map(l => toLocalDateStr(new Date(l.logged_at)))
+        .filter(d => d >= weekCut)
+    );
     const weekActArr = (weekAct || []) as boolean[];
-    const activeDays = weekActArr.filter(Boolean).length;
+    const activeDays = Math.max(weekActArr.filter(Boolean).length, habitDays.size);
     const consistency = Math.round((activeDays / 7) * 100);
+    const scoreAvgPrev = scoreAvg; // sem histórico normalizado por enquanto
+    const delta7 = 0;
 
     // XP (Real data from dashboard and profile)
     const xpTotal = dashboard?.xp_score ?? (profile as any)?.xp ?? 0;

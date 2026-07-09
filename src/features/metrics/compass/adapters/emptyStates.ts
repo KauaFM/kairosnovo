@@ -8,7 +8,7 @@ export function createEmptyPillarData(config: PillarConfig): PillarData {
   for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) emptyHeat.push({ day: d, hour: h, intensity: 0 });
 
   return {
-    config, score: 0, scorePrev: 0, delta7: 0, status: 'atencao', sparkline: [],
+    config, score: 0, scoreNormalized: 0, scorePrev: 0, delta7: 0, status: 'atencao', sparkline: [],
     axesNow: axesZero, axesPast: axesZero,
     today: [], todayInsight: 'Sem dados ainda. Comece registrando seu dia.',
     productiveHours: 0, distractionHours: 0, peakHour: 0, troughHour: 0, recurringDistraction: null,

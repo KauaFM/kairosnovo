@@ -62,9 +62,9 @@ const getPillarIcon = (slug: string) => {
 };
 
 const getPillarUnit = (slug: string) => {
+  // Finança em R$, Metas em % (progresso médio), pilares comportamentais em "pts" (check-ins).
   if (slug === 'finance') return 'R$';
-  if (slug === 'mind' || slug === 'learning') return 'h';
-  if (slug === 'career') return '%';
+  if (slug === 'goals') return '%';
   return 'pts';
 };
 

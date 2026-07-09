@@ -137,6 +137,21 @@ export const listHabitsWithTodayStatus = async () => {
     return habits.map(h => ({ ...h, done_today: doneSet.has(h.id) }));
 };
 
+// Todos os logs do usuário nos últimos N dias (para o Compass/dimensões)
+export const getRecentHabitLogs = async (days = 365) => {
+    const s = await session();
+    if (!s) return [];
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const { data } = await supabase
+        .from('habit_logs')
+        .select('habit_id, logged_at, quality')
+        .eq('user_id', s.user.id)
+        .gte('logged_at', since.toISOString())
+        .order('logged_at', { ascending: true });
+    return data || [];
+};
+
 // Logs de um hábito (últimos N)
 export const getHabitLogs = async (habitId, limit = 30) => {
     const s = await session();

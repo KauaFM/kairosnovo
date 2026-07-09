@@ -332,41 +332,23 @@ const Dossier = ({ theme, toggleTheme }) => {
                                 </ScrollReveal>
                             </div>
 
-                            {/* Achievements Tab · Cartas de Evolução */}
+                            {/* Achievements Tab · BLOQUEADA — em desenvolvimento
+                                O conteúdo real (resumo + OrvaxAchievementBadges) está
+                                preservado no histórico do git; restaurar quando a feature
+                                estiver pronta. */}
                             <div className={`transition-all duration-500 ${activeProfileTab === 'achievements' ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
-                                {(() => {
-                                    const achAll = achievementsData.all || [];
-                                    const achTotal = achievementsData.total || achAll.length;
-                                    const achDone = achievementsData.completedCount ?? achAll.filter(a => a.unlocked).length;
-                                    const achXp = achAll.filter(a => a.unlocked).reduce((s, a) => s + (a.xp_reward || 0), 0);
-                                    const achPct = achTotal > 0 ? Math.round((achDone / achTotal) * 100) : 0;
-                                    return (
-                                        <>
-                                            {/* ── Resumo · conquistas + XP ── */}
-                                            <div className="grid grid-cols-2 gap-2.5 mb-5 pt-2">
-                                                <div className="rounded-2xl border p-3.5 flex flex-col items-center text-center" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
-                                                    <span className="font-outfit font-black text-xl leading-none mb-1" style={{ color: '#10B981' }}>{achDone}<span className="opacity-30 text-sm">/{achTotal}</span></span>
-                                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-35">Conquistas</span>
-                                                </div>
-                                                <div className="rounded-2xl border p-3.5 flex flex-col items-center text-center" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
-                                                    <span className="font-outfit font-black text-xl leading-none mb-1">{achXp.toLocaleString('pt-BR')}</span>
-                                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-35">XP de Conquistas</span>
-                                                </div>
-                                            </div>
-
-                                            {/* ══ SEÇÃO · CONQUISTAS (badges reais) ══ */}
-                                            <div className="flex items-center justify-between mb-3 px-0.5">
-                                                <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Conquistas</span>
-                                                <span className="text-[8px] font-mono tabular-nums opacity-30">{achPct}% completo</span>
-                                            </div>
-                                            {/* Barra de progresso global das conquistas */}
-                                            <div className="h-[3px] rounded-full bg-current/10 overflow-hidden mb-5">
-                                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${achPct}%`, backgroundColor: '#10B981' }} />
-                                            </div>
-                                            <OrvaxAchievementBadges achievements={achAll} />
-                                        </>
-                                    );
-                                })()}
+                                <div className="flex flex-col items-center justify-center text-center px-6 py-16 mt-2 rounded-[28px] border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+                                    <div className="relative w-16 h-16 flex items-center justify-center mb-6">
+                                        <div className="absolute w-full h-full rounded-full border opacity-10" style={{ borderColor: 'var(--text-main)' }} />
+                                        <div className="absolute w-[78%] h-[78%] rounded-full border opacity-20" style={{ borderColor: 'var(--text-main)' }} />
+                                        <Award size={26} className="opacity-40 relative z-10" />
+                                    </div>
+                                    <span className="text-[8px] font-mono font-bold uppercase tracking-[0.35em] opacity-30 mb-3">Conquistas</span>
+                                    <h3 className="font-outfit font-black text-lg uppercase tracking-wide mb-2">Em desenvolvimento</h3>
+                                    <p className="text-[11px] font-mono leading-relaxed opacity-40 max-w-[240px]">
+                                        Esta seção está sendo forjada. Em breve você poderá acompanhar suas conquistas aqui.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
