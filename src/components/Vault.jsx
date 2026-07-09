@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { getTasks, createTask, updateTaskState, deleteTask, getMedia, addMedia, deleteMedia, getProfile, getDailyStats, getTotalFocusToday, getUserNotes, createNote, deleteNote } from '../services/db';
+import { getTasks, getAgendaItems, setEventStatus, deleteEvent, createTask, updateTaskState, deleteTask, getMedia, addMedia, deleteMedia, getProfile, getDailyStats, getTotalFocusToday, getUserNotes, createNote, deleteNote } from '../services/db';
+import { appEvents } from '../lib/events';
 import FullCalendar from './FullCalendar';
 import CapitalViewNew from './CapitalViewNew';
 import ScrollReveal from './ScrollReveal';
@@ -97,26 +98,31 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         // [BUG #11 FIX] Usar data local ao invés de UTC para evitar deslocamento de fuso
         const toLocalDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const dateStr = toLocalDateStr(selectedDate);
-        const tasks = await getTasks(dateStr);
-        setTimelineTasks(tasks.map(t => ({
-            id: t.id,
-            time: t.time_start,
-            period: parseInt(t.time_start.split(':')[0]) >= 12 ? 'PM' : 'AM',
-            title: t.title,
-            category: t.category || 'GERAL',
-            date: t.scheduled_date,
-            duration: t.duration || '1h',
-            state: t.state
-        })));
+        // Agenda unificada: tarefas + eventos/calls/lembretes/pagamentos
+        const agenda = await getAgendaItems(dateStr);
+        setTimelineTasks(agenda.map(it => {
+            const hh = parseInt((it.time_start || '').split(':')[0]);
+            return {
+                id: it.id,
+                source: it.source,
+                time: it.time_start,
+                period: Number.isFinite(hh) && hh >= 12 ? 'PM' : 'AM',
+                title: it.title,
+                category: it.category || 'GERAL',
+                date: it.scheduled_date,
+                duration: it.duration || (it.source === 'event' ? '' : '1h'),
+                state: it.state,
+            };
+        }));
 
-        // 4. Puxar métricas diárias
+        // 4. Puxar métricas diárias (conta tarefas + eventos do dia)
         const daily = await getDailyStats();
         const focusToday = await getTotalFocusToday();
-        const todayTasks = await getTasks(toLocalDateStr());
-        const completedCount = todayTasks.filter(t => t.state === 'done').length;
+        const todayItems = await getAgendaItems(toLocalDateStr());
+        const completedCount = todayItems.filter(t => t.state === 'done').length;
         setDailyMetrics({
             tasks_completed: completedCount,
-            tasks_total: todayTasks.length,
+            tasks_total: todayItems.length,
             focus_minutes: daily.focus_minutes || focusToday || 0
         });
 
@@ -141,46 +147,20 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
     useEffect(() => {
         fetchVaultData();
 
-        // Subscribe to real-time updates
+        // Realtime: agenda (tasks + universal_events), notas e mídia.
+        // 'tasks'/'universal_events' cobrem criações do mentor, do +CRIAR
+        // e do agente WhatsApp em outro dispositivo.
         const subscription = supabase
             .channel('vault-sync')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'orvax_agenda'
-                },
-                () => {
-                    // Quando agenda muda, recarrega dados
-                    fetchVaultData();
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'user_notes'
-                },
-                () => {
-                    // Quando notas mudam, recarrega dados
-                    fetchVaultData();
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'media_vault'
-                },
-                () => {
-                    // Quando mídia muda, recarrega dados
-                    fetchVaultData();
-                }
-            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchVaultData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'universal_events' }, () => fetchVaultData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_notes' }, () => fetchVaultData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'media_vault' }, () => fetchVaultData())
             .subscribe();
+
+        // Barramento interno: mentor/CreationHub emitem TASK_CHANGED etc.
+        // na mesma aba (o realtime nem sempre ecoa a própria escrita).
+        const unsubBus = appEvents.subscribe(() => fetchVaultData());
 
         unsubscribeRef.current = subscription;
 
@@ -188,6 +168,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
             if (unsubscribeRef.current) {
                 supabase.removeChannel(unsubscribeRef.current);
             }
+            unsubBus();
         };
     }, [selectedDate]);
 
@@ -202,8 +183,16 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         fetchVaultData();
     };
 
-    const handleToggleTask = async (id, currentState) => {
-        // Progressão cíclica: pendente -> concluído (done) -> cancelado/falhou (failed) -> pendente
+    const handleToggleTask = async (id, currentState, source = 'task') => {
+        if (source === 'event') {
+            // Eventos: alterna concluído <-> agendado (sem estado "falhou")
+            const nextStatus = currentState === 'done' ? 'scheduled' : 'done';
+            setTimelineTasks(tasks => tasks.map(t => t.id === id ? { ...t, state: nextStatus === 'done' ? 'done' : 'pending' } : t));
+            await setEventStatus(id, nextStatus);
+            fetchVaultData();
+            return;
+        }
+        // Tarefas: progressão cíclica pendente -> done -> failed -> pendente
         let nextState = 'done';
         if (currentState === 'done') nextState = 'failed';
         else if (currentState === 'failed') nextState = null;
@@ -211,19 +200,23 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
 
         // Atualização Otimista
         setTimelineTasks(tasks => tasks.map(t => t.id === id ? { ...t, state: nextState } : t));
-        
+
         await updateTaskState(id, nextState);
         fetchVaultData();
     };
 
-    const handleDeleteTask = async (e, id) => {
+    const handleDeleteTask = async (e, id, source = 'task') => {
         e.stopPropagation(); // Evita ativar tela ou toggle da tarefa
-        if (!window.confirm('Abortar e remover permanentemente esta diretriz?')) return;
-        
+        if (!window.confirm('Abortar e remover permanentemente este item da agenda?')) return;
+
         // Atualização Otimista
         setTimelineTasks(tasks => tasks.filter(t => t.id !== id));
-        
-        await deleteTask(id);
+
+        if (source === 'event') {
+            await deleteEvent(id);
+        } else {
+            await deleteTask(id);
+        }
         fetchVaultData();
     };
 
@@ -625,7 +618,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                             </div>
 
                                             {/* Timeline Node / Check Area */}
-                                            <div className="relative flex flex-col items-center mt-1 shrink-0 z-20" onClick={(e) => { e.stopPropagation(); handleToggleTask(task.id, task.state); }}>
+                                            <div className="relative flex flex-col items-center mt-1 shrink-0 z-20" onClick={(e) => { e.stopPropagation(); handleToggleTask(task.id, task.state, task.source); }}>
                                                 <div className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-current/[0.05] transition-colors cursor-pointer group/check">
                                                     <div className={`w-6 h-6 flex items-center justify-center rounded-full border-2 transition-all duration-300 ${
                                                         isDone 
@@ -651,7 +644,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
 
                                             {/* Right Task Card */}
                                             <div 
-                                                onClick={() => handleToggleTask(task.id, task.state)}
+                                                onClick={() => handleToggleTask(task.id, task.state, task.source)}
                                                 className={`flex-1 rounded-[24px] p-5 transition-all duration-300 w-full overflow-hidden relative cursor-pointer
                                                 ${isActive
                                                     ? 'border border-[var(--orvax-green)]/40 shadow-[0_0_20px_var(--orvax-green)] bg-[var(--orvax-green)]/[0.02]'
@@ -679,7 +672,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                                 </div>
                                                             )}
                                                             <button 
-                                                                onClick={(e) => handleDeleteTask(e, task.id)}
+                                                                onClick={(e) => handleDeleteTask(e, task.id, task.source)}
                                                                 className="opacity-20 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 text-red-500 rounded-full hover:bg-red-500/10"
                                                                 title="Remover Diretriz"
                                                             >

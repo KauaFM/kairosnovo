@@ -143,16 +143,24 @@ async function executeClientTool(name, args, userId) {
         return `Transação "${args.name}" de R$${Math.abs(Number(args.amount))} registrada como ${toDbTxType(args.type) === 'in' ? 'receita' : 'despesa'}.`;
       }
       case 'create_task': {
+        // Normaliza data/hora: o modelo às vezes devolve texto livre
+        // ("11 horas", "amanhã") em vez de YYYY-MM-DD / HH:MM.
+        const dateMatch = String(args.scheduled_date || '').match(/\d{4}-\d{2}-\d{2}/);
+        const scheduled_date = dateMatch ? dateMatch[0] : toLocalDateStr();
+        const timeMatch = String(args.time_start || '').match(/(\d{1,2}):(\d{2})/);
+        const time_start = timeMatch
+          ? `${String(timeMatch[1]).padStart(2, '0')}:${timeMatch[2]}`
+          : '09:00';
         const res = await createTask({
           title: args.title,
-          scheduled_date: args.scheduled_date || toLocalDateStr(),
-          time_start: args.time_start || '09:00',
+          scheduled_date,
+          time_start,
           category: args.category || 'PESSOAL',
           duration: args.duration || '1h',
           state: 'pending',
         });
         if (res?.error) throw res.error;
-        return `Tarefa "${args.title}" criada para ${args.scheduled_date || toLocalDateStr()} às ${args.time_start || '09:00'}.`;
+        return `Tarefa "${args.title}" criada para ${scheduled_date} às ${time_start}.`;
       }
       case 'add_note': {
         const res = await createNote({ content: args.text });
