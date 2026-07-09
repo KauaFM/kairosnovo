@@ -1,5 +1,5 @@
 // =============================================================
-// ORVAX — FitCal foodService v2
+// ORVAX — Rastreador Nutricional · foodService v2
 // Aponta para foods_v2 + food_nutrients + food_portions + food_logs.
 // Usa RPCs search_foods_v2, log_food, log_food_from_ai, get_fitcal_daily,
 // get_execution_map, get_intake_output, get_food_detail.

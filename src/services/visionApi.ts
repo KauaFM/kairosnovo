@@ -1,20 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════════════════════
- * VISION API SERVICE — Food Recognition Pipeline (OpenAI gpt-4o-mini)
+ * VISION API SERVICE — Rastreador Nutricional · Food Recognition Pipeline
  * ═══════════════════════════════════════════════════════════════════════════════
  *
  * Architecture:
  *   1. Client-side compression (imageCompression.ts) → 512x512 JPEG
  *   2. Rate limit check (per-user daily quota)
- *   3. API call to OpenAI gpt-4o-mini (vision) with strict JSON response_format
+ *   3. Vision via llmChat (Gemini/OpenAI) com JSON response_format estrito
  *   4. Parse + validate response
  *   5. Return typed result for UI consumption
  *
  * Cost control:
  *   - 512px JPEG at q=0.70 ≈ 40-60KB base64
- *   - gpt-4o-mini é barato comparado a gpt-4o; custo por scan ~$0.0005
+ *   - modelos "flash" são baratos; custo por scan é baixo
  *
  * Security:
- *   - API key stored in VITE_OPENAI_API_KEY (client env)
+ *   - Chave em VITE_GEMINI_API_KEY / VITE_OPENAI_API_KEY (client env)
  *   - For production: route through Supabase Edge Function to hide key
  *   - Rate limiting prevents abuse even with exposed client key
  *
@@ -22,6 +22,7 @@
 
 import { compressImage, type CompressionResult } from '../utils/imageCompression';
 import { supabase } from '../lib/supabase';
+import { llmChat, llmAvailable, safeJsonParse } from './llm';
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * TYPES
@@ -60,9 +61,6 @@ export interface RateLimitStatus {
 /* ─────────────────────────────────────────────────────────────────────────────
  * CONSTANTS
  * ───────────────────────────────────────────────────────────────────────────── */
-
-const OPENAI_MODEL = 'gpt-4o-mini';
-const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
 const MAX_SCANS_FREE = 5;
 const MAX_SCANS_PREMIUM = 50;
@@ -209,16 +207,14 @@ async function uploadCompressedImage(
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * OPENAI VISION API CALL (gpt-4o-mini multimodal)
+ * VISION API CALL — multimodal via llmChat (Gemini/OpenAI)
  * ───────────────────────────────────────────────────────────────────────────── */
 
-async function callOpenAIVision(
+async function callVisionLLM(
   base64Raw: string,
-  mimeType: string,
-  apiKey: string
+  mimeType: string
 ): Promise<FoodItem[]> {
-  const requestBody = {
-    model: OPENAI_MODEL,
+  const data = await llmChat({
     response_format: { type: 'json_object' as const },
     temperature: 0.1,
     max_tokens: 2048,
@@ -235,32 +231,15 @@ async function callOpenAIVision(
         ],
       },
     ],
-  };
-
-  const response = await fetch(OPENAI_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(requestBody),
   });
 
-  if (!response.ok) {
-    const errBody = await response.json().catch(() => ({}));
-    const errMsg =
-      (errBody as Record<string, { message?: string }>).error?.message ||
-      `HTTP ${response.status}`;
-    throw new Error(`OPENAI_API_ERROR: ${errMsg}`);
-  }
-
-  const data = await response.json();
   const text = data?.choices?.[0]?.message?.content;
   if (!text) {
-    throw new Error('OPENAI_EMPTY_RESPONSE: No content in API response');
+    throw new Error('VISION_EMPTY_RESPONSE: No content in API response');
   }
 
-  const parsed = JSON.parse(text);
+  const parsed = safeJsonParse(text);
+  if (!parsed) throw new Error('VISION_BAD_JSON: resposta não é JSON válido');
   return validateResponse(parsed);
 }
 
@@ -294,13 +273,11 @@ export async function analyzeFood(
   const uploadPromise = uploadCompressedImage(compressed, userId);
 
   // ── 4. Call Vision API ────────────────────────────────
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string;
-
   let items: FoodItem[];
   let source: VisionAnalysisResult['source'];
 
-  if (!apiKey || apiKey === 'sua_chave_openai') {
-    // No API key: use mock response for development
+  if (!llmAvailable()) {
+    // Sem IA configurada: usa resposta mock para desenvolvimento
     items = [
       {
         name: 'Arroz Branco',
@@ -332,7 +309,7 @@ export async function analyzeFood(
     ];
     source = 'mock';
   } else {
-    items = await callOpenAIVision(compressed.base64Raw, compressed.mimeType, apiKey);
+    items = await callVisionLLM(compressed.base64Raw, compressed.mimeType);
     source = 'openai';
   }
 

@@ -1,9 +1,7 @@
 import { supabase } from '../../../lib/supabase';
 import { toLocalDateStr } from '../../../utils/dateUtils';
 import { compressImage } from '../../../utils/imageCompression';
-
-const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o-mini';
+import { llmChat, llmAvailable, safeJsonParse } from '../../../services/llm';
 
 const SYSTEM_PROMPT = `Você é uma API de análise nutricional de alta precisão.
 Analise a imagem e identifique TODOS os alimentos visíveis.
@@ -43,45 +41,37 @@ function sanitizeItems(raw) {
   return out;
 }
 
-// Fallback DEV: chama a OpenAI direto do navegador (expõe a chave — só p/ desenvolvimento)
-async function analyzeViaOpenAIDirect(base64Raw, mimeType, apiKey) {
-  const response = await fetch(OPENAI_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      response_format: { type: 'json_object' },
-      max_tokens: 1500,
-      temperature: 0.1,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Identifique os alimentos e estime a nutrição. Retorne JSON { "items": [...] }.' },
-            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Raw}` } },
-          ],
-        },
-      ],
-    }),
+// Fallback DEV: chama a IA (Gemini/OpenAI) direto do navegador — expõe a
+// chave, só para desenvolvimento. Visão pelo endpoint compatível-OpenAI.
+async function analyzeViaLLMDirect(base64Raw, mimeType) {
+  const data = await llmChat({
+    response_format: { type: 'json_object' },
+    max_tokens: 1500,
+    temperature: 0.1,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Identifique os alimentos e estime a nutrição. Retorne JSON { "items": [...] }.' },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Raw}` } },
+        ],
+      },
+    ],
   });
 
-  const dataJson = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const msg = dataJson?.error?.message || `HTTP ${response.status}`;
-    if (/api key|invalid_api_key/i.test(msg)) throw new Error('Chave OpenAI inválida (VITE_OPENAI_API_KEY).');
-    throw new Error(`Falha na IA: ${msg}`);
-  }
-  const text = dataJson?.choices?.[0]?.message?.content;
+  const text = data?.choices?.[0]?.message?.content;
   if (!text) throw new Error('A IA retornou resposta vazia.');
-  return sanitizeItems(JSON.parse(text));
+  const parsed = safeJsonParse(text);
+  if (!parsed) throw new Error('A IA retornou um formato inesperado.');
+  return sanitizeItems(parsed);
 }
 
 /**
  * Analisa uma foto de refeição e devolve { items, photoUrl }.
  * Pipeline: comprime → faz upload (best-effort) → Edge Function `analyze-food`
- * (caminho seguro) → fallback DEV direto na OpenAI. Lança Error em caso de
- * falha total (nada falso é registrado no diário).
+ * (caminho seguro) → fallback DEV direto na IA (Gemini/OpenAI). Lança Error
+ * em caso de falha total (nada falso é registrado no diário).
  */
 export async function analyzeFoodPhoto(file, userId) {
   // 1. Comprime no cliente: JPEG ~768px (rápido, barato, cabe no bucket, evita HEIC)
@@ -127,12 +117,11 @@ export async function analyzeFoodPhoto(file, userId) {
     console.info('[analyzeFoodPhoto] Edge Function indisponível, tentando fallback direto:', edgeErr?.message || edgeErr);
   }
 
-  // 4. Fallback DEV (somente se houver chave local)
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Análise indisponível: publique a Edge Function "analyze-food" ou defina VITE_OPENAI_API_KEY.');
+  // 4. Fallback DEV (somente se houver IA configurada localmente)
+  if (!llmAvailable()) {
+    throw new Error('Análise indisponível: publique a Edge Function "analyze-food" ou defina VITE_GEMINI_API_KEY.');
   }
-  const items = await analyzeViaOpenAIDirect(compressed.base64Raw, compressed.mimeType, apiKey);
+  const items = await analyzeViaLLMDirect(compressed.base64Raw, compressed.mimeType);
   return { items, photoUrl: publicUrl || URL.createObjectURL(compressed.blob) };
 }
 

@@ -13,7 +13,7 @@ import {
 } from '../../../services/visionApi';
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * VISION UPLOAD BOX — FitCal AI Food Recognition Interface
+ * VISION UPLOAD BOX — Rastreador Nutricional · AI Food Recognition Interface
  * ═══════════════════════════════════════════════════════════════════════════════
  *
  * Design system: Brutalista / Terminal Financeiro
