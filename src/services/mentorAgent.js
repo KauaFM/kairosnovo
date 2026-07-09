@@ -198,8 +198,12 @@ async function chatClientSide(text, history, mentorId, userId) {
   const systemPrompt = basePrompt + dateCtx + ctx +
     '\n\nVocê PODE agir no aplicativo através das ferramentas disponíveis: registrar transações no Cofre (receitas e despesas, inclusive salário), criar tarefas na Agenda e salvar notas. ' +
     'Sempre que o usuário pedir ou relatar algo registrável (ex: "meu salário entrou", "gastei 50 no mercado", "marca academia amanhã 7h", "anota tal ideia"), CHAME a ferramenta apropriada em vez de dizer que não consegue. ' +
-    'Se faltar um dado obrigatório e você conseguir inferir com segurança, infira (data → hoje; tipo → receita/despesa pelo contexto); só pergunte se for realmente ambíguo. ' +
-    'Depois de executar, confirme de forma curta e natural, no seu tom.';
+    'Se faltar um dado obrigatório e você conseguir inferir com segurança, infira (data → hoje; tipo → receita/despesa pelo contexto); só pergunte se for realmente ambíguo.' +
+    '\n\nREGRA DE RESPOSTA (obrigatória): entregue EXATAMENTE o que foi pedido, nada além. ' +
+    'Se a mensagem for um PEDIDO DE AÇÃO (criar, agendar, marcar, registrar, anotar, apagar), execute e responda com UMA única frase curta de confirmação. ' +
+    'NÃO faça perguntas de acompanhamento, NÃO adicione coaching, reflexões, "primeiros princípios", sugestões ou textos extras. ' +
+    'Só se aprofunde, questione ou dê conselho quando o usuário fizer uma pergunta ou pedir explicitamente sua opinião/ajuda. ' +
+    'Na dúvida, seja breve. Menos é mais.';
 
   const messages = [
     { role: 'system', content: systemPrompt },
