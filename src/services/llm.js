@@ -59,6 +59,14 @@ export async function llmChat(body = {}) {
   const { model: _ignore, ...rest } = body;
   const payload = { model: p.model, ...rest };
 
+  // Gemini 2.5-flash "pensa" por padrão e consome o orçamento de
+  // tokens antes de responder (retorna vazio com max_tokens baixo).
+  // Desligar o thinking deixa o custo previsível e a resposta rápida.
+  // reasoning_effort é específico do Gemini — não enviar pra OpenAI.
+  if (name === 'gemini' && payload.reasoning_effort === undefined) {
+    payload.reasoning_effort = 'none';
+  }
+
   const res = await fetch(p.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.key}` },
