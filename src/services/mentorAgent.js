@@ -20,6 +20,7 @@ import {
   createNote,
 } from './db';
 import { getMentorPersona } from './mentor';
+import { llmChat, llmAvailable } from './llm';
 import { toDbTxType } from '../lib/txType';
 import { toLocalDateStr } from '../utils/dateUtils';
 
@@ -169,22 +170,10 @@ async function executeClientTool(name, args, userId) {
   }
 }
 
-async function openaiChat(apiKey, body) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error?.message || `OpenAI ${res.status}`);
-  return data;
-}
-
-// ─── FALLBACK: conversa + ações direto na OpenAI ────────────────
+// ─── FALLBACK: conversa + ações direto na IA (Gemini/OpenAI) ────
 async function chatClientSide(text, history, mentorId, userId) {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Assistente indisponível: publique a Edge Function "mentor-chat" ou defina VITE_OPENAI_API_KEY.');
+  if (!llmAvailable()) {
+    throw new Error('Assistente indisponível: defina VITE_GEMINI_API_KEY no .env (grátis em aistudio.google.com) ou publique a Edge Function "mentor-chat".');
   }
 
   const persona = await getMentorPersona(mentorId);
@@ -211,8 +200,8 @@ async function chatClientSide(text, history, mentorId, userId) {
   ];
 
   // 1º passo: deixa o modelo decidir se usa ferramenta
-  const first = await openaiChat(apiKey, {
-    model: 'gpt-4o-mini', messages, tools: CLIENT_TOOLS, tool_choice: 'auto',
+  const first = await llmChat({
+    messages, tools: CLIENT_TOOLS, tool_choice: 'auto',
     max_tokens: 900, temperature: 0.7,
   });
   const choice = first?.choices?.[0]?.message;
@@ -234,8 +223,7 @@ async function chatClientSide(text, history, mentorId, userId) {
     toolResults.push({ role: 'tool', tool_call_id: tc.id, content: result });
   }
 
-  const followUp = await openaiChat(apiKey, {
-    model: 'gpt-4o-mini',
+  const followUp = await llmChat({
     messages: [...messages, choice, ...toolResults],
     max_tokens: 900, temperature: 0.7,
   });

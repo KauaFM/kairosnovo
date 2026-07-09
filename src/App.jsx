@@ -19,6 +19,7 @@ const FitCalGate = lazy(() => import('./features/fitcal/pages/FitCalGate'));
 import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import { callMentor, clearMentorCache } from './services/mentor';
+import { llmAvailable } from './services/llm';
 import { getSelectedMentor } from './services/db';
 import { supabase } from './lib/supabase';
 import { appEvents } from './lib/events';
@@ -171,11 +172,10 @@ export default function App() {
     const [cfiScore, setCfiScore] = useState(0);
     const [vaultHabits, setVaultHabits] = useState([]);
 
-    // Handle Mentor Process (OpenAI gpt-4o-mini)
+    // Handle Mentor Process (IA: Gemini/OpenAI)
     const handleProcess = async () => {
-        const apiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
-        if (!apiKey) {
-            setMentorReply("ERRO: Chave API ausente. Configure VITE_OPENAI_API_KEY.");
+        if (!llmAvailable()) {
+            setMentorReply("ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.");
             return;
         }
 
@@ -184,7 +184,7 @@ export default function App() {
 
         try {
             const mentorId = await getSelectedMentor();
-            const data = await callMentor(userInput, { mentorId, apiKey });
+            const data = await callMentor(userInput, { mentorId });
             if (data) {
                 setMentorReply(data.mentor_reply);
                 if (data.cognitive_friction !== undefined) {
