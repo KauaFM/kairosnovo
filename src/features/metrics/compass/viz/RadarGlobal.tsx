@@ -34,7 +34,7 @@ export function RadarGlobal({ axes, size = 500 }: { axes: Axis[]; size?: number 
           key={i}
           cx={cx} cy={cy} r={r * rr}
           fill="none"
-          stroke="#F1F5F9"
+          className="stroke-zinc-100 dark:stroke-zinc-800"
           strokeWidth="1"
         />
       ))}
@@ -47,17 +47,17 @@ export function RadarGlobal({ axes, size = 500 }: { axes: Axis[]; size?: number 
             x1={cx} y1={cy}
             x2={cx + Math.cos(a) * r}
             y2={cy + Math.sin(a) * r}
-            stroke="#F1F5F9" 
-            strokeWidth="1" 
+            className="stroke-zinc-100 dark:stroke-zinc-800"
+            strokeWidth="1"
           />
         );
       })}
 
       {/* Past Data Area */}
       {hasPast && (
-        <path d={path(past)} 
+        <path d={path(past)}
           fill="none"
-          stroke="#CBD5E1" strokeWidth="1.5"
+          className="stroke-zinc-300 dark:stroke-zinc-600" strokeWidth="1.5"
           strokeDasharray="4 4" opacity={0.6} />
       )}
 
@@ -87,7 +87,7 @@ export function RadarGlobal({ axes, size = 500 }: { axes: Axis[]; size?: number 
           <text key={i} x={lx} y={ly}
             textAnchor={textAnchor} 
             dominantBaseline="middle"
-            className={hasData ? "fill-zinc-900" : "fill-zinc-500"}
+            className={hasData ? "fill-zinc-900 dark:fill-white" : "fill-zinc-500 dark:fill-zinc-500"}
             style={{ 
               fontSize: 10, 
               letterSpacing: '0.05em', 
