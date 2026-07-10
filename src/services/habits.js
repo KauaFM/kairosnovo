@@ -94,16 +94,19 @@ export const undoCheckInHabit = async (habitId) => {
     const s = await session();
     if (!s) return { error: { message: 'no-session' } };
     
-    // Deleta os logs criados hoje para este hábito
-    const today = new Date().toISOString().split('T')[0];
+    // Janela do dia LOCAL (não UTC — após 21h BRT o dia UTC já virou)
+    // e mesma coluna usada pela listagem (logged_at); senão o undo
+    // não encontra o log que a UI mostra como feito.
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date();   end.setHours(23, 59, 59, 999);
     const result = await supabase
         .from('habit_logs')
         .delete()
         .eq('user_id', s.user.id)
         .eq('habit_id', habitId)
-        .gte('created_at', `${today}T00:00:00.000Z`)
-        .lte('created_at', `${today}T23:59:59.999Z`);
-        
+        .gte('logged_at', start.toISOString())
+        .lte('logged_at', end.toISOString());
+
     if (!result.error) appEvents.emit({ type: 'HABIT_CHANGED' });
     return result;
 };

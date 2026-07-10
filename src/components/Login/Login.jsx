@@ -95,7 +95,13 @@ const Login = ({ onLoginSuccess }) => {
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
-                    options: { data: { full_name: email.split('@')[0] } }
+                    options: {
+                        data: { full_name: email.split('@')[0] },
+                        // Link de confirmação volta pro domínio onde o usuário
+                        // se cadastrou (produção) — não pra Site URL default
+                        // do Supabase (que pode apontar pra localhost).
+                        emailRedirectTo: `${window.location.origin}/`,
+                    }
                 });
                 if (error) throw error;
                 setLoginStatus('success');

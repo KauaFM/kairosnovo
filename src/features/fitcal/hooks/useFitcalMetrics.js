@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { getExecutionMap, getIntakeOutput } from '../services/foodServiceV2';
+import { toLocalDateStr } from '../../../utils/dateUtils';
 
 const DAY_LABELS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
 
@@ -47,7 +48,8 @@ export function useFitcalMetrics(period = 'week') {
         for (let d = 0; d < 7; d++) {
           const dt = new Date(start);
           dt.setDate(start.getDate() + w * 7 + d);
-          const iso = dt.toISOString().slice(0, 10);
+          // data LOCAL — toISOString (UTC) desalinha o heatmap após 21h BRT
+          const iso = toLocalDateStr(dt);
           week.push(byDate.get(iso) ?? 0);
         }
         weeks.push(week);
