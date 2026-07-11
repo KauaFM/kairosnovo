@@ -6,6 +6,7 @@ import Navigation from './components/Navigation';
 import MentorModal from './components/MentorModal';
 import { XpToastLayer } from './features/lifeOs/components/XpToastLayer';
 import Login from './components/Login/Login';
+import SubscriptionGate from './components/SubscriptionGate';
 
 // Abas pesadas · carregadas sob demanda (code-splitting) para o app abrir rápido
 const Vault = lazy(() => import('./components/Vault'));
@@ -328,6 +329,8 @@ export default function App() {
                 {/* Mobile Device Container */}
                 <div className="w-full max-w-[428px] h-screen relative flex flex-col z-20 bg-transparent overflow-hidden border-x border-[var(--border-color)]">
 
+                  {/* Gate de assinatura: sem plano ativo → tela de planos (admins passam) */}
+                  <SubscriptionGate userRole={userRole}>
                     <div className="flex-1 relative">
                         <Suspense fallback={<TabLoader />}>
                         <TabWrapper active={activeTab === 'nexus'}>
@@ -366,6 +369,7 @@ export default function App() {
                         isAnyModalOpen={isAnyModalOpen}
                         userRole={userRole}
                     />
+                  </SubscriptionGate>
                 </div>
             </div>
         </React.Fragment>

@@ -405,3 +405,24 @@ entrypoint = "./functions/whatsapp-agent/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/whatsapp-agent/*.html" ]
+
+# ─── Stripe (assinaturas) ───────────────────────────────────
+[functions.create-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-checkout/deno.json"
+entrypoint = "./functions/create-checkout/index.ts"
+
+[functions.create-portal]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-portal/deno.json"
+entrypoint = "./functions/create-portal/index.ts"
+
+# O Stripe chama este endpoint (sem JWT do usuário). A autenticidade
+# vem da assinatura do webhook (STRIPE_WEBHOOK_SECRET) validada no código.
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-webhook/deno.json"
+entrypoint = "./functions/stripe-webhook/index.ts"

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, Check, Camera, Utensils, Droplets, TrendingUp, Sparkles, ShieldCheck } from 'lucide-react';
+import { Lock, Check, Camera, Utensils, Droplets, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
 import { ScrollContainer, OrvaxHeader } from '../../../components/BaseLayout';
+import { startCheckout } from '../../../services/billing';
 
 const ACCENT = '#22c55e';
 
@@ -12,11 +13,20 @@ const FEATURES = [
 ];
 
 const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
-  const [notice, setNotice] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     if (onUpgrade) { onUpgrade(); return; }
-    setNotice(true);
+    setErr(null); setBusy(true);
+    try {
+      // Rastreador = plano Completo (R$39,99). Se já tem Essencial, a
+      // Edge Function faz o upgrade da assinatura automaticamente.
+      await startCheckout('completo');
+    } catch (e) {
+      setErr(e?.message || 'Não foi possível iniciar o pagamento.');
+      setBusy(false);
+    }
   };
 
   return (
@@ -66,22 +76,22 @@ const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
           <div className="w-full max-w-[340px] px-2 mt-8">
             <button
               onClick={handleUpgrade}
-              className="w-full py-4 rounded-2xl font-outfit font-black text-[11px] tracking-wider uppercase flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              disabled={busy}
+              className="w-full py-4 rounded-2xl font-outfit font-black text-[11px] tracking-wider uppercase flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: ACCENT, color: '#000', boxShadow: `0 10px 30px ${ACCENT}40` }}
             >
-              <Lock size={15} /> Desbloquear Rastreador Nutricional
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <><Lock size={15} /> Desbloquear por R$ 39,99/mês</>}
             </button>
 
-            {notice && (
-              <div className="mt-4 p-3 rounded-xl border text-[10px] font-mono opacity-70 flex items-center gap-2 justify-center"
-                style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
-                <ShieldCheck size={13} style={{ color: ACCENT }} />
-                Pagamento em integração. Em breve você poderá desbloquear por aqui.
+            {err && (
+              <div className="mt-4 p-3 rounded-xl border text-[10px] font-mono text-center"
+                style={{ borderColor: '#ef444455', backgroundColor: '#ef44440D', color: '#ef4444' }}>
+                {err}
               </div>
             )}
 
             <p className="text-[8px] font-mono opacity-25 tracking-[0.15em] uppercase mt-4">
-              Acesso vitalício ao módulo · pagamento único
+              Plano Completo · cobrança mensal · cancele quando quiser
             </p>
           </div>
         </div>
