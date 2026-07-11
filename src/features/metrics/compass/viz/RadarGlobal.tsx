@@ -2,8 +2,9 @@ type Axis = { label: string; value: number; valuePast?: number };
 
 export function RadarGlobal({ axes, size = 500 }: { axes: Axis[]; size?: number }) {
   const cx = size / 2, cy = size / 2;
-  // Radius optimized to leave huge margins for labels
-  const r = size * 0.28; 
+  // Raio menor → mais margem pros rótulos laterais (ex: FINANCEIRO, APRENDIZADO)
+  // não serem cortados pelo overflow-hidden do card.
+  const r = size * 0.22;
   const n = axes.length;
 
   const point = (val: number, idx: number) => {
@@ -72,7 +73,7 @@ export function RadarGlobal({ axes, size = 500 }: { axes: Axis[]; size?: number 
       {/* Labels - High Contrast & Readable */}
       {axes.map((a, i) => {
         const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
-        const distance = r + 55; 
+        const distance = r + 34;
         const lx = cx + Math.cos(angle) * distance;
         const ly = cy + Math.sin(angle) * distance;
         
@@ -88,10 +89,10 @@ export function RadarGlobal({ axes, size = 500 }: { axes: Axis[]; size?: number 
             textAnchor={textAnchor} 
             dominantBaseline="middle"
             className={hasData ? "fill-zinc-900" : "fill-zinc-500"}
-            style={{ 
-              fontSize: 10, 
-              letterSpacing: '0.05em', 
-              fontWeight: hasData ? 800 : 600, 
+            style={{
+              fontSize: 8.5,
+              letterSpacing: '0.02em',
+              fontWeight: hasData ? 800 : 600,
               fontFamily: 'Inter, system-ui, sans-serif'
             }}>
             {a.label.toUpperCase()}
