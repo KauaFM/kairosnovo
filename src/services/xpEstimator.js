@@ -1,8 +1,11 @@
 // ============================================================
-// ORVAX — Estimador de XP via OpenAI gpt-4o-mini
+// ORVAX — Estimador de XP via IA (Gemini/OpenAI)
 //
 // O usuário NÃO define XP manualmente. O Agente avalia a
 // complexidade real daquela tarefa/hábito/meta e atribui XP.
+//
+// Nunca lança: se a IA não estiver disponível ou falhar, cai
+// para a heurística por palavras-chave.
 //
 // Escala:
 //   1-5   → Trivial (beber água, responder mensagem rápida)
@@ -11,6 +14,8 @@
 //   31-50 → Intenso (deep work 2h+, treino pesado, projeto)
 //   51-80 → Excepcional (maratona, projeto de semana, protocolo extremo)
 // ============================================================
+
+import { llmChat, llmAvailable, safeJsonParse } from './llm';
 
 const SYSTEM_PROMPT = `Você é o ORVAX, avaliador matemático de complexidade.
 Dado o título de um hábito, tarefa ou meta em português, retorne SOMENTE
@@ -44,40 +49,25 @@ export async function estimateXP(text) {
   const clean = (text || '').toString().trim();
   if (!clean) return 10;
 
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) return FALLBACK_HEURISTIC(clean);
+  if (!llmAvailable()) return FALLBACK_HEURISTIC(clean);
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-        max_tokens: 40,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: clean },
-        ],
-      }),
+    const data = await llmChat({
+      response_format: { type: 'json_object' },
+      temperature: 0.1,
+      max_tokens: 40,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: clean },
+      ],
     });
 
-    if (!response.ok) {
-      console.warn('[xpEstimator] OpenAI falhou, usando heurística');
-      return FALLBACK_HEURISTIC(clean);
-    }
-
-    const data = await response.json();
-    const parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
+    const parsed = safeJsonParse(data?.choices?.[0]?.message?.content) || {};
     const xp = Math.round(Number(parsed.xp));
     if (!Number.isFinite(xp) || xp < 1) return FALLBACK_HEURISTIC(clean);
     return Math.min(80, Math.max(1, xp));
   } catch (err) {
-    console.warn('[xpEstimator] Exceção, usando heurística:', err);
+    console.warn('[xpEstimator] IA falhou, usando heurística:', err?.message || err);
     return FALLBACK_HEURISTIC(clean);
   }
 }

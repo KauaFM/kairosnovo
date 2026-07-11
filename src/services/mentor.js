@@ -7,6 +7,7 @@
 
 import { supabase } from '../lib/supabase';
 import { LOCAL_MENTOR_PERSONAS } from '../data/mentorPersonas';
+import { llmChat, llmAvailable, safeJsonParse } from './llm';
 
 // Cache em memória por sessão pra evitar fetch em toda interação.
 const personaCache = new Map();
@@ -51,15 +52,14 @@ Responda SEMPRE com JSON válido no formato exato:
   "extracted_goals": [{ "name": "string", "category": "string", "frequency": "diária|semanal|única" }]
 }`;
 
-export const callMentor = async (userInput, { mentorId = 'atlas', apiKey } = {}) => {
+export const callMentor = async (userInput, { mentorId = 'atlas' } = {}) => {
     if (!userInput?.trim()) return null;
-    if (!apiKey) throw new Error('API key ausente. Configure VITE_OPENAI_API_KEY no .env');
+    if (!llmAvailable()) throw new Error('IA não configurada. Defina VITE_GEMINI_API_KEY no .env (grátis em aistudio.google.com).');
 
     const persona = await getMentorPersona(mentorId);
     const systemPrompt = buildJsonContract(persona?.system_prompt || FALLBACK_PROMPT);
 
-    const payload = {
-        model: 'gpt-4o-mini',
+    const body = {
         messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user',   content: userInput },
@@ -69,41 +69,25 @@ export const callMentor = async (userInput, { mentorId = 'atlas', apiKey } = {})
         max_tokens: 600,
     };
 
-    const fetchWithBackoff = async (retries = 3, delay = 800) => {
+    const callWithBackoff = async (retries = 3, delay = 800) => {
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                console.error('OpenAI API Error:', response.status, errText);
-                if ((response.status === 429 || response.status >= 500) && retries > 0) {
-                    await new Promise(r => setTimeout(r, delay));
-                    return fetchWithBackoff(retries - 1, delay * 2);
-                }
-                throw new Error(`OpenAI ${response.status}`);
-            }
-            return await response.json();
+            return await llmChat(body);
         } catch (err) {
-            if (retries > 0) {
+            const status = err?.status || 0;
+            if ((status === 429 || status >= 500) && retries > 0) {
                 await new Promise(r => setTimeout(r, delay));
-                return fetchWithBackoff(retries - 1, delay * 2);
+                return callWithBackoff(retries - 1, delay * 2);
             }
             throw err;
         }
     };
 
-    const result = await fetchWithBackoff();
+    const result = await callWithBackoff();
     const content = result?.choices?.[0]?.message?.content;
     if (!content) return null;
 
-    const parsed = JSON.parse(content);
+    const parsed = safeJsonParse(content);
+    if (!parsed) return null;
     return {
         mentor_reply:       parsed.mentor_reply       || '',
         cognitive_friction: Number.isFinite(parsed.cognitive_friction) ? parsed.cognitive_friction : 50,

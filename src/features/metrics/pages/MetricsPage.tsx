@@ -69,12 +69,13 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
 
   return (
     <ErrorBoundary fallbackTitle="Erro no Modulo Metricas">
-      {/* Fundo pontilhado · cobre a aba inteira (antes só o bloco de conteúdo tinha) */}
+      {/* Fundo pontilhado · cobre a aba inteira. Cores seguem o tema
+          (inline style não aceita dark: do Tailwind, então usamos o prop). */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundColor: '#F8F9FA',
-          backgroundImage: 'radial-gradient(circle, #cbd5e1 0.8px, transparent 0.8px)',
+          backgroundColor: theme === 'dark' ? '#09090b' : '#F8F9FA',
+          backgroundImage: `radial-gradient(circle, ${theme === 'dark' ? '#27272a' : '#cbd5e1'} 0.8px, transparent 0.8px)`,
           backgroundSize: '20px 20px',
         }}
       />

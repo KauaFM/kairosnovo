@@ -16,16 +16,16 @@ interface Props {
 // ── CUSTOM UI COMPONENTS ──
 
 const Card = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
-  <div className={`bg-white rounded-[24px] p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] ${className}`}>
+  <div className={`bg-white dark:bg-zinc-900 rounded-[24px] p-6 border border-slate-100 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none ${className}`}>
     {children}
   </div>
 );
 
 const InsightBox = ({ text, type = 'neutral' }: { text: string, type?: 'alert' | 'positive' | 'neutral' }) => {
   const colors = {
-    alert: 'bg-red-50 text-red-700 border-red-100',
-    positive: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    neutral: 'bg-slate-50 text-slate-600 border-slate-100',
+    alert: 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-100 dark:border-red-900/50',
+    positive: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900/50',
+    neutral: 'bg-slate-50 dark:bg-zinc-800/40 text-slate-600 dark:text-zinc-400 border-slate-100 dark:border-zinc-800',
   };
   return (
     <div className={`p-4 rounded-2xl border ${colors[type]} mt-6 max-w-sm mx-auto`}>
@@ -37,7 +37,7 @@ const InsightBox = ({ text, type = 'neutral' }: { text: string, type?: 'alert' |
 // ── REAL DATA VISUALIZATIONS (RECHARTS & CSS GRID) ──
 
 const RealLineChart = ({ data, color }: { data: any[], color: string }) => {
-  if (!data || data.length === 0) return <div className="h-32 bg-slate-50 rounded-xl" />;
+  if (!data || data.length === 0) return <div className="h-32 bg-slate-50 dark:bg-zinc-800/40 rounded-xl" />;
   
   // Custom Dot to highlight the last point (Premium Rule)
   const CustomDot = (props: any) => {
@@ -76,7 +76,7 @@ const RealLineChart = ({ data, color }: { data: any[], color: string }) => {
 };
 
 const RealDonutChart = ({ data, colors, isFinance }: { data: any[], colors: string[], isFinance?: boolean }) => {
-  if (!data || data.length === 0) return <div className="h-32 bg-slate-50 rounded-xl" />;
+  if (!data || data.length === 0) return <div className="h-32 bg-slate-50 dark:bg-zinc-800/40 rounded-xl" />;
   
   return (
     <div className="flex items-center gap-4">
@@ -108,8 +108,8 @@ const RealDonutChart = ({ data, colors, isFinance }: { data: any[], colors: stri
         {data.map((p, i) => (
           <div key={i} className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
-            <span className="text-xs font-semibold text-slate-600">{p.name}</span>
-            <span className="text-xs font-bold text-slate-900 ml-auto">
+            <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">{p.name}</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-zinc-100 ml-auto">
               {isFinance ? `R$ ${p.value.toLocaleString('pt-BR')}` : `${p.value}h`}
             </span>
           </div>
@@ -121,7 +121,7 @@ const RealDonutChart = ({ data, colors, isFinance }: { data: any[], colors: stri
 
 // Heatmap using real data.weekHeat
 const RealHeatmap = ({ data, color }: { data: any[], color: string }) => {
-  if (!data || data.length === 0) return <div className="h-24 bg-slate-50 rounded-xl" />;
+  if (!data || data.length === 0) return <div className="h-24 bg-slate-50 dark:bg-zinc-800/40 rounded-xl" />;
   
   // Create a 7x24 grid
   return (
@@ -138,7 +138,7 @@ const RealHeatmap = ({ data, color }: { data: any[], color: string }) => {
           />
         ))}
       </div>
-      <div className="flex justify-between text-[10px] font-semibold text-slate-400 mt-2 uppercase tracking-wider">
+      <div className="flex justify-between text-[10px] font-semibold text-slate-400 dark:text-zinc-500 mt-2 uppercase tracking-wider">
         <span>00h</span>
         <span>12h</span>
         <span>23h</span>
@@ -152,10 +152,10 @@ const HorizontalRanking = ({ items, color, isFinance }: { items: {label: string,
     {items.map((item, i) => (
       <div key={i} className="flex flex-col gap-2">
         <div className="flex justify-between text-xs font-semibold">
-          <span className="text-slate-600">{item.label}</span>
-          <span className="text-slate-900">{item.raw ? item.raw : `${item.value}/100`}</span>
+          <span className="text-slate-600 dark:text-zinc-400">{item.label}</span>
+          <span className="text-slate-900 dark:text-zinc-100">{item.raw ? item.raw : `${item.value}/100`}</span>
         </div>
-        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
           <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, item.value)}%`, backgroundColor: color }} />
         </div>
       </div>
@@ -168,9 +168,9 @@ const HorizontalRanking = ({ items, color, isFinance }: { items: {label: string,
 export function PillarLayered({ data, onBack, hideNav }: Props) {
   if (data.isEmpty) {
     return (
-      <div className={`bg-[#F8FAFC] text-slate-900 relative ${hideNav ? 'h-full' : 'min-h-screen'}`}>
+      <div className={`bg-[#F8FAFC] dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 relative ${hideNav ? 'h-full' : 'min-h-screen'}`}>
         {!hideNav && (
-          <button onClick={onBack} className="absolute top-6 left-5 z-50 p-3 text-slate-500 bg-white border border-slate-100 shadow-sm rounded-full hover:scale-105 transition-transform">
+          <button onClick={onBack} className="absolute top-6 left-5 z-50 p-3 text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 shadow-sm rounded-full hover:scale-105 transition-transform">
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
@@ -212,13 +212,13 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
   const donutColors = [color, color2];
 
   return (
-    <div className={`bg-[#F8FAFC] text-slate-900 font-sans selection:bg-cyan-100 ${hideNav ? 'pb-10 pt-4 rounded-[32px] overflow-hidden shadow-inner' : 'min-h-screen pb-32'}`}>
+    <div className={`bg-[#F8FAFC] dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-sans selection:bg-cyan-100 ${hideNav ? 'pb-10 pt-4 rounded-[32px] overflow-hidden shadow-inner' : 'min-h-screen pb-32'}`}>
       
       {/* NAVEGAÇÃO */}
       {!hideNav && (
         <button 
           onClick={onBack} 
-          className="fixed top-6 left-5 z-50 p-3 text-slate-600 bg-white/90 backdrop-blur-md border border-slate-100 shadow-sm rounded-full hover:bg-white hover:text-slate-900 hover:-translate-x-1 transition-all"
+          className="fixed top-6 left-5 z-50 p-3 text-slate-600 dark:text-zinc-400 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-100 dark:border-zinc-800 shadow-sm rounded-full hover:bg-white dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 hover:-translate-x-1 transition-all"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -229,13 +229,13 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         <div className="flex flex-col items-center text-center">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-            <h1 className="text-xs font-bold text-slate-500 uppercase tracking-widest">{data.config.name}</h1>
+            <h1 className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">{data.config.name}</h1>
           </div>
           
           <div className="flex items-start justify-center">
-            {isFinance && <span className="text-4xl font-bold text-slate-400 mt-4 mr-2">R$</span>}
+            {isFinance && <span className="text-4xl font-bold text-slate-400 dark:text-zinc-500 mt-4 mr-2">R$</span>}
             <span 
-              className="font-bold tracking-tighter leading-none text-slate-900" 
+              className="font-bold tracking-tighter leading-none text-slate-900 dark:text-zinc-100" 
               style={{ 
                 fontSize: 
                   Math.abs(data.score) >= 1_000_000_000 ? '40px' :
@@ -247,7 +247,7 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
             </span>
           </div>
 
-          <div className={`mt-6 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold ${data.delta7 >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+          <div className={`mt-6 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold ${data.delta7 >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'}`}>
             {data.delta7 >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             {data.delta7 >= 0 ? '+' : ''}{data.delta7}% vs semana
           </div>
@@ -264,10 +264,10 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Ciclo de Vida (12 Meses)</h3>
-                <p className="text-xs font-medium text-slate-400 mt-0.5">Visão macro de evolução anual</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Ciclo de Vida (12 Meses)</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Visão macro de evolução anual</p>
               </div>
-              <TrendingUp className="w-4 h-4 text-slate-300" />
+              <TrendingUp className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
             <div className="mt-6 h-[160px] w-full">
               <MultiYearLine data={data.evolutionYear.map(p => {
@@ -291,10 +291,10 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Densidade de Execução</h3>
-                <p className="text-xs font-medium text-slate-400 mt-0.5">Consistência nos últimos 365 dias</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Densidade de Execução</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Consistência nos últimos 365 dias</p>
               </div>
-              <BarChart3 className="w-4 h-4 text-slate-300" />
+              <BarChart3 className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
             <YearHeatmap cells={data.yearDensity.map(d => ({
               day: new Date(d.date).getTime(),
@@ -308,10 +308,10 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Micro-tendência (30D)</h3>
-                <p className="text-xs font-medium text-slate-400 mt-0.5">Oscilação diária recente</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Micro-tendência (30D)</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Oscilação diária recente</p>
               </div>
-              <Clock className="w-4 h-4 text-slate-300" />
+              <Clock className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
             <RealLineChart data={data.evolution30} color={color} />
           </Card>
@@ -321,29 +321,29 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           {/* DISTRIBUIÇÃO DE TEMPO (DONUT COM RECHARTS) */}
           <Card>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 tracking-tight">{isFinance ? 'Caixa do Período' : 'Tempo Diário'}</h3>
-              <p className="text-xs font-medium text-slate-400 mt-0.5">{isFinance ? 'Alocação (Receita vs Gasto)' : 'Alocação (Foco vs Desvio)'}</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{isFinance ? 'Caixa do Período' : 'Tempo Diário'}</h3>
+              <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{isFinance ? 'Alocação (Receita vs Gasto)' : 'Alocação (Foco vs Desvio)'}</p>
             </div>
             <div className="mt-4">
               {donutData.length > 0 ? (
                 <RealDonutChart data={donutData} colors={donutColors} isFinance={isFinance} />
               ) : (
-                <div className="h-32 flex items-center justify-center text-xs text-slate-400">{isFinance ? 'Sem transações.' : 'Sem dados de foco hoje.'}</div>
+                <div className="h-32 flex items-center justify-center text-xs text-slate-400 dark:text-zinc-500">{isFinance ? 'Sem transações.' : 'Sem dados de foco hoje.'}</div>
               )}
             </div>
           </Card>
 
           {/* CONSISTÊNCIA / HIGHLIGHT */}
           <Card className="flex flex-col justify-center">
-            <h3 className="text-sm font-bold text-slate-800 tracking-tight mb-4">{isFinance ? 'Balanço Semanal' : 'Consistência 7D'}</h3>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight mb-4">{isFinance ? 'Balanço Semanal' : 'Consistência 7D'}</h3>
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-5xl font-bold tracking-tighter text-slate-900">
+              <span className="text-5xl font-bold tracking-tighter text-slate-900 dark:text-zinc-100">
                 {isFinance && data.weekConsistency < 0 ? '-' : ''}{isFinance ? 'R$ ' : ''}
                 {isFinance ? Math.abs(data.weekConsistency || 0).toLocaleString('pt-BR') : data.weekConsistency || 0}
               </span>
-              <span className="text-sm font-semibold text-slate-400">{isFinance ? '' : '/100'}</span>
+              <span className="text-sm font-semibold text-slate-400 dark:text-zinc-500">{isFinance ? '' : '/100'}</span>
             </div>
-            <p className="text-xs font-medium text-slate-500 leading-relaxed">{data.weekInsight || 'Nenhuma atividade registrada na semana.'}</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 leading-relaxed">{data.weekInsight || 'Nenhuma atividade registrada na semana.'}</p>
           </Card>
         </div>
 
@@ -351,8 +351,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         {data.axesNow && data.axesNow.length > 0 && (
           <Card>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 tracking-tight">Eixos do Pilar</h3>
-              <p className="text-xs font-medium text-slate-400 mt-0.5">Performance detalhada por área</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Eixos do Pilar</h3>
+              <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Performance detalhada por área</p>
             </div>
             <HorizontalRanking items={data.axesNow} color={color} isFinance={isFinance} />
           </Card>
@@ -363,10 +363,10 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 tracking-tight">Padrão Circadiano (7D)</h3>
-                <p className="text-xs font-medium text-slate-400 mt-0.5">Intensidade por hora do dia</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Padrão Circadiano (7D)</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Intensidade por hora do dia</p>
               </div>
-              <Clock className="w-4 h-4 text-slate-300" />
+              <Clock className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
             <RealHeatmap data={data.weekHeat} color={color} />
           </Card>
@@ -375,17 +375,17 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         {/* 3. SOLUÇÃO (AÇÕES REAIS DA IA) */}
         {data.actions && data.actions.length > 0 && (
           <div className="pt-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 px-2">Vetores de Progresso</h3>
+            <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest mb-4 px-2">Vetores de Progresso</h3>
             <Card className="border-l-4" style={{ borderLeftColor: color }}>
               <div className="flex flex-col gap-4">
                 {data.actions.map((act, i) => (
-                  <div key={i} className="flex items-start gap-4 p-3 rounded-xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 transition-colors cursor-pointer group">
-                    <div className="w-5 h-5 mt-0.5 rounded-full border-2 border-slate-300 group-hover:border-slate-500 flex items-center justify-center transition-colors shrink-0">
-                      <div className="w-2.5 h-2.5 bg-slate-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div key={i} className="flex items-start gap-4 p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800 border border-transparent hover:border-slate-100 dark:hover:border-zinc-700 transition-colors cursor-pointer group">
+                    <div className="w-5 h-5 mt-0.5 rounded-full border-2 border-slate-300 dark:border-zinc-700 group-hover:border-slate-500 dark:group-hover:border-zinc-500 flex items-center justify-center transition-colors shrink-0">
+                      <div className="w-2.5 h-2.5 bg-slate-500 dark:bg-zinc-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800 mb-1 leading-snug">{act.title}</h4>
-                      <p className="text-xs font-medium text-slate-500 leading-relaxed">{act.why}</p>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-1 leading-snug">{act.title}</h4>
+                      <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 leading-relaxed">{act.why}</p>
                     </div>
                   </div>
                 ))}

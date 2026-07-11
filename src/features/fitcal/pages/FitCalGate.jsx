@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import FitCalHome from './FitCalHome';
 import FitCalPaywall from './FitCalPaywall';
 
-// Gate de acesso ao módulo FitCal (recurso premium).
+// Gate de acesso ao módulo Rastreador Nutricional (recurso premium).
 // Libera só quando profiles.is_premium = true. Caso contrário, mostra o paywall.
 const FitCalGate = (props) => {
   const [status, setStatus] = useState('loading'); // loading | locked | unlocked

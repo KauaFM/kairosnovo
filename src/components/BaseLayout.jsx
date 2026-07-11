@@ -1,20 +1,25 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 
+// Coordenadas do header são decorativas — pede geolocalização UMA vez
+// por sessão e memoriza (antes: cada montagem do header re-pedia
+// permissão e logava warning em loop a cada troca de aba).
+let cachedCoords = null;
+let geoAsked = false;
+
 export const OrvaxHeader = ({ theme, toggleTheme, minimal = false }) => {
-    const [coords, setCoords] = React.useState({ lat: '00.00.00', lng: '00.00.00' });
+    const [coords, setCoords] = React.useState(cachedCoords || { lat: '00.00.00', lng: '00.00.00' });
 
     React.useEffect(() => {
-        if (!minimal && "geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition((position) => {
-                setCoords({
-                    lat: position.coords.latitude.toFixed(6),
-                    lng: position.coords.longitude.toFixed(6)
-                });
-            }, (error) => {
-                console.warn("Geolocation error:", error);
-            });
-        }
+        if (minimal || cachedCoords || geoAsked || !("geolocation" in navigator)) return;
+        geoAsked = true;
+        navigator.geolocation.getCurrentPosition((position) => {
+            cachedCoords = {
+                lat: position.coords.latitude.toFixed(6),
+                lng: position.coords.longitude.toFixed(6)
+            };
+            setCoords(cachedCoords);
+        }, () => { /* negado/indisponível — mantém o placeholder decorativo */ });
     }, [minimal]);
 
     return (

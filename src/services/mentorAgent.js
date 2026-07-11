@@ -20,6 +20,7 @@ import {
   createNote,
 } from './db';
 import { getMentorPersona } from './mentor';
+import { llmChat, llmAvailable } from './llm';
 import { toDbTxType } from '../lib/txType';
 import { toLocalDateStr } from '../utils/dateUtils';
 
@@ -142,16 +143,24 @@ async function executeClientTool(name, args, userId) {
         return `Transação "${args.name}" de R$${Math.abs(Number(args.amount))} registrada como ${toDbTxType(args.type) === 'in' ? 'receita' : 'despesa'}.`;
       }
       case 'create_task': {
+        // Normaliza data/hora: o modelo às vezes devolve texto livre
+        // ("11 horas", "amanhã") em vez de YYYY-MM-DD / HH:MM.
+        const dateMatch = String(args.scheduled_date || '').match(/\d{4}-\d{2}-\d{2}/);
+        const scheduled_date = dateMatch ? dateMatch[0] : toLocalDateStr();
+        const timeMatch = String(args.time_start || '').match(/(\d{1,2}):(\d{2})/);
+        const time_start = timeMatch
+          ? `${String(timeMatch[1]).padStart(2, '0')}:${timeMatch[2]}`
+          : '09:00';
         const res = await createTask({
           title: args.title,
-          scheduled_date: args.scheduled_date || toLocalDateStr(),
-          time_start: args.time_start || '09:00',
+          scheduled_date,
+          time_start,
           category: args.category || 'PESSOAL',
           duration: args.duration || '1h',
           state: 'pending',
         });
         if (res?.error) throw res.error;
-        return `Tarefa "${args.title}" criada para ${args.scheduled_date || toLocalDateStr()} às ${args.time_start || '09:00'}.`;
+        return `Tarefa "${args.title}" criada para ${scheduled_date} às ${time_start}.`;
       }
       case 'add_note': {
         const res = await createNote({ content: args.text });
@@ -169,22 +178,10 @@ async function executeClientTool(name, args, userId) {
   }
 }
 
-async function openaiChat(apiKey, body) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error?.message || `OpenAI ${res.status}`);
-  return data;
-}
-
-// ─── FALLBACK: conversa + ações direto na OpenAI ────────────────
+// ─── FALLBACK: conversa + ações direto na IA (Gemini/OpenAI) ────
 async function chatClientSide(text, history, mentorId, userId) {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Assistente indisponível: publique a Edge Function "mentor-chat" ou defina VITE_OPENAI_API_KEY.');
+  if (!llmAvailable()) {
+    throw new Error('Assistente indisponível: defina VITE_GEMINI_API_KEY no .env (grátis em aistudio.google.com) ou publique a Edge Function "mentor-chat".');
   }
 
   const persona = await getMentorPersona(mentorId);
@@ -201,8 +198,12 @@ async function chatClientSide(text, history, mentorId, userId) {
   const systemPrompt = basePrompt + dateCtx + ctx +
     '\n\nVocê PODE agir no aplicativo através das ferramentas disponíveis: registrar transações no Cofre (receitas e despesas, inclusive salário), criar tarefas na Agenda e salvar notas. ' +
     'Sempre que o usuário pedir ou relatar algo registrável (ex: "meu salário entrou", "gastei 50 no mercado", "marca academia amanhã 7h", "anota tal ideia"), CHAME a ferramenta apropriada em vez de dizer que não consegue. ' +
-    'Se faltar um dado obrigatório e você conseguir inferir com segurança, infira (data → hoje; tipo → receita/despesa pelo contexto); só pergunte se for realmente ambíguo. ' +
-    'Depois de executar, confirme de forma curta e natural, no seu tom.';
+    'Se faltar um dado obrigatório e você conseguir inferir com segurança, infira (data → hoje; tipo → receita/despesa pelo contexto); só pergunte se for realmente ambíguo.' +
+    '\n\nREGRA DE RESPOSTA (obrigatória): entregue EXATAMENTE o que foi pedido, nada além. ' +
+    'Se a mensagem for um PEDIDO DE AÇÃO (criar, agendar, marcar, registrar, anotar, apagar), execute e responda com UMA única frase curta de confirmação. ' +
+    'NÃO faça perguntas de acompanhamento, NÃO adicione coaching, reflexões, "primeiros princípios", sugestões ou textos extras. ' +
+    'Só se aprofunde, questione ou dê conselho quando o usuário fizer uma pergunta ou pedir explicitamente sua opinião/ajuda. ' +
+    'Na dúvida, seja breve. Menos é mais.';
 
   const messages = [
     { role: 'system', content: systemPrompt },
@@ -211,8 +212,8 @@ async function chatClientSide(text, history, mentorId, userId) {
   ];
 
   // 1º passo: deixa o modelo decidir se usa ferramenta
-  const first = await openaiChat(apiKey, {
-    model: 'gpt-4o-mini', messages, tools: CLIENT_TOOLS, tool_choice: 'auto',
+  const first = await llmChat({
+    messages, tools: CLIENT_TOOLS, tool_choice: 'auto',
     max_tokens: 900, temperature: 0.7,
   });
   const choice = first?.choices?.[0]?.message;
@@ -234,8 +235,7 @@ async function chatClientSide(text, history, mentorId, userId) {
     toolResults.push({ role: 'tool', tool_call_id: tc.id, content: result });
   }
 
-  const followUp = await openaiChat(apiKey, {
-    model: 'gpt-4o-mini',
+  const followUp = await llmChat({
     messages: [...messages, choice, ...toolResults],
     max_tokens: 900, temperature: 0.7,
   });

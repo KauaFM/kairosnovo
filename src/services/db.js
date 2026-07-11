@@ -54,13 +54,87 @@ export const updatePhoneNumber = async (phone) => {
 export const getTasks = async (date) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
-    
+
     let query = supabase.from('tasks').select('*').eq('user_id', session.user.id);
     if (date) {
         query = query.eq('scheduled_date', date);
     }
     const { data } = await query.order('time_start', { ascending: true });
     return data || [];
+};
+
+// Agenda UNIFICADA de um dia: junta `tasks` (diretrizes) e
+// `universal_events` (calls/eventos/lembretes/pagamentos criados pelo
+// +CRIAR ou pelo mentor). Retorna itens normalizados com `source`
+// para que a UI trate toggle/delete na tabela certa.
+const EVENT_KIND_LABEL = {
+    meeting: 'REUNIÃO', appointment: 'COMPROMISSO', call: 'CALL',
+    reminder: 'LEMBRETE', payment: 'PAGAMENTO', event: 'EVENTO',
+};
+export const getAgendaItems = async (dateStr) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+    const uid = session.user.id;
+
+    // limites do dia LOCAL (universal_events guarda timestamptz)
+    const dayStart = new Date(`${dateStr}T00:00:00`);
+    const dayEnd = new Date(`${dateStr}T23:59:59.999`);
+
+    const [tasksRes, eventsRes] = await Promise.all([
+        supabase.from('tasks').select('*')
+            .eq('user_id', uid).eq('scheduled_date', dateStr)
+            .order('time_start', { ascending: true }),
+        supabase.from('universal_events').select('*')
+            .eq('user_id', uid)
+            .gte('starts_at', dayStart.toISOString())
+            .lte('starts_at', dayEnd.toISOString())
+            .neq('status', 'canceled'),
+    ]);
+
+    const taskItems = (tasksRes.data || []).map(t => ({
+        id: t.id, source: 'task',
+        time_start: t.time_start || '--:--',
+        title: t.title, category: t.category || 'GERAL',
+        duration: t.duration || null, state: t.state,
+        scheduled_date: t.scheduled_date, raw: t,
+    }));
+
+    const eventItems = (eventsRes.data || []).map(e => {
+        const d = new Date(e.starts_at);
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        return {
+            id: e.id, source: 'event',
+            time_start: e.all_day ? '--:--' : `${hh}:${mm}`,
+            title: e.title, category: EVENT_KIND_LABEL[e.event_type] || 'EVENTO',
+            duration: null, state: e.status === 'done' ? 'done' : 'pending',
+            scheduled_date: dateStr, raw: e,
+        };
+    });
+
+    return [...taskItems, ...eventItems].sort(
+        (a, b) => (a.time_start || '').localeCompare(b.time_start || '')
+    );
+};
+
+// Marca/atualiza status de um universal_event (agenda).
+export const setEventStatus = async (id, status) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const result = await supabase.from('universal_events')
+        .update({ status })
+        .eq('id', id).eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'TASK_CHANGED' });
+    return result;
+};
+
+export const deleteEvent = async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const result = await supabase.from('universal_events')
+        .delete().eq('id', id).eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'TASK_CHANGED' });
+    return result;
 };
 
 export const createTask = async (task) => {
