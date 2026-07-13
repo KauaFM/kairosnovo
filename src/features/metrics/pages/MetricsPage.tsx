@@ -5,6 +5,7 @@ import { QuickLogEntry } from '../components/QuickLogEntry';
 import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import { OrvaxHeader, ScrollContainer } from '../../../components/BaseLayout';
 import { saveTelemetrySnapshot } from '../../../services/db';
+import { useLang } from '../../../i18n/LanguageContext';
 
 // ── Compass v1 — new metrics system ──
 import { CompassOverview } from '../compass/components/CompassOverview';
@@ -41,6 +42,7 @@ const DOMAIN_TO_METRIC: Record<DomainKey, string> = {
 };
 
 export default function MetricsPage({ theme, toggleTheme, onModalChange }: MetricsPageProps) {
+  const { t } = useLang();
   const [logModal, setLogModal] = useState(false);
   const [activePillar, setActivePillar] = useState<CompassPillarSlug | null>(null);
   const [creatorOpen, setCreatorOpen] = useState(false);
@@ -139,7 +141,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
           aria-label="Registrar como foi o dia"
         >
           <ClipboardList size={15} />
-          <span className="text-[10px] font-mono font-bold tracking-wider uppercase">Registrar dia</span>
+          <span className="text-[10px] font-mono font-bold tracking-wider uppercase">{t('compass.logDay')}</span>
         </button>
 
         {/* Primary: Criar algo novo */}
@@ -151,7 +153,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
           <div className="w-7 h-7 rounded-full flex items-center justify-center bg-white/15 dark:bg-zinc-900/15">
             <Plus size={20} strokeWidth={2.4} />
           </div>
-          <span className="text-[11px] font-mono font-bold tracking-[0.18em] uppercase">Criar</span>
+          <span className="text-[11px] font-mono font-bold tracking-[0.18em] uppercase">{t('compass.create')}</span>
         </button>
       </div>
 

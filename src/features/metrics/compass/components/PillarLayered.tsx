@@ -6,6 +6,7 @@ import { EmptyState } from './EmptyState';
 import { CountUp } from '../viz/CountUp';
 import { YearHeatmap } from '../viz/YearHeatmap';
 import { MultiYearLine } from '../viz/MultiYearLine';
+import { useLang } from '../../../../i18n/LanguageContext';
 
 interface Props {
   data: PillarData;
@@ -166,6 +167,7 @@ const HorizontalRanking = ({ items, color, isFinance }: { items: {label: string,
 // ── MAIN COMPONENT ──
 
 export function PillarLayered({ data, onBack, hideNav }: Props) {
+  const { t } = useLang();
   if (data.isEmpty) {
     return (
       <div className={`bg-[#F8FAFC] dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 relative ${hideNav ? 'h-full' : 'min-h-screen'}`}>
@@ -175,7 +177,7 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           </button>
         )}
         <div className="flex flex-col h-[60vh] justify-center">
-          <EmptyState pillarName={data.config.name} cta={hideNav ? undefined : "Voltar"} onAction={hideNav ? undefined : onBack} />
+          <EmptyState pillarName={data.config.name} cta={hideNav ? undefined : t('common.back')} onAction={hideNav ? undefined : onBack} />
         </div>
       </div>
     );
@@ -201,8 +203,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
 
   // Prepare Real Donut Data
   const isFinance = data.config.slug === 'finance';
-  const label1 = isFinance ? 'Receita' : 'Produtivo';
-  const label2 = isFinance ? 'Gasto' : 'Distração';
+  const label1 = isFinance ? t('compass.income') : t('compass.productive');
+  const label2 = isFinance ? t('compass.expense') : t('compass.distraction');
   const color2 = isFinance ? '#ef4444' : '#94a3b8';
 
   const donutData = [
@@ -264,8 +266,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Ciclo de Vida (12 Meses)</h3>
-                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Visão macro de evolução anual</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{t('compass.lifeCycle')}</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{t('compass.lifeCycleSub')}</p>
               </div>
               <TrendingUp className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
@@ -291,8 +293,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Densidade de Execução</h3>
-                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Consistência nos últimos 365 dias</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{t('compass.density')}</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{t('compass.densitySub')}</p>
               </div>
               <BarChart3 className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
@@ -308,8 +310,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Micro-tendência (30D)</h3>
-                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Oscilação diária recente</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{t('compass.microTrend')}</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{t('compass.microTrendSub')}</p>
               </div>
               <Clock className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
@@ -321,21 +323,21 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           {/* DISTRIBUIÇÃO DE TEMPO (DONUT COM RECHARTS) */}
           <Card>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{isFinance ? 'Caixa do Período' : 'Tempo Diário'}</h3>
-              <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{isFinance ? 'Alocação (Receita vs Gasto)' : 'Alocação (Foco vs Desvio)'}</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{isFinance ? t('compass.cashPeriod') : t('compass.dailyTime')}</h3>
+              <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{isFinance ? t('compass.allocCash') : t('compass.allocFocus')}</p>
             </div>
             <div className="mt-4">
               {donutData.length > 0 ? (
                 <RealDonutChart data={donutData} colors={donutColors} isFinance={isFinance} />
               ) : (
-                <div className="h-32 flex items-center justify-center text-xs text-slate-400 dark:text-zinc-500">{isFinance ? 'Sem transações.' : 'Sem dados de foco hoje.'}</div>
+                <div className="h-32 flex items-center justify-center text-xs text-slate-400 dark:text-zinc-500">{isFinance ? t('compass.noTransactions') : t('compass.noFocusToday')}</div>
               )}
             </div>
           </Card>
 
           {/* CONSISTÊNCIA / HIGHLIGHT */}
           <Card className="flex flex-col justify-center">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight mb-4">{isFinance ? 'Balanço Semanal' : 'Consistência 7D'}</h3>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight mb-4">{isFinance ? t('compass.weeklyBalance') : t('compass.consistency7d')}</h3>
             <div className="flex items-baseline gap-2 mb-2">
               <span className="text-5xl font-bold tracking-tighter text-slate-900 dark:text-zinc-100">
                 {isFinance && data.weekConsistency < 0 ? '-' : ''}{isFinance ? 'R$ ' : ''}
@@ -343,7 +345,7 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
               </span>
               <span className="text-sm font-semibold text-slate-400 dark:text-zinc-500">{isFinance ? '' : '/100'}</span>
             </div>
-            <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 leading-relaxed">{data.weekInsight || 'Nenhuma atividade registrada na semana.'}</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-zinc-500 leading-relaxed">{data.weekInsight || t('compass.noActivityWeek')}</p>
           </Card>
         </div>
 
@@ -351,8 +353,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         {data.axesNow && data.axesNow.length > 0 && (
           <Card>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Eixos do Pilar</h3>
-              <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Performance detalhada por área</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{t('compass.pillarAxes')}</h3>
+              <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{t('compass.pillarAxesSub')}</p>
             </div>
             <HorizontalRanking items={data.axesNow} color={color} isFinance={isFinance} />
           </Card>
@@ -363,8 +365,8 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
           <Card>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Padrão Circadiano (7D)</h3>
-                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">Intensidade por hora do dia</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 tracking-tight">{t('compass.circadian')}</h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-zinc-500 mt-0.5">{t('compass.circadianSub')}</p>
               </div>
               <Clock className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
             </div>
@@ -375,7 +377,7 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         {/* 3. SOLUÇÃO (AÇÕES REAIS DA IA) */}
         {data.actions && data.actions.length > 0 && (
           <div className="pt-4">
-            <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest mb-4 px-2">Vetores de Progresso</h3>
+            <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest mb-4 px-2">{t('compass.progressVectors')}</h3>
             <Card className="border-l-4" style={{ borderLeftColor: color }}>
               <div className="flex flex-col gap-4">
                 {data.actions.map((act, i) => (

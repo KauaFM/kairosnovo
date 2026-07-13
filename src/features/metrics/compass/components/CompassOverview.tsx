@@ -6,6 +6,7 @@ import { Sparkline } from '../viz/Sparkline';
 import { COMPASS_PILLARS, type CompassPillarSlug } from '../pillars';
 import { buildPillarData } from '../adapters/pillarDataAdapter';
 import type { PillarData } from '../types';
+import { useLang } from '../../../../i18n/LanguageContext';
 
 interface CompassOverviewProps {
   onOpenPillar: (slug: CompassPillarSlug) => void;
@@ -92,6 +93,7 @@ const getScoreFontSize = (scoreStr: string, unit: string) => {
 // ── MAIN COMPONENT ──
 
 export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOverviewProps) {
+  const { t } = useLang();
   const { data: m, loading } = useCompassGlobal();
   const [pillarCards, setPillarCards] = useState<{ slug: CompassPillarSlug; data: PillarData }[]>([]);
 
@@ -109,16 +111,16 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
   }, []);
 
   const handleWipe = async () => {
-    if (confirm('ATENÇÃO: Isso irá apagar ABSOLUTAMENTE TUDO (XP, Cofre, Metas, Hábitos e Telemetria). Deseja continuar com o RESET TOTAL?')) {
+    if (confirm(t('compass.resetConfirm'))) {
       const { wipeEntireSystem } = await import('../../../../services/seedVisualization');
       const res = await wipeEntireSystem();
       if (res.success) {
         localStorage.clear();
         sessionStorage.clear();
-        alert('Sistema resetado para o estado zero.');
+        alert(t('compass.resetDone'));
         window.location.reload();
       } else {
-        alert('Erro ao resetar: ' + res.error);
+        alert(t('compass.resetError') + res.error);
       }
     }
   };
@@ -141,14 +143,14 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
         
         <SectionHeader 
           title="Terminal Compass" 
-          subtitle="Sincronização Vital · OS" 
+          subtitle={t('compass.vitalSync')} 
         />
 
         {/* TOP CARDS */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="p-4 flex flex-col justify-between min-h-[130px]">
             <div className="flex items-center justify-between opacity-30">
-              <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">XP TOTAL</span>
+              <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">{t('compass.xpTotal')}</span>
               <Activity size={10} />
             </div>
             <div className="mt-2 mb-1">
@@ -156,13 +158,13 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
               <span className="text-[9px] font-mono text-zinc-400 font-bold ml-1">XP</span>
             </div>
             <div className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-100/50 dark:border-emerald-900/40 w-fit">
-              +{m.xpWeek} SEMANA
+              +{m.xpWeek} {t('compass.week')}
             </div>
           </Card>
 
           <Card className="p-4 flex flex-col justify-between min-h-[130px]">
             <div className="flex items-center justify-between opacity-30">
-              <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">CONSISTÊNCIA</span>
+              <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">{t('compass.consistency')}</span>
               <Zap size={10} />
             </div>
             <div className="mt-2 mb-1">
@@ -179,17 +181,17 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
         <Card className="flex flex-col items-center pt-10 pb-12 px-1 bg-white/60 dark:bg-zinc-900/50">
           <div className="flex flex-col items-center gap-2 mb-8">
             <h2 className="text-[10px] font-bold text-zinc-400 tracking-[0.4em] uppercase">
-              Mapa de Equilíbrio
+              {t('compass.balanceMap')}
             </h2>
             
             <div className="flex items-center gap-8 mt-2">
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#10B981] shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                <span className="text-[9px] font-bold text-zinc-900 dark:text-zinc-100 tracking-widest uppercase">Atual</span>
+                <span className="text-[9px] font-bold text-zinc-900 dark:text-zinc-100 tracking-widest uppercase">{t('compass.current')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-[1px] border-t-2 border-dashed border-zinc-300 dark:border-zinc-600" />
-                <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase">Semana Passada</span>
+                <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase">{t('compass.lastWeek')}</span>
               </div>
             </div>
           </div>
@@ -202,7 +204,7 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
         {/* PILLARS GRID */}
         <div className="pt-2">
           <div className="flex items-center gap-3 mb-6 px-1">
-             <h3 className="text-[9px] font-mono tracking-[0.4em] text-zinc-400 dark:text-zinc-500 uppercase font-bold whitespace-nowrap">Dimensões</h3>
+             <h3 className="text-[9px] font-mono tracking-[0.4em] text-zinc-400 dark:text-zinc-500 uppercase font-bold whitespace-nowrap">{t('compass.dimensions')}</h3>
              <div className="h-[0.5px] flex-1 bg-zinc-200 dark:bg-zinc-800" />
           </div>
           
@@ -277,8 +279,8 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
                 <Trash2 size={16} />
               </div>
               <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 tracking-[0.1em] uppercase">Reset Total</span>
-                <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase opacity-60">Apagar todo o histórico do OS</span>
+                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 tracking-[0.1em] uppercase">{t('compass.resetTotal')}</span>
+                <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase opacity-60">{t('compass.resetSub')}</span>
               </div>
             </button>
           </div>
