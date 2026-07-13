@@ -3,11 +3,14 @@ import { Loader2, Check, Lock, Sparkles, Crown, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getSubscription, startCheckout } from '../services/billing';
 import { SUBSCRIPTION_GATE_ENABLED, PLANS, PLAN_ORDER } from '../config/billing';
+import { useLang } from '../i18n/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 
 const ACCENT = '#22c55e';
 
 // ─── Tela de planos (paywall do app inteiro) ────────────────────
 const PlansScreen = ({ processing }) => {
+  const { t } = useLang();
   const [busy, setBusy] = useState(null); // plan em processamento
   const [err, setErr] = useState(null);
 
@@ -16,7 +19,7 @@ const PlansScreen = ({ processing }) => {
     try {
       await startCheckout(planId); // redireciona pro Stripe
     } catch (e) {
-      setErr(e?.message || 'Não foi possível iniciar o pagamento.');
+      setErr(e?.message || t('paywall.startError'));
       setBusy(null);
     }
   };
@@ -32,18 +35,18 @@ const PlansScreen = ({ processing }) => {
         </div>
 
         <span className="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mb-2 flex items-center gap-1.5">
-          <Sparkles size={10} style={{ color: ACCENT }} /> Acesso ORVAX
+          <Sparkles size={10} style={{ color: ACCENT }} /> {t('paywall.badge')}
         </span>
-        <h1 className="text-[24px] font-outfit font-black tracking-tight leading-tight">Escolha seu plano</h1>
+        <h1 className="text-[24px] font-outfit font-black tracking-tight leading-tight">{t('paywall.title')}</h1>
         <p className="text-[12px] font-space opacity-55 max-w-[300px] leading-relaxed mt-2">
-          O ORVAX é um sistema por assinatura. Escolha um plano para ativar seu acesso.
+          {t('paywall.subtitle')}
         </p>
 
         {processing && (
           <div className="mt-5 w-full p-3 rounded-xl border text-[11px] font-mono opacity-80 flex items-center gap-2 justify-center"
             style={{ borderColor: `${ACCENT}44`, backgroundColor: `${ACCENT}0D` }}>
             <Loader2 size={13} className="animate-spin" style={{ color: ACCENT }} />
-            Confirmando seu pagamento… liberamos em instantes.
+            {t('paywall.processing')}
           </div>
         )}
 
@@ -62,18 +65,18 @@ const PlansScreen = ({ processing }) => {
                 {p.highlight && (
                   <span className="absolute top-4 right-4 text-[8px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1"
                     style={{ color: '#000', backgroundColor: ACCENT }}>
-                    <Crown size={9} /> Popular
+                    <Crown size={9} /> {t('paywall.popular')}
                   </span>
                 )}
-                <h3 className="text-[15px] font-outfit font-black uppercase tracking-wide">{p.name}</h3>
+                <h3 className="text-[15px] font-outfit font-black uppercase tracking-wide">{t(`plans.${id}.name`)}</h3>
                 <div className="flex items-baseline gap-1 mt-1 mb-1">
                   <span className="text-[30px] font-outfit font-black tracking-tight">{p.price}</span>
-                  <span className="text-[11px] font-mono opacity-40">{p.period}</span>
+                  <span className="text-[11px] font-mono opacity-40">{t('plans.period')}</span>
                 </div>
-                <p className="text-[10px] font-mono opacity-45 leading-snug mb-4">{p.tagline}</p>
+                <p className="text-[10px] font-mono opacity-45 leading-snug mb-4">{t(`plans.${id}.tagline`)}</p>
 
                 <div className="space-y-1.5 mb-5">
-                  {p.features.map((f) => (
+                  {t(`plans.${id}.features`).map((f) => (
                     <div key={f} className="flex items-center gap-2">
                       <Check size={13} strokeWidth={2.5} style={{ color: ACCENT }} className="shrink-0" />
                       <span className="text-[11px] opacity-70">{f}</span>
@@ -89,7 +92,7 @@ const PlansScreen = ({ processing }) => {
                     ? { backgroundColor: ACCENT, color: '#000', boxShadow: `0 8px 24px ${ACCENT}40` }
                     : { border: '1px solid var(--border-color)', color: 'var(--text-main)', backgroundColor: 'transparent' }}
                 >
-                  {isBusy ? <Loader2 size={14} className="animate-spin" /> : <>Assinar {p.name}</>}
+                  {isBusy ? <Loader2 size={14} className="animate-spin" /> : <>{t('paywall.subscribeTo', { name: t(`plans.${id}.name`) })}</>}
                 </button>
               </div>
             );
@@ -104,15 +107,18 @@ const PlansScreen = ({ processing }) => {
         )}
 
         <p className="text-[8px] font-mono opacity-25 tracking-[0.15em] uppercase mt-5">
-          Cobrança mensal · cancele quando quiser
+          {t('paywall.footer')}
         </p>
 
         <button
           onClick={() => supabase.auth.signOut()}
           className="mt-6 text-[9px] font-mono uppercase tracking-widest opacity-30 hover:opacity-60 transition-opacity flex items-center gap-1.5"
         >
-          <LogOut size={11} /> Sair da conta
+          <LogOut size={11} /> {t('paywall.signOut')}
         </button>
+
+        {/* Botão de idioma no paywall também */}
+        <div className="mt-4"><LanguageToggle variant="default" /></div>
       </div>
     </div>
   );

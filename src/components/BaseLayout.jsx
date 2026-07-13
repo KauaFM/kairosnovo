@@ -1,5 +1,7 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { useLang } from '../i18n/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 
 // Coordenadas do header são decorativas — pede geolocalização UMA vez
 // por sessão e memoriza (antes: cada montagem do header re-pedia
@@ -8,6 +10,7 @@ let cachedCoords = null;
 let geoAsked = false;
 
 export const OrvaxHeader = ({ theme, toggleTheme, minimal = false }) => {
+    const { t } = useLang();
     const [coords, setCoords] = React.useState(cachedCoords || { lat: '00.00.00', lng: '00.00.00' });
 
     React.useEffect(() => {
@@ -28,7 +31,7 @@ export const OrvaxHeader = ({ theme, toggleTheme, minimal = false }) => {
                 <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-2 mb-3 opacity-40">
                         <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                        <span className="text-[9px] font-mono font-black tracking-widest uppercase">Sistema Online</span>
+                        <span className="text-[9px] font-mono font-black tracking-widest uppercase">{t('common.systemOnline')}</span>
                     </div>
                     <h1 className="text-[44px] font-syncopate font-black tracking-widest leading-none text-[var(--text-main)] mb-1">
                         ORVAX
@@ -40,6 +43,7 @@ export const OrvaxHeader = ({ theme, toggleTheme, minimal = false }) => {
                 </div>
             )}
             <div className={`flex flex-col items-end gap-3.5 ${!minimal ? 'pb-2' : ''}`}>
+                <LanguageToggle variant="default" className="h-8" />
                 <button
                     onClick={toggleTheme}
                     className="relative flex items-center w-20 h-8 p-1 rounded-sm border transition-all duration-500 group"

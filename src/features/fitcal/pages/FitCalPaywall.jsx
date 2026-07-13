@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import { Lock, Check, Camera, Utensils, Droplets, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
 import { ScrollContainer, OrvaxHeader } from '../../../components/BaseLayout';
 import { startCheckout } from '../../../services/billing';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const ACCENT = '#22c55e';
 
 const FEATURES = [
-  { icon: Camera, title: 'Scanner IA', desc: 'Fotografe a refeição e a IA calcula calorias e macros' },
-  { icon: Utensils, title: 'Diário alimentar', desc: 'Registro por refeição com base de alimentos brasileiros' },
-  { icon: TrendingUp, title: 'Metas & macros', desc: 'Calorias, proteína, carbo e gordura acompanhados por dia' },
-  { icon: Droplets, title: 'Hidratação & progresso', desc: 'Água, peso e evolução ao longo do tempo' },
+  { icon: Camera, key: 'scanner' },
+  { icon: Utensils, key: 'diary' },
+  { icon: TrendingUp, key: 'macros' },
+  { icon: Droplets, key: 'hydration' },
 ];
 
 const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
+  const { t } = useLang();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -24,7 +26,7 @@ const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
       // Edge Function faz o upgrade da assinatura automaticamente.
       await startCheckout('completo');
     } catch (e) {
-      setErr(e?.message || 'Não foi possível iniciar o pagamento.');
+      setErr(e?.message || t('fitcalPaywall.startError'));
       setBusy(false);
     }
   };
@@ -47,25 +49,25 @@ const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
 
           {/* Título */}
           <span className="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mb-2 flex items-center gap-1.5">
-            <Sparkles size={10} style={{ color: ACCENT }} /> Recurso Premium
+            <Sparkles size={10} style={{ color: ACCENT }} /> {t('fitcalPaywall.badge')}
           </span>
-          <h1 className="text-[26px] font-outfit font-black tracking-tight leading-tight max-w-[300px]">Rastreador Nutricional</h1>
+          <h1 className="text-[26px] font-outfit font-black tracking-tight leading-tight max-w-[300px]">{t('fitcalPaywall.title')}</h1>
           <p className="text-[12px] font-space opacity-55 max-w-[300px] leading-relaxed mt-3">
-            O módulo completo de nutrição é liberado com o plano premium. Desbloqueie e assuma o controle da sua alimentação.
+            {t('fitcalPaywall.subtitle')}
           </p>
 
           {/* Lista de recursos */}
           <div className="w-full max-w-[340px] mt-8 space-y-2.5 px-2">
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="flex items-center gap-3 p-3.5 rounded-2xl border text-left"
+            {FEATURES.map(({ icon: Icon, key }) => (
+              <div key={key} className="flex items-center gap-3 p-3.5 rounded-2xl border text-left"
                 style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                   style={{ border: `1px solid ${ACCENT}33`, backgroundColor: `${ACCENT}0D` }}>
                   <Icon size={15} style={{ color: ACCENT }} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[11px] font-bold block leading-tight">{title}</span>
-                  <span className="text-[9px] font-mono opacity-40 leading-snug block mt-0.5">{desc}</span>
+                  <span className="text-[11px] font-bold block leading-tight">{t(`fitcalPaywall.features.${key}.title`)}</span>
+                  <span className="text-[9px] font-mono opacity-40 leading-snug block mt-0.5">{t(`fitcalPaywall.features.${key}.desc`)}</span>
                 </div>
                 <Check size={14} className="shrink-0 opacity-40" style={{ color: ACCENT }} />
               </div>
@@ -80,7 +82,7 @@ const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
               className="w-full py-4 rounded-2xl font-outfit font-black text-[11px] tracking-wider uppercase flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: ACCENT, color: '#000', boxShadow: `0 10px 30px ${ACCENT}40` }}
             >
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <><Lock size={15} /> Desbloquear por R$ 39,99/mês</>}
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <><Lock size={15} /> {t('fitcalPaywall.unlock')}</>}
             </button>
 
             {err && (
@@ -91,7 +93,7 @@ const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
             )}
 
             <p className="text-[8px] font-mono opacity-25 tracking-[0.15em] uppercase mt-4">
-              Plano Completo · cobrança mensal · cancele quando quiser
+              {t('fitcalPaywall.footer')}
             </p>
           </div>
         </div>

@@ -18,6 +18,7 @@ export const translations = {
       loading: 'Carregando…',
       back: 'Voltar',
       confirm: 'Confirmar',
+      systemOnline: 'Sistema Online',
     },
     lang: {
       toggle: 'EN',       // rótulo do botão quando está em PT (leva pra EN)
@@ -60,6 +61,44 @@ export const translations = {
       errConfirmEmail: 'Confirme seu e-mail antes de entrar.',
       errConnection: 'Erro de conexão.',
     },
+    paywall: {
+      badge: 'Acesso ORVAX',
+      title: 'Escolha seu plano',
+      subtitle: 'O ORVAX é um sistema por assinatura. Escolha um plano para ativar seu acesso.',
+      processing: 'Confirmando seu pagamento… liberamos em instantes.',
+      subscribeTo: 'Assinar {name}',
+      popular: 'Popular',
+      footer: 'Cobrança mensal · cancele quando quiser',
+      signOut: 'Sair da conta',
+      startError: 'Não foi possível iniciar o pagamento.',
+    },
+    plans: {
+      period: '/mês',
+      essencial: {
+        name: 'Essencial',
+        tagline: 'Acesso completo ao sistema ORVAX',
+        features: ['Cofre, Agenda e Capital', 'Telemetria e Dimensões da vida', 'Mentor de IA e Dossiê', 'Arena e ranking'],
+      },
+      completo: {
+        name: 'Completo',
+        tagline: 'Tudo do Essencial + Rastreador Nutricional',
+        features: ['Tudo do plano Essencial', 'Scanner IA de refeições', 'Diário alimentar e macros', 'Hidratação, peso e progresso'],
+      },
+    },
+    fitcalPaywall: {
+      badge: 'Recurso Premium',
+      title: 'Rastreador Nutricional',
+      subtitle: 'O módulo completo de nutrição é liberado com o plano premium. Desbloqueie e assuma o controle da sua alimentação.',
+      unlock: 'Desbloquear por R$ 39,99/mês',
+      footer: 'Plano Completo · cobrança mensal · cancele quando quiser',
+      startError: 'Não foi possível iniciar o pagamento.',
+      features: {
+        scanner: { title: 'Scanner IA', desc: 'Fotografe a refeição e a IA calcula calorias e macros' },
+        diary: { title: 'Diário alimentar', desc: 'Registro por refeição com base de alimentos brasileiros' },
+        macros: { title: 'Metas & macros', desc: 'Calorias, proteína, carbo e gordura acompanhados por dia' },
+        hydration: { title: 'Hidratação & progresso', desc: 'Água, peso e evolução ao longo do tempo' },
+      },
+    },
   },
 
   en: {
@@ -72,6 +111,7 @@ export const translations = {
       loading: 'Loading…',
       back: 'Back',
       confirm: 'Confirm',
+      systemOnline: 'System Online',
     },
     lang: {
       toggle: 'PT',       // label when in EN (goes to PT)
@@ -113,6 +153,44 @@ export const translations = {
       errAlreadyRegistered: 'This email is already registered. Please sign in.',
       errConfirmEmail: 'Confirm your email before signing in.',
       errConnection: 'Connection error.',
+    },
+    paywall: {
+      badge: 'ORVAX Access',
+      title: 'Choose your plan',
+      subtitle: 'ORVAX is a subscription system. Choose a plan to activate your access.',
+      processing: 'Confirming your payment… unlocking shortly.',
+      subscribeTo: 'Subscribe to {name}',
+      popular: 'Popular',
+      footer: 'Monthly billing · cancel anytime',
+      signOut: 'Sign out',
+      startError: 'Could not start the payment.',
+    },
+    plans: {
+      period: '/mo',
+      essencial: {
+        name: 'Essential',
+        tagline: 'Full access to the ORVAX system',
+        features: ['Vault, Agenda and Capital', 'Telemetry and Life Dimensions', 'AI Mentor and Dossier', 'Arena and ranking'],
+      },
+      completo: {
+        name: 'Complete',
+        tagline: 'Everything in Essential + Nutrition Tracker',
+        features: ['Everything in the Essential plan', 'AI meal Scanner', 'Food diary and macros', 'Hydration, weight and progress'],
+      },
+    },
+    fitcalPaywall: {
+      badge: 'Premium Feature',
+      title: 'Nutrition Tracker',
+      subtitle: 'The full nutrition module is unlocked with the premium plan. Unlock it and take control of your diet.',
+      unlock: 'Unlock for R$ 39.99/mo',
+      footer: 'Complete plan · monthly billing · cancel anytime',
+      startError: 'Could not start the payment.',
+      features: {
+        scanner: { title: 'AI Scanner', desc: 'Photograph your meal and AI calculates calories and macros' },
+        diary: { title: 'Food diary', desc: 'Per-meal logging with a Brazilian food database' },
+        macros: { title: 'Goals & macros', desc: 'Calories, protein, carbs and fat tracked per day' },
+        hydration: { title: 'Hydration & progress', desc: 'Water, weight and evolution over time' },
+      },
     },
   },
 };

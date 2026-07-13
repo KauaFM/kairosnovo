@@ -9,35 +9,11 @@
 // estiver configurado (chaves + deploy das Edge Functions + webhook).
 export const SUBSCRIPTION_GATE_ENABLED = true;
 
+// Dados estruturais dos planos. Preço é o mesmo nos dois idiomas (BR).
+// Nome/tagline/features/period vêm do i18n (t('plans.<id>.*')).
 export const PLANS = {
-  essencial: {
-    id: 'essencial',
-    name: 'Essencial',
-    price: 'R$ 29,99',
-    period: '/mês',
-    tagline: 'Acesso completo ao sistema ORVAX',
-    features: [
-      'Cofre, Agenda e Capital',
-      'Telemetria e Dimensões da vida',
-      'Mentor de IA e Dossiê',
-      'Arena e ranking',
-    ],
-    highlight: false,
-  },
-  completo: {
-    id: 'completo',
-    name: 'Completo',
-    price: 'R$ 39,99',
-    period: '/mês',
-    tagline: 'Tudo do Essencial + Rastreador Nutricional',
-    features: [
-      'Tudo do plano Essencial',
-      'Scanner IA de refeições',
-      'Diário alimentar e macros',
-      'Hidratação, peso e progresso',
-    ],
-    highlight: true,
-  },
+  essencial: { id: 'essencial', price: 'R$ 29,99', highlight: false },
+  completo: { id: 'completo', price: 'R$ 39,99', highlight: true },
 };
 
 export const PLAN_ORDER = ['essencial', 'completo'];
