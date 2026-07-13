@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Loader2, Check, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useLang } from '../../i18n/LanguageContext';
+import LanguageToggle from '../LanguageToggle';
 
 const Login = ({ onLoginSuccess }) => {
+    const { t } = useLang();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,23 +64,23 @@ const Login = ({ onLoginSuccess }) => {
         try {
             // MODO: esqueci senha → envia email de recovery
             if (mode === 'forgot') {
-                if (!email) throw new Error('Informe seu e-mail.');
+                if (!email) throw new Error(t('login.errEmailRequired'));
                 const redirectTo = `${window.location.origin}/`;
                 const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
                 if (error) throw error;
-                setInfoMessage('Enviamos um link de redefinição para seu e-mail. Verifique a caixa de entrada e spam.');
+                setInfoMessage(t('login.errResetSent'));
                 setIsSubmitting(false);
                 return;
             }
 
             // MODO: redefinir senha (usuário veio do link de recovery)
             if (mode === 'reset') {
-                if (!password || password.length < 6) throw new Error('Senha deve ter 6+ caracteres.');
+                if (!password || password.length < 6) throw new Error(t('login.errPasswordShort'));
                 const { error } = await supabase.auth.updateUser({ password });
                 if (error) throw error;
                 // Limpa o hash de recovery da URL
                 window.history.replaceState(null, '', window.location.pathname);
-                setInfoMessage('Senha redefinida com sucesso. Faça login.');
+                setInfoMessage(t('login.errPasswordReset'));
                 setMode('auth');
                 setPassword('');
                 setIsSubmitting(false);
@@ -91,7 +94,7 @@ const Login = ({ onLoginSuccess }) => {
             }
 
             if (isSignUp) {
-                if (password.length < 6) throw new Error('Senha deve ter 6+ caracteres.');
+                if (password.length < 6) throw new Error(t('login.errPasswordShort'));
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
@@ -114,15 +117,15 @@ const Login = ({ onLoginSuccess }) => {
             console.error(err);
             const msg = err?.message || '';
             if (msg.includes('Invalid login credentials')) {
-                setErrorMessage('E-mail ou senha incorretos.');
+                setErrorMessage(t('login.errInvalidCreds'));
             } else if (msg.toLowerCase().includes('rate limit')) {
-                setErrorMessage('Muitas tentativas. Tente novamente em 1 hora.');
+                setErrorMessage(t('login.errTooMany'));
             } else if (msg.toLowerCase().includes('user already registered')) {
-                setErrorMessage('Este e-mail já está cadastrado. Faça login.');
+                setErrorMessage(t('login.errAlreadyRegistered'));
             } else if (msg.toLowerCase().includes('email not confirmed')) {
-                setErrorMessage('Confirme seu e-mail antes de entrar.');
+                setErrorMessage(t('login.errConfirmEmail'));
             } else {
-                setErrorMessage(msg || 'Erro de conexão.');
+                setErrorMessage(msg || t('login.errConnection'));
             }
             setLoginStatus('error');
         } finally {
@@ -251,10 +254,15 @@ const Login = ({ onLoginSuccess }) => {
                         // To prevent drag bugs dragging text/images on Desktop
                         onDragStart={(e) => e.preventDefault()}
                     >
+                        {/* Botão de idioma (canto superior direito) */}
+                        <div className="absolute top-6 right-5 z-30" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                            <LanguageToggle variant="default" />
+                        </div>
+
                         {/* Top Text with Futuristic Animated Shine */}
                         <div className="flex flex-col items-center select-none mt-[8vh] opacity-90">
                             <span className="text-[12px] md:text-xs font-outfit uppercase tracking-[0.6em] text-black/40 mb-3 ml-2 font-light">
-                                Bem vindo ao
+                                {t('login.welcomeTo')}
                             </span>
                             <h1
                                 className="text-5xl md:text-6xl font-outfit font-light tracking-[0.3em] ml-2"
@@ -282,7 +290,7 @@ const Login = ({ onLoginSuccess }) => {
                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="-mt-4"><polyline points="18 15 12 9 6 15"></polyline></svg>
                             </div>
-                            <span className="text-black/60 font-outfit text-sm font-medium tracking-[0.2em] uppercase mt-1">Deslize para cima</span>
+                            <span className="text-black/60 font-outfit text-sm font-medium tracking-[0.2em] uppercase mt-1">{t('login.swipeUp')}</span>
                         </button>
                     </div>
 
@@ -313,13 +321,13 @@ const Login = ({ onLoginSuccess }) => {
                             <div className="w-full flex flex-col mb-6 relative z-10 text-center">
                                 <h1 className="text-[2.2rem] font-outfit font-light leading-none mb-1 tracking-tight">
                                     <strong className="font-bold opacity-100 uppercase tracking-widest mt-1 block">
-                                        {mode === 'forgot' ? 'Recuperar' : mode === 'reset' ? 'Nova Senha' : (isSignUp ? 'Criar Conta' : 'Conecte-se')}
+                                        {mode === 'forgot' ? t('login.titleForgot') : mode === 'reset' ? t('login.titleReset') : (isSignUp ? t('login.titleSignup') : t('login.titleConnect'))}
                                     </strong>
                                 </h1>
                                 <p className="text-sm font-outfit font-light opacity-60">
-                                    {mode === 'forgot' ? 'enviaremos um link para seu e-mail.' :
-                                     mode === 'reset'  ? 'defina uma nova senha de acesso.' :
-                                     (isSignUp ? 'inicie sua jornada no ORVAX.' : 'e continue sua jornada.')}
+                                    {mode === 'forgot' ? t('login.subForgot') :
+                                     mode === 'reset'  ? t('login.subReset') :
+                                     (isSignUp ? t('login.subSignup') : t('login.subConnect'))}
                                 </p>
                             </div>
 
@@ -330,7 +338,7 @@ const Login = ({ onLoginSuccess }) => {
                                     <input
                                         type="email"
                                         required
-                                        placeholder="Endereço de e-mail"
+                                        placeholder={t('login.emailPlaceholder')}
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 focus:border-white/40 focus:bg-white/10 rounded-full px-6 py-4 text-sm font-outfit text-white placeholder-white/40 outline-none transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]"
@@ -342,7 +350,7 @@ const Login = ({ onLoginSuccess }) => {
                                     <input
                                         type="password"
                                         required
-                                        placeholder={mode === 'reset' ? 'Nova senha' : 'Senha de acesso'}
+                                        placeholder={mode === 'reset' ? t('login.newPasswordPlaceholder') : t('login.passwordPlaceholder')}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 focus:border-white/40 focus:bg-white/10 rounded-full px-6 py-4 text-sm font-outfit tracking-widest text-white placeholder-white/40 outline-none transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]"
@@ -357,13 +365,13 @@ const Login = ({ onLoginSuccess }) => {
                                             onClick={() => { setMode('forgot'); setErrorMessage(''); setInfoMessage(''); }}
                                             className="text-[11px] font-outfit font-medium text-white/70 hover:text-white transition-colors"
                                         >
-                                            Esqueci minha senha
+                                            {t('login.forgotPassword')}
                                         </button>
                                         <span
                                             onClick={() => { setIsSignUp(!isSignUp); setErrorMessage(''); }}
                                             className="text-[11px] font-outfit font-light text-white/50 hover:text-white cursor-pointer transition-colors"
                                         >
-                                            {isSignUp ? "Já possuo conta" : "Criar nova conta?"}
+                                            {isSignUp ? t('login.haveAccount') : t('login.createAccount')}
                                         </span>
                                     </div>
                                 )}
@@ -412,9 +420,9 @@ const Login = ({ onLoginSuccess }) => {
                                     {isSubmitting ? (
                                         <Loader2 size={24} className="animate-spin text-black" />
                                     ) : (
-                                        mode === 'forgot' ? 'Enviar link' :
-                                        mode === 'reset'  ? 'Salvar nova senha' :
-                                        (isSignUp ? 'Registrar-se' : 'Entrar')
+                                        mode === 'forgot' ? t('login.submitForgot') :
+                                        mode === 'reset'  ? t('login.submitReset') :
+                                        (isSignUp ? t('login.submitSignup') : t('login.submitConnect'))
                                     )}
                                 </button>
 
@@ -456,15 +464,13 @@ const Login = ({ onLoginSuccess }) => {
 
                         {/* Texts */}
                         <h3 className="text-2xl font-outfit font-semibold text-white mb-2">
-                            {loginStatus === 'success' ? 'Sucesso!' : 'Acesso Negado'}
+                            {loginStatus === 'success' ? t('login.successTitle') : t('login.deniedTitle')}
                         </h3>
                         <p className="text-sm font-outfit text-white/50 text-center mb-8 px-2 leading-relaxed">
                             {/* [BUG #7 FIX] Mensagem diferenciada para signUp vs login */}
                             {loginStatus === 'success'
-                                ? (isSignUp
-                                    ? 'Conta criada! Verifique seu e-mail para confirmar o acesso antes de entrar.'
-                                    : 'Você foi autenticado com sucesso.')
-                                : 'Suas credenciais estão incorretas ou o acesso foi recusado pelo sistema.'
+                                ? (isSignUp ? t('login.successSignup') : t('login.successLogin'))
+                                : t('login.deniedMsg')
                             }
                         </p>
 
@@ -474,7 +480,7 @@ const Login = ({ onLoginSuccess }) => {
                             className={`w-full py-4 rounded-full font-outfit font-bold text-white transition-opacity hover:opacity-90 tracking-wide
                                 ${loginStatus === 'success' ? 'bg-[#22c55e]' : 'bg-[#ef4444]'}`}
                         >
-                            {loginStatus === 'success' ? 'Continuar' : 'Tentar Novamente'}
+                            {loginStatus === 'success' ? t('common.continue') : t('common.tryAgain')}
                         </button>
                     </div>
                 </div>
