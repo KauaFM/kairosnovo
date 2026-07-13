@@ -34,8 +34,10 @@ import ScrollReveal from './ScrollReveal';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 import { compressImage } from '../utils/imageCompression';
 import { ExecutionBoard } from '../features/vault/components/ExecutionBoard';
+import { useLang } from '../i18n/LanguageContext';
 
 const Vault = ({ habits = [], theme, toggleTheme }) => {
+    const { t } = useLang();
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [mode, setMode] = useState('execucao'); // 'execucao' | 'agenda' | 'archive' | 'notes' | 'capital'
@@ -71,7 +73,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
             setNewMedia({ ...newMedia, file_url: result.base64 });
         } catch(err) {
             console.error("Compression Error:", err);
-            alert("Falha ao comprimir matriz visual. Arquivo muito grande ou incompatível.");
+            alert(t('vault.compressFail'));
         } finally {
             setIsCompressing(false);
         }
@@ -91,7 +93,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         setNotes(userNotes.map(n => ({
             id: n.id,
             date: new Date(n.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
-            text: n.content || n.title || 'Anotação sem conteúdo'
+            text: n.content || n.title || t('vault.noteEmpty')
         })));
 
         // 3. Puxar Tarefas (Tabela customizada 'tasks')
@@ -131,7 +133,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         setArchiveLogs(media.map(m => ({
             id: m.id,
             imgUrl: m.file_url,
-            title: m.description || 'Sem título',
+            title: m.description || t('vault.noTitle'),
             type: m.segment || 'GERAL',
             date: new Date(m.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase(),
             time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -207,7 +209,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
 
     const handleDeleteTask = async (e, id, source = 'task') => {
         e.stopPropagation(); // Evita ativar tela ou toggle da tarefa
-        if (!window.confirm('Abortar e remover permanentemente este item da agenda?')) return;
+        if (!window.confirm(t('vault.confirmDeleteTask'))) return;
 
         // Atualização Otimista
         setTimelineTasks(tasks => tasks.filter(t => t.id !== id));
@@ -229,7 +231,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
     };
 
     const handleDeleteMedia = async (id) => {
-        if (!window.confirm('Excluir este registro visual permanentemente?')) return;
+        if (!window.confirm(t('vault.confirmDeleteMedia'))) return;
         try {
             await deleteMedia(id);
             if (fullscreenPhoto?.id === id) {
@@ -306,8 +308,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                 <div className="mb-6 px-6 pt-0">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="text-[10px] font-mono opacity-40 tracking-[0.4em] uppercase mb-2 shadow-sm">Grade Operacional</h2>
-                            <h1 className="text-2xl font-syncopate font-black tracking-widest text-glow uppercase">O Cofre</h1>
+                            <h2 className="text-[10px] font-mono opacity-40 tracking-[0.4em] uppercase mb-2 shadow-sm">{t('vault.gridTitle')}</h2>
+                            <h1 className="text-2xl font-syncopate font-black tracking-widest text-glow uppercase">{t('vault.title')}</h1>
                         </div>
                     </div>
 
@@ -321,8 +323,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             `}
                         >
                             <Zap size={12} className="shrink-0" />
-                            <span className="hidden sm:inline">Execução</span>
-                            <span className="inline sm:hidden">Exec</span>
+                            <span className="hidden sm:inline">{t('vault.tabExec')}</span>
+                            <span className="inline sm:hidden">{t('vault.tabExecShort')}</span>
                         </button>
                         <button
                             onClick={() => setMode('agenda')}
@@ -331,8 +333,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             `}
                         >
                             <CalendarIcon size={12} className="shrink-0" />
-                            <span className="hidden sm:inline">Agenda</span>
-                            <span className="inline sm:hidden">Agnd</span>
+                            <span className="hidden sm:inline">{t('vault.tabAgenda')}</span>
+                            <span className="inline sm:hidden">{t('vault.tabAgendaShort')}</span>
                         </button>
                         <button
                             onClick={() => setMode('archive')}
@@ -341,8 +343,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             `}
                         >
                             <ImageIcon size={12} className="shrink-0" />
-                            <span className="hidden sm:inline">Arquivo</span>
-                            <span className="inline sm:hidden">Arq</span>
+                            <span className="hidden sm:inline">{t('vault.tabArchive')}</span>
+                            <span className="inline sm:hidden">{t('vault.tabArchiveShort')}</span>
                         </button>
                         <button
                             onClick={() => setMode('notes')}
@@ -351,8 +353,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             `}
                         >
                             <FileText size={12} className="shrink-0" />
-                            <span className="hidden sm:inline">Notas</span>
-                            <span className="inline sm:hidden">Note</span>
+                            <span className="hidden sm:inline">{t('vault.tabNotes')}</span>
+                            <span className="inline sm:hidden">{t('vault.tabNotesShort')}</span>
                         </button>
                         <button
                             onClick={() => setMode('capital')}
@@ -361,8 +363,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             `}
                         >
                             <DollarSign size={12} className="shrink-0" />
-                            <span className="hidden sm:inline">Financeiro</span>
-                            <span className="inline sm:hidden">Fin</span>
+                            <span className="hidden sm:inline">{t('vault.tabFinance')}</span>
+                            <span className="inline sm:hidden">{t('vault.tabFinanceShort')}</span>
                         </button>
                     </div>
                     {/* Fade indicator for mobile */}
@@ -427,7 +429,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                 className="w-10 h-14 rounded-2xl border border-current/10 bg-current/5 flex flex-col items-center justify-center gap-1 hover:bg-current/10 hover:border-current/30 transition-all group shrink-0 shadow-inner"
                             >
                                 <CalendarDays size={16} className="opacity-50 group-hover:opacity-100 group-hover:text-[#22c55e] transition-colors" />
-                                <span className="text-[7px] font-mono uppercase opacity-30 group-hover:opacity-80">Mês</span>
+                                <span className="text-[7px] font-mono uppercase opacity-30 group-hover:opacity-80">{t('vault.month')}</span>
                             </button>
                         </div>
                     </ScrollReveal>
@@ -436,12 +438,12 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                     <ScrollReveal delay={0.2} className="px-6 mb-8 flex gap-4">
                         <div className="flex-1 border rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden group hover:bg-current/5 transition-colors" style={{ borderColor: 'var(--border-color)' }}>
                             <Target size={14} className="opacity-30 mb-2" />
-                            <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest mb-1">Concluídas</span>
+                            <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest mb-1">{t('vault.completed')}</span>
                             <span className="text-xl font-space font-bold">{dailyMetrics.tasks_completed}/{dailyMetrics.tasks_total || 0}</span>
                         </div>
                         <div className="flex-1 border rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden group hover:bg-current/5 transition-colors" style={{ borderColor: 'var(--border-color)' }}>
                             <Zap size={14} className="opacity-30 mb-2" />
-                            <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest mb-1">Foco Hoje</span>
+                            <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest mb-1">{t('vault.focusToday')}</span>
                             <span className="text-xl font-space font-bold">{dailyMetrics.focus_minutes >= 60 ? `${(dailyMetrics.focus_minutes / 60).toFixed(1)}h` : `${dailyMetrics.focus_minutes}m`}</span>
                         </div>
                     </ScrollReveal>
@@ -471,7 +473,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                     <div className="absolute inset-0 bg-current opacity-[0.01] pointer-events-none"></div>
                                     <div className="relative z-10">
                                         <div className="flex justify-between items-center mb-8">
-                                            <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90">Registro Operacional</h3>
+                                            <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90">{t('vault.opRecord')}</h3>
                                             <Clock size={16} className="opacity-20" />
                                         </div>
                                         
@@ -480,11 +482,11 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                             <div className="flex flex-col gap-3 relative">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <Target size={12} className="opacity-40" />
-                                                    <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Diretriz Primária (Título)</label>
+                                                    <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.primaryDirective')}</label>
                                                 </div>
                                                 <input 
                                                     type="text" 
-                                                    placeholder="EX: TREINO DE ALTA PERFORMANCE" 
+                                                    placeholder={t('vault.titlePlaceholder')} 
                                                     className="w-full bg-current/[0.03] border border-current/10 p-5 rounded-[22px] text-xs md:text-sm font-syncopate font-black outline-none focus:border-current/50 focus:bg-current/5 transition-all uppercase placeholder:opacity-30 tracking-widest"
                                                     value={newTask.title}
                                                     onChange={e => setNewTask({...newTask, title: e.target.value})}
@@ -497,7 +499,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                 <div className="flex flex-col gap-3">
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <Flame size={12} className="opacity-40" />
-                                                        <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Vetor (Categoria)</label>
+                                                        <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.vector')}</label>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         {[
@@ -529,7 +531,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                     <div className="flex flex-col gap-3">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <Clock size={12} className="opacity-40" />
-                                                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Horário de Início</label>
+                                                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.startTime')}</label>
                                                         </div>
                                                         <input 
                                                             type="time" 
@@ -541,7 +543,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                     <div className="flex flex-col gap-3">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <Timer size={12} className="opacity-40" />
-                                                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Bloco de Duração</label>
+                                                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.durationBlock')}</label>
                                                         </div>
                                                         <div className="grid grid-cols-4 gap-2">
                                                             {['15m', '30m', '1h', '2h+'].map((dur) => {
@@ -597,8 +599,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             {timelineTasks.length === 0 ? (
                                 <ScrollReveal delay={0.3} className="py-12 flex flex-col items-center justify-center opacity-40 text-center px-4 w-full">
                                     <CalendarIcon size={32} className="mb-4 opacity-50" />
-                                    <span className="text-[12px] font-mono tracking-[0.2em] uppercase font-bold mb-2">Sem Tarefas Pendentes</span>
-                                    <span className="text-[9px] font-mono tracking-widest uppercase opacity-70">Aguardando coordenadas do Sistema Orvax.</span>
+                                    <span className="text-[12px] font-mono tracking-[0.2em] uppercase font-bold mb-2">{t('vault.noPendingTasks')}</span>
+                                    <span className="text-[9px] font-mono tracking-widest uppercase opacity-70">{t('vault.awaitingCoords')}</span>
                                 </ScrollReveal>
                             ) : (
                                 timelineTasks.map((task, index) => {
@@ -668,13 +670,13 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                             {isActive && (
                                                                 <div className="flex items-center gap-1 bg-[var(--orvax-green)]/10 px-2 py-0.5 rounded-full border border-[var(--orvax-green)]/30">
                                                                     <div className="w-1 h-1 bg-[var(--orvax-green)] rounded-full animate-pulse"></div>
-                                                                    <span className="text-[7px] font-mono tracking-widest text-[var(--orvax-green)] uppercase">Ocorrência Ativa</span>
+                                                                    <span className="text-[7px] font-mono tracking-widest text-[var(--orvax-green)] uppercase">{t('vault.activeOccurrence')}</span>
                                                                 </div>
                                                             )}
                                                             <button 
                                                                 onClick={(e) => handleDeleteTask(e, task.id, task.source)}
                                                                 className="opacity-20 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 text-red-500 rounded-full hover:bg-red-500/10"
-                                                                title="Remover Diretriz"
+                                                                title={t('vault.removeDirective')}
                                                             >
                                                                 <Trash2 size={14} />
                                                             </button>
@@ -771,7 +773,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                         fontSize: '9px', fontFamily: 'monospace',
                         letterSpacing: '0.3em', textTransform: 'uppercase',
                         zIndex: 3,
-                    }}>Toque fora para fechar</span>
+                    }}>{t('vault.tapOutside')}</span>
                 </div>,
                 document.body
             )}
@@ -790,7 +792,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             className="flex items-center gap-2 px-6 mb-5 opacity-50 hover:opacity-100 transition-opacity"
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Voltar</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest font-bold">{t('common.back')}</span>
                         </button>
 
                         {/* Foto clicável → fullscreen */}
@@ -811,7 +813,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                 {/* Hint expand — sempre visível + pulsa no hover */}
                                 <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 group-hover:bg-black/70 transition-all">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                                    <span className="text-[8px] font-mono text-white uppercase tracking-widest font-bold">Ampliar</span>
+                                    <span className="text-[8px] font-mono text-white uppercase tracking-widest font-bold">{t('vault.zoom')}</span>
                                 </div>
 
                                 {/* Badge tipo */}
@@ -832,7 +834,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                 </div>
                                 <div className="flex flex-col items-center justify-center px-4 py-2.5 rounded-2xl border shrink-0" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
                                     <span className="text-lg font-space font-black">{selectedPhoto.metric}</span>
-                                    <span className="text-[7px] font-mono opacity-40 uppercase tracking-widest">métrica</span>
+                                    <span className="text-[7px] font-mono opacity-40 uppercase tracking-widest">{t('vault.metric')}</span>
                                 </div>
                             </div>
 
@@ -841,13 +843,13 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
 
                             {/* Nota */}
                             <div className="pl-4" style={{ borderLeft: '2px solid var(--border-color)' }}>
-                                <span className="text-[8px] font-mono opacity-30 uppercase tracking-widest block mb-2">Registro Interno</span>
+                                <span className="text-[8px] font-mono opacity-30 uppercase tracking-widest block mb-2">{t('vault.internalRecord')}</span>
                                 <p className="text-[12px] font-mono leading-loose opacity-75 italic">&quot;{selectedPhoto.note}&quot;</p>
                             </div>
 
                             {/* Tags */}
                             <div className="flex gap-2 flex-wrap">
-                                {['Evolução', selectedPhoto.type, selectedPhoto.date].map(tag => (
+                                {[t('vault.evolution'), selectedPhoto.type, selectedPhoto.date].map(tag => (
                                     <span key={tag} className="text-[8px] font-mono uppercase tracking-widest px-3 py-1.5 rounded-full opacity-50 border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
                                         {tag}
                                     </span>
@@ -864,7 +866,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                     {/* Header */}
                     <div className="flex justify-between items-center mb-4 px-6">
                         <div>
-                            <span className="text-[9px] font-mono opacity-35 uppercase tracking-[0.35em] block mb-0.5">Memória Visual</span>
+                            <span className="text-[9px] font-mono opacity-35 uppercase tracking-[0.35em] block mb-0.5">{t('vault.visualMemory')}</span>
                             <span className="text-[11px] font-syncopate font-black uppercase tracking-widest">{archiveLogs.length} Registros</span>
                         </div>
                     </div>
@@ -893,7 +895,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                     <div className="absolute inset-0 bg-current opacity-[0.01] pointer-events-none"></div>
                                     <div className="relative z-10">
                                         <div className="flex justify-between items-center mb-10">
-                                            <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90 text-left">Nova Captura Visual</h3>
+                                            <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90 text-left">{t('vault.newVisualCapture')}</h3>
                                             <ImageIcon size={16} className="opacity-20" />
                                         </div>
                                         
@@ -903,13 +905,13 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                 
                                                 <div className="relative border border-dashed border-current/20 p-6 flex flex-col items-center justify-center gap-3 rounded-[24px] hover:bg-current/5 transition-all text-center">
                                                     {isCompressing ? (
-                                                        <span className="animate-pulse text-[10px] font-mono font-bold tracking-widest text-[#22c55e]">COMPRIMINDO MATRIZ...</span>
+                                                        <span className="animate-pulse text-[10px] font-mono font-bold tracking-widest text-[#22c55e]">{t('vault.compressing')}</span>
                                                     ) : newMedia.file_url ? (
                                                         <div className="relative w-full h-32 rounded-xl overflow-hidden border border-current/10 group">
                                                             {/* Display real image */}
                                                             <img src={newMedia.file_url} alt="Preview" className="w-full h-full object-cover grayscale opacity-80" />
                                                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer" onClick={() => setNewMedia({...newMedia, file_url: ''})}>
-                                                                <span className="text-white text-[9px] font-bold tracking-widest uppercase">REMOVER MATRIZ</span>
+                                                                <span className="text-white text-[9px] font-bold tracking-widest uppercase">{t('vault.removeMatrix')}</span>
                                                             </div>
                                                         </div>
                                                     ) : (
@@ -920,7 +922,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                             >
                                                                 CÂMERA / GALERIA
                                                             </button>
-                                                            <span className="text-[8px] font-mono opacity-40 max-w-[200px] leading-relaxed uppercase">Compressor Lossy Ativado</span>
+                                                            <span className="text-[8px] font-mono opacity-40 max-w-[200px] leading-relaxed uppercase">{t('vault.lossyCompressor')}</span>
                                                         </>
                                                     )}
                                                     <input type="file" ref={vaultImageRef} className="hidden" accept="image/*" onChange={handleVaultImageUpload} />
@@ -929,7 +931,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                 {!newMedia.file_url && !isCompressing && (
                                                     <input 
                                                         type="text" 
-                                                        placeholder="OU COLE O ENDEREÇO HTTPS:// AQUI..." 
+                                                        placeholder={t('vault.urlPlaceholder')} 
                                                         className="w-full bg-transparent border-b border-current/10 py-3 text-[10px] font-mono outline-none focus:border-current/40 transition-all placeholder:opacity-20 mt-1"
                                                         value={newMedia.file_url}
                                                         onChange={e => setNewMedia({...newMedia, file_url: e.target.value})}
@@ -941,7 +943,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                                 <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› DESCRIÇÃO OPERACIONAL</label>
                                                 <input 
                                                     type="text" 
-                                                    placeholder="EX: REGISTRO DE TREINO DE PERNAS" 
+                                                    placeholder={t('vault.mediaTitlePlaceholder')} 
                                                     className="w-full bg-transparent border-b border-current/20 py-3 text-sm font-syncopate font-black outline-none focus:border-current transition-all uppercase placeholder:opacity-20 tracking-widest"
                                                     value={newMedia.description}
                                                     onChange={e => setNewMedia({...newMedia, description: e.target.value})}
@@ -994,8 +996,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                         {archiveLogs.length === 0 ? (
                             <div className="py-20 flex flex-col items-center justify-center opacity-30 text-center">
                                 <ImageIcon size={40} className="mb-4" />
-                                <span className="text-[12px] font-mono tracking-widest uppercase">Cofre de Mídia Vazio</span>
-                                <span className="text-[8px] font-mono tracking-widest uppercase mt-2">Nenhum registro visual detectado no banco.</span>
+                                <span className="text-[12px] font-mono tracking-widest uppercase">{t('vault.emptyMediaVault')}</span>
+                                <span className="text-[8px] font-mono tracking-widest uppercase mt-2">{t('vault.noVisualRecords')}</span>
                             </div>
                         ) : (
                             archiveLogs.map((log, index) => (
@@ -1026,7 +1028,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleDeleteMedia(log.id); }}
                                                 className="p-1 opacity-50 hover:opacity-100 hover:text-red-400 drop-shadow-md transition-all pointer-events-auto bg-black/20 hover:bg-black/80 rounded-full"
-                                                title="Excluir Registro"
+                                                title={t('vault.deleteRecord')}
                                             >
                                                 <Trash2 size={12} className="text-white" />
                                             </button>
@@ -1066,9 +1068,9 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                     <ScrollReveal delay={0.1} className="mb-6 p-4 rounded-2xl flex items-start gap-3 mx-1 transition-colors duration-500 border" style={{ backgroundColor: 'var(--warning-bg)', borderColor: 'var(--warning-border)' }}>
                         <AlertCircle size={16} style={{ color: 'var(--warning-color)' }} className="shrink-0 mt-0.5 transition-colors duration-500" />
                         <div>
-                            <span className="text-[10px] font-syncopate font-bold uppercase tracking-widest block mb-1 transition-colors duration-500" style={{ color: 'var(--warning-color)' }}>Aviso do Sistema</span>
+                            <span className="text-[10px] font-syncopate font-bold uppercase tracking-widest block mb-1 transition-colors duration-500" style={{ color: 'var(--warning-color)' }}>{t('vault.systemWarning')}</span>
                             <p className="text-[10px] font-mono leading-relaxed opacity-90 transition-colors duration-500" style={{ color: 'var(--warning-color)' }}>
-                                Esta área é a <strong className="font-bold border-b transition-colors duration-500" style={{ borderColor: 'var(--warning-border)' }}>única permitida</strong> para registro e intervenção manual no sistema ORVAX. Todas as outras métricas devem ser controladas passivamente via WhatsApp com o seu Agente ORVAX.
+                                Esta área é a <strong className="font-bold border-b transition-colors duration-500" style={{ borderColor: 'var(--warning-border)' }}>{t('vault.onlyAllowed')}</strong> para registro e intervenção manual no sistema ORVAX. Todas as outras métricas devem ser controladas passivamente via WhatsApp com o seu Agente ORVAX.
                             </p>
                         </div>
                     </ScrollReveal>
@@ -1090,7 +1092,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             
                             <textarea
                                 className="w-full bg-transparent border-b border-current/10 focus:border-current outline-none text-sm font-mono py-4 min-h-[140px] resize-none transition-all placeholder:opacity-20 leading-relaxed font-bold uppercase tracking-wider"
-                                placeholder="TRANSKREVA INSIGHTS, REFLEXÕES OU DADOS OPERACIONAIS..."
+                                placeholder={t('vault.notePlaceholder')}
                                 value={newNote}
                                 onChange={(e) => setNewNote(e.target.value)}
                                 style={{ color: 'var(--text-main)' }}
@@ -1098,7 +1100,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                             
                             <div className="flex justify-between items-center mt-8">
                                 <div className="flex flex-col">
-                                    <span className="text-[8px] font-mono opacity-40 tracking-[0.2em] uppercase">Status de Registro</span>
+                                    <span className="text-[8px] font-mono opacity-40 tracking-[0.2em] uppercase">{t('vault.recordStatus')}</span>
                                     <span className="text-[9px] font-mono font-bold opacity-70 uppercase">{newNote.length} Caracteres Detectados</span>
                                 </div>
                                 <button
@@ -1110,7 +1112,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                         color: newNote.trim() ? 'var(--bg-color)' : 'var(--text-dim)' 
                                     }}
                                 >
-                                    <span className="relative z-10">Persistir</span>
+                                    <span className="relative z-10">{t('vault.persist')}</span>
                                     <Send size={12} className="relative z-10" />
                                     {newNote.trim() && (
                                         <motion.div 
@@ -1136,7 +1138,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                     <button
                                         onClick={() => handleDeleteNote(note.id)}
                                         className="p-1.5 rounded-lg opacity-40 hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all text-current"
-                                        title="Apagar Nota"
+                                        title={t('vault.deleteNote')}
                                     >
                                         <Trash2 size={12} />
                                     </button>
