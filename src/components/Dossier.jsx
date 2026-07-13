@@ -10,8 +10,10 @@ import { supabase } from '../lib/supabase';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 // Conquistas · badges reais
 import { AchievementBadges as OrvaxAchievementBadges } from '../features/achievements';
+import { useLang } from '../i18n/LanguageContext';
 
 const Dossier = ({ theme, toggleTheme }) => {
+    const { t } = useLang();
     const [isViewingRanks, setIsViewingRanks] = useState(false);
     const [isViewingMentors, setIsViewingMentors] = useState(false);
     const [isViewingGlobalRanking, setIsViewingGlobalRanking] = useState(false);
@@ -50,7 +52,7 @@ const Dossier = ({ theme, toggleTheme }) => {
             return;
         }
 
-        setUserName(profile.full_name || 'Agente Orvax');
+        setUserName(profile.full_name || t('dossier.defaultName'));
         setUserAvatar(profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.id}`);
 
         const dash = await getDashboard();
@@ -101,7 +103,7 @@ const Dossier = ({ theme, toggleTheme }) => {
 
         // Validação de tamanho (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            alert('Imagem muito grande. Máx 5MB.');
+            alert(t('dossier.imageTooLarge'));
             return;
         }
 
@@ -116,7 +118,7 @@ const Dossier = ({ theme, toggleTheme }) => {
 
         if (uploadError) {
             console.error('[Avatar] Upload error:', uploadError);
-            alert(`Falha ao subir foto: ${uploadError.message}. Verifique se o bucket "avatars" existe e está público.`);
+            alert(t('dossier.uploadFail', { msg: uploadError.message }));
             return;
         }
 
@@ -148,7 +150,7 @@ const Dossier = ({ theme, toggleTheme }) => {
                         
                         {/* Header */}
                         <div className="mb-6 px-4 pt-2">
-                            <h2 className="text-[8px] font-mono opacity-30 tracking-[0.3em] uppercase mb-1">Registro Central</h2>
+                            <h2 className="text-[8px] font-mono opacity-30 tracking-[0.3em] uppercase mb-1">{t('dossier.centralRegistry')}</h2>
                             <h1 className="text-2xl font-outfit font-black tracking-wide uppercase">Dossier</h1>
                         </div>
 
@@ -163,10 +165,10 @@ const Dossier = ({ theme, toggleTheme }) => {
                                     ) : (
                                         <div className="absolute inset-0 flex items-center justify-center opacity-30"><User size={36} /></div>
                                     )}
-                                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" title="Foto de Perfil" />
+                                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" title={t('dossier.profilePhoto')} />
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-300 z-20 backdrop-blur-sm rounded-[28px]">
                                         <Camera size={20} className="text-white mb-1.5" />
-                                        <span className="text-[7px] font-mono tracking-widest text-white uppercase font-bold">Alterar</span>
+                                        <span className="text-[7px] font-mono tracking-widest text-white uppercase font-bold">{t('dossier.changePhoto')}</span>
                                     </div>
                                 </div>
                                 {/* Rank color ring indicator */}
@@ -179,7 +181,7 @@ const Dossier = ({ theme, toggleTheme }) => {
                             <div className="relative mb-1 group w-full max-w-[260px]">
                                 <input
                                     type="text"
-                                    placeholder="INSERIR NOME"
+                                    placeholder={t('dossier.namePlaceholder')}
                                     value={userName}
                                     onChange={(e) => setUserName(e.target.value)}
                                     onBlur={handleUserNameSave}
@@ -215,17 +217,17 @@ const Dossier = ({ theme, toggleTheme }) => {
                                 <div className="flex flex-col items-center p-3.5 rounded-[20px] border border-current/5 bg-current/[.02]">
                                     <Zap size={13} strokeWidth={2} className="text-[#38bdf8] mb-1.5" />
                                     <span className="font-outfit font-black text-lg leading-none mb-1">{userStats.xp}</span>
-                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">Pontos XP</span>
+                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">{t('dossier.xpPoints')}</span>
                                 </div>
                                 <div className="flex flex-col items-center p-3.5 rounded-[20px] border border-current/5 bg-current/[.02]">
                                     <Activity size={13} strokeWidth={2} className="text-[#f59e0b] mb-1.5" />
                                     <span className="font-outfit font-black text-lg leading-none mb-1">{userStats.streak}</span>
-                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">Dias Streak</span>
+                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">{t('dossier.streakDays')}</span>
                                 </div>
                                 <div className="flex flex-col items-center p-3.5 rounded-[20px] border border-current/5 bg-current/[.02]">
                                     <Hexagon size={13} strokeWidth={2} className="mb-1.5" style={{ color: userStats.rankColor || '#ef4444' }} />
                                     <span className="font-outfit font-black text-lg leading-none mb-1">{userStats.rank_index}</span>
-                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">Índice Rank</span>
+                                    <span className="text-[7px] font-mono uppercase tracking-widest opacity-30 text-center">{t('dossier.rankIndex')}</span>
                                 </div>
                             </div>
                         </ScrollReveal>
@@ -233,11 +235,11 @@ const Dossier = ({ theme, toggleTheme }) => {
                         {/* Tabs */}
                         <ScrollReveal delay={0.2} className="w-full px-6 flex items-center justify-start gap-6 border-b border-current/5 mb-6 relative z-10">
                             <button onClick={() => setActiveProfileTab('stats')} className={`pb-3 relative transition-colors duration-300 text-[10px] font-outfit font-bold uppercase tracking-widest ${activeProfileTab === 'stats' ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}>
-                                Estatísticas
+                                {t('dossier.tabStats')}
                                 {activeProfileTab === 'stats' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] rounded-full" style={{ backgroundColor: userStats.rankColor || '#ef4444' }} />}
                             </button>
                             <button onClick={() => setActiveProfileTab('achievements')} className={`pb-3 relative transition-colors duration-300 text-[10px] font-outfit font-bold uppercase tracking-widest ${activeProfileTab === 'achievements' ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}>
-                                Conquistas
+                                {t('dossier.tabAchievements')}
                                 {activeProfileTab === 'achievements' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] rounded-full" style={{ backgroundColor: userStats.rankColor || '#ef4444' }} />}
                             </button>
                         </ScrollReveal>
@@ -259,7 +261,7 @@ const Dossier = ({ theme, toggleTheme }) => {
                                         <ChevronRight size={16} strokeWidth={1.5} className="absolute top-6 right-6 opacity-15 group-hover:opacity-40 group-hover:translate-x-0.5 transition-all" />
                                         <div className="flex justify-between items-center mb-8 relative z-10">
                                             <div>
-                                                <h3 className="text-[8px] font-mono font-bold opacity-25 tracking-[0.3em] uppercase mb-3">Classificação</h3>
+                                                <h3 className="text-[8px] font-mono font-bold opacity-25 tracking-[0.3em] uppercase mb-3">{t('dossier.classification')}</h3>
                                                 <span 
                                                     className="text-6xl font-outfit font-black tracking-tight block"
                                                     style={{ 
@@ -283,7 +285,7 @@ const Dossier = ({ theme, toggleTheme }) => {
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-1.5">Status</span>
-                                                <span className="text-xl font-outfit font-black uppercase tracking-wide" style={{ color: userStats.rankColor || '#ef4444', opacity: 0.85 }}>{userStats.rankStatus || 'CRÍTICO'}</span>
+                                                <span className="text-xl font-outfit font-black uppercase tracking-wide" style={{ color: userStats.rankColor || '#ef4444', opacity: 0.85 }}>{userStats.rankStatus || t('dossier.critical')}</span>
                                             </div>
                                         </div>
                                     </button>
@@ -291,7 +293,7 @@ const Dossier = ({ theme, toggleTheme }) => {
 
                                 {/* Global Ranking Button */}
                                 <div className="flex items-center justify-between mb-3 mt-6 px-0.5">
-                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Comunidade</span>
+                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">{t('dossier.community')}</span>
                                 </div>
                                 <ScrollReveal delay={0.3}>
                                     <button
@@ -302,8 +304,8 @@ const Dossier = ({ theme, toggleTheme }) => {
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-2xl bg-[#f59e0b]/8 border border-[#f59e0b]/15 flex items-center justify-center"><Medal size={18} strokeWidth={1.5} className="text-[#f59e0b]" /></div>
                                             <div className="flex flex-col text-left">
-                                                <span className="text-[11px] font-outfit font-bold uppercase tracking-wider text-[#f59e0b]">Ranking Global</span>
-                                                <span className="text-[8px] font-mono opacity-35 uppercase tracking-wider mt-0.5">Posição & Amigos</span>
+                                                <span className="text-[11px] font-outfit font-bold uppercase tracking-wider text-[#f59e0b]">{t('dossier.globalRanking')}</span>
+                                                <span className="text-[8px] font-mono opacity-35 uppercase tracking-wider mt-0.5">{t('dossier.positionFriends')}</span>
                                             </div>
                                         </div>
                                         <ChevronRight size={16} className="opacity-20 group-hover:opacity-50 transition-opacity" />
@@ -312,7 +314,7 @@ const Dossier = ({ theme, toggleTheme }) => {
 
                                 {/* Mentor Card */}
                                 <div className="flex items-center justify-between mb-3 mt-6 px-0.5">
-                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">Mentor Interior</span>
+                                    <span className="text-[10px] font-mono font-black tracking-[0.25em] uppercase opacity-60">{t('dossier.innerMentor')}</span>
                                 </div>
                                 <ScrollReveal delay={0.4}>
                                     <button
@@ -321,12 +323,12 @@ const Dossier = ({ theme, toggleTheme }) => {
                                         style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                                     >
                                         <ChevronRight size={16} strokeWidth={1.5} className="absolute top-6 right-6 opacity-15 group-hover:opacity-40 transition-opacity" />
-                                        <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-2">Mentor Ativo</span>
+                                        <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-2">{t('dossier.activeMentor')}</span>
                                         <h4 className="font-outfit text-base font-black tracking-wide uppercase">{activeMentor.name}</h4>
                                         <span className="text-[8px] font-mono opacity-30 uppercase tracking-wider mt-0.5 block">{activeMentor.style}</span>
                                         <p className="text-[10px] font-mono leading-relaxed opacity-40 my-4 line-clamp-2">{activeMentor.profile}</p>
                                         <div className="w-full h-10 rounded-2xl border flex items-center justify-center opacity-50 hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--border-color)' }}>
-                                            <span className="text-[8px] font-mono tracking-[0.3em] uppercase font-semibold">Configurar</span>
+                                            <span className="text-[8px] font-mono tracking-[0.3em] uppercase font-semibold">{t('dossier.configure')}</span>
                                         </div>
                                     </button>
                                 </ScrollReveal>
@@ -343,10 +345,10 @@ const Dossier = ({ theme, toggleTheme }) => {
                                         <div className="absolute w-[78%] h-[78%] rounded-full border opacity-20" style={{ borderColor: 'var(--text-main)' }} />
                                         <Award size={26} className="opacity-40 relative z-10" />
                                     </div>
-                                    <span className="text-[8px] font-mono font-bold uppercase tracking-[0.35em] opacity-30 mb-3">Conquistas</span>
-                                    <h3 className="font-outfit font-black text-lg uppercase tracking-wide mb-2">Em desenvolvimento</h3>
+                                    <span className="text-[8px] font-mono font-bold uppercase tracking-[0.35em] opacity-30 mb-3">{t('dossier.achievementsLabel')}</span>
+                                    <h3 className="font-outfit font-black text-lg uppercase tracking-wide mb-2">{t('dossier.underDevelopment')}</h3>
                                     <p className="text-[11px] font-mono leading-relaxed opacity-40 max-w-[240px]">
-                                        Esta seção está sendo forjada. Em breve você poderá acompanhar suas conquistas aqui.
+                                        {t('dossier.achievementsSoon')}
                                     </p>
                                 </div>
                             </div>
