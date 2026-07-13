@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Lock, Sword, Sparkles, Flame, Anchor, Zap, Crosshair, Shield, Brain, Target, Heart, Lightbulb, TrendingUp, BookOpen, RefreshCw, Wind, Eye, Feather, Landmark, Scale, Mountain, Atom } from 'lucide-react';
 import { updateSelectedMentor, getSelectedMentor } from '../services/db';
 import { clearMentorCache } from '../services/mentor';
+import { useLang } from '../i18n/LanguageContext';
+import { EN_MENTORS } from '../i18n/mentorsEn';
 
 export const MENTORS = [
     {
@@ -213,6 +215,9 @@ const StatBar = ({ label, value, color }) => (
 
 /* ─── Mentor Detail View ────────────────────────────────── */
 const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
+    const { t, lang } = useLang();
+    const en = lang === 'en' ? EN_MENTORS[mentor.id] : null;
+    const gx = (f) => (en && en[f] != null ? en[f] : mentor[f]);
     const accent = mentor.accentColor;
     const HeroIcon = mentor.icon;
 
@@ -244,14 +249,14 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
                 <div className="absolute bottom-0 left-0 right-0 p-5">
                     {/* Tags */}
                     <div className="flex gap-2 mb-3">
-                        {mentor.tags.map(tag => (
+                        {gx('tags').map(tag => (
                             <span key={tag} className="text-[8px] font-mono px-2.5 py-1 rounded-full border font-bold uppercase tracking-widest" style={{ borderColor: `${accent}60`, color: accent, backgroundColor: `${accent}15` }}>
                                 {tag}
                             </span>
                         ))}
                     </div>
-                    <h2 className="text-3xl font-syncopate font-black text-white uppercase tracking-wider leading-none">{mentor.name}</h2>
-                    <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest mt-1 block">{mentor.archetype}</span>
+                    <h2 className="text-3xl font-syncopate font-black text-white uppercase tracking-wider leading-none">{gx('name')}</h2>
+                    <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest mt-1 block">{gx('archetype')}</span>
                 </div>
             </div>
 
@@ -260,12 +265,12 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
 
                 {/* Personality Skills */}
                 <div>
-                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Traços</span>
+                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">{t('mentorConfig.traits')}</span>
                     <div className="flex gap-2 flex-wrap">
-                        {mentor.personality.map(({ label, icon: Icon }) => (
-                            <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border" style={{ borderColor: `${accent}40`, backgroundColor: `${accent}0D` }}>
+                        {mentor.personality.map(({ label, icon: Icon }, i) => (
+                            <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border" style={{ borderColor: `${accent}40`, backgroundColor: `${accent}0D` }}>
                                 <Icon size={10} style={{ color: accent }} />
-                                <span className="text-[8px] font-mono" style={{ color: accent }}>{label}</span>
+                                <span className="text-[8px] font-mono" style={{ color: accent }}>{en ? en.personality[i] : label}</span>
                             </div>
                         ))}
                     </div>
@@ -273,28 +278,28 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
 
                 {/* Stats */}
                 <div>
-                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Stats</span>
+                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">{t('mentorConfig.statsLabel')}</span>
                     <div className="flex flex-col gap-3">
-                        {mentor.stats.map(s => <StatBar key={s.label} label={s.label} value={s.value} color={accent} />)}
+                        {mentor.stats.map((s, i) => <StatBar key={i} label={en ? en.stats[i] : s.label} value={s.value} color={accent} />)}
                     </div>
                 </div>
 
                 {/* Profile */}
                 <div className="p-4 rounded-2xl border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg, rgba(128,128,128,0.04))' }}>
-                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-2">Perfil</span>
-                    <p className="text-[11px] font-mono leading-relaxed opacity-70">{mentor.profile}</p>
+                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-2">{t('mentorConfig.profile')}</span>
+                    <p className="text-[11px] font-mono leading-relaxed opacity-70">{gx('profile')}</p>
                 </div>
 
                 {/* Quote */}
                 <div className="pl-4" style={{ borderLeft: `2px solid ${accent}60` }}>
-                    <p className="text-[12px] font-mono italic opacity-80">&quot;{mentor.quote}&quot;</p>
+                    <p className="text-[12px] font-mono italic opacity-80">&quot;{gx('quote')}&quot;</p>
                 </div>
 
                 {/* Method */}
                 <div>
-                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Foco de Trabalho</span>
+                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">{t('mentorConfig.workFocus')}</span>
                     <div className="grid grid-cols-2 gap-2">
-                        {mentor.method.map((m, i) => (
+                        {gx('method').map((m, i) => (
                             <div key={i} className="flex items-start gap-2 p-3 rounded-xl border text-[10px] font-mono opacity-70" style={{ borderColor: 'var(--border-color)' }}>
                                 <div className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{ backgroundColor: accent }} />
                                 {m}
@@ -305,9 +310,9 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
 
                 {/* Questions */}
                 <div>
-                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Perguntas que provoca</span>
+                    <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">{t('mentorConfig.provokes')}</span>
                     <div className="flex flex-col gap-2">
-                        {mentor.questions.map((q, i) => (
+                        {gx('questions').map((q, i) => (
                             <p key={i} className="text-[10px] font-mono opacity-60 italic pl-3 py-1 border-l" style={{ borderColor: `${accent}50` }}>&quot;{q}&quot;</p>
                         ))}
                     </div>
@@ -315,9 +320,9 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
 
                 {/* Phrases */}
                 <div className="p-4 rounded-2xl" style={{ background: `linear-gradient(135deg, ${accent}15 0%, transparent 100%)`, border: `1px solid ${accent}30` }}>
-                    <span className="text-[8px] font-mono uppercase tracking-[0.4em] block mb-3" style={{ color: accent, opacity: 0.7 }}>Frases Marcantes</span>
+                    <span className="text-[8px] font-mono uppercase tracking-[0.4em] block mb-3" style={{ color: accent, opacity: 0.7 }}>{t('mentorConfig.signaturePhrases')}</span>
                     <div className="flex flex-col gap-2.5">
-                        {mentor.phrases.map((f, i) => (
+                        {gx('phrases').map((f, i) => (
                             <p key={i} className="text-[11px] font-mono font-bold" style={{ color: accent }}>— {f}</p>
                         ))}
                     </div>
@@ -334,7 +339,7 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
                         boxShadow: isActive ? 'none' : `0 8px 32px ${accent}50`,
                     }}
                 >
-                    {isSaving ? 'Sincronizando...' : isActive ? '✓ Mentor Ativo' : `Ativar ${mentor.name}`}
+                    {isSaving ? t('mentorConfig.syncing') : isActive ? t('mentorConfig.activeMentor') : t('mentorConfig.activate', { name: gx('name') })}
                 </button>
             </div>
         </div>
@@ -343,6 +348,8 @@ const MentorDetail = ({ mentor, isActive, onSelect, isSaving = false }) => {
 
 /* ─── Main Component ────────────────────────────────────── */
 const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
+    const { t, lang } = useLang();
+    const mx = (m, f) => (lang === 'en' && EN_MENTORS[m.id] && EN_MENTORS[m.id][f] != null) ? EN_MENTORS[m.id][f] : m[f];
     const [focusedId, setFocusedId] = useState(selectedMentorId || 'atlas');
     const [detailView, setDetailView] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -396,8 +403,8 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
             {/* Header */}
             <div className="pt-12 pb-4 px-6 flex justify-between items-center border-b shrink-0" style={{ borderColor: 'var(--border-color)' }}>
                 <div>
-                    <span className="text-[9px] font-mono opacity-30 uppercase tracking-[0.5em] block mb-1">Arquitetura Base</span>
-                    <h1 className="text-lg font-syncopate font-black tracking-widest uppercase">Mentor Interior</h1>
+                    <span className="text-[9px] font-mono opacity-30 uppercase tracking-[0.5em] block mb-1">{t('mentorConfig.baseArch')}</span>
+                    <h1 className="text-lg font-syncopate font-black tracking-widest uppercase">{t('mentorConfig.selectTitle')}</h1>
                 </div>
                 <button
                     onClick={detailView ? () => setDetailView(false) : onClose}
@@ -425,12 +432,12 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
                     /* ── GRID VIEW ── */
                     <div className="pt-5 flex flex-col gap-6">
                         <p className="text-[10px] font-mono opacity-35 uppercase tracking-widest text-center">
-                            &quot;O mentor certo acelera a transformação exata.&quot;
+                            &quot;{t('mentorConfig.gridQuote')}&quot;
                         </p>
 
                         {/* Unlocked — 2 col grid com cards hero */}
                         <div>
-                            <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Disponíveis</span>
+                            <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">{t('mentorConfig.available')}</span>
                             <div className="grid grid-cols-2 gap-3">
                                 {unlocked.map(mentor => {
                                     const isActive = selectedMentorId === mentor.id;
@@ -465,14 +472,14 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
 
                                             {/* Info */}
                                             <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
-                                                <span className="block text-[7px] font-mono uppercase tracking-widest mb-1" style={{ color: mentor.accentColor, opacity: 0.8 }}>{mentor.subtitle}</span>
-                                                <span className="block text-[13px] font-syncopate font-black text-white uppercase drop-shadow-sm">{mentor.name}</span>
-                                                <span className="block text-[7px] font-mono text-white/40 uppercase tracking-wide mt-0.5 truncate">{mentor.archetype}</span>
+                                                <span className="block text-[7px] font-mono uppercase tracking-widest mb-1" style={{ color: mentor.accentColor, opacity: 0.8 }}>{mx(mentor, 'subtitle')}</span>
+                                                <span className="block text-[13px] font-syncopate font-black text-white uppercase drop-shadow-sm">{mx(mentor, 'name')}</span>
+                                                <span className="block text-[7px] font-mono text-white/40 uppercase tracking-wide mt-0.5 truncate">{mx(mentor, 'archetype')}</span>
                                             </div>
 
                                             {/* Active badge */}
                                             {isActive && (
-                                                <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[7px] font-mono font-bold uppercase tracking-wider" style={{ backgroundColor: mentor.accentColor, color: '#000' }}>ATIVO</div>
+                                                <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[7px] font-mono font-bold uppercase tracking-wider" style={{ backgroundColor: mentor.accentColor, color: '#000' }}>{t('mentorConfig.activeBadge')}</div>
                                             )}
                                         </button>
                                     );
@@ -482,7 +489,7 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
 
                         {/* Locked — 3 col compact grid */}
                         <div>
-                            <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">Em Breve</span>
+                            <span className="text-[8px] font-mono opacity-30 uppercase tracking-[0.4em] block mb-3">{t('mentorConfig.comingSoon')}</span>
                             <div className="grid grid-cols-3 gap-2">
                                 {locked.map(mentor => {
                                     const MIcon = mentor.icon;
@@ -496,7 +503,7 @@ const MentorConfig = ({ onClose, selectedMentorId, onSelectMentor }) => {
                                                 <MIcon size={22} strokeWidth={1} className="opacity-30" />
                                                 <Lock size={9} className="absolute -top-1 -right-1 opacity-60" />
                                             </div>
-                                            <span className="text-[8px] font-syncopate font-black uppercase tracking-wide opacity-50 text-center leading-tight">{mentor.name}</span>
+                                            <span className="text-[8px] font-syncopate font-black uppercase tracking-wide opacity-50 text-center leading-tight">{mx(mentor, 'name')}</span>
                                         </div>
                                     );
                                 })}
