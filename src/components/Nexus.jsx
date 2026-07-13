@@ -7,17 +7,13 @@ import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { toLocalDateStr } from '../utils/dateUtils';
 import PendingTodayPanel from './lifeOs/PendingTodayPanel';
+import { useLang } from '../i18n/LanguageContext';
 
 const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
+    const { t } = useLang();
     // Motivational Quotes Cycling Logic
     const [quoteIndex, setQuoteIndex] = useState(0);
-    const quotes = [
-        "Se torne sua melhor versão.",
-        "O sucesso está mais próximo do que você imagina.",
-        "Tudo começa de algum lugar.",
-        "Seu único limite é sua mente.",
-        "1% todo dia."
-    ];
+    const quotes = t('nexus.quotes');
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -133,10 +129,10 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
     };
 
     const handleSeedData = async () => {
-        if (window.confirm('Deseja injetar dados de visualização para os últimos 7 dias?')) {
+        if (window.confirm(t('nexus.seedConfirm'))) {
             const res = await seedWeekVisualization();
             if (res.success) {
-                alert('Dados gerados! O Nexus e os Pilares agora possuem 1 semana de inteligência.');
+                alert(t('nexus.seedDone'));
                 window.location.reload();
             }
         }
@@ -298,7 +294,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                     style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
                 >
                     <Newspaper size={13} className="opacity-50" />
-                    <span className="text-[9px] font-mono font-bold tracking-[0.2em] uppercase opacity-50">Timeline de Notícias</span>
+                    <span className="text-[9px] font-mono font-bold tracking-[0.2em] uppercase opacity-50">{t('nexus.newsTimeline')}</span>
                     <ChevronRight size={12} className="opacity-30" />
                 </button>
             </div>
@@ -340,8 +336,8 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                             <ShieldAlert size={14} style={{ opacity: 0.4 }} />
                         </div>
                         <div>
-                            <h3 className="text-[10px] font-outfit font-bold tracking-tight opacity-70">Diretrizes do Sistema</h3>
-                            <p className="text-[7px] font-mono opacity-15 tracking-[0.2em] uppercase">protocolo de operacao</p>
+                            <h3 className="text-[10px] font-outfit font-bold tracking-tight opacity-70">{t('nexus.directivesTitle')}</h3>
+                            <p className="text-[7px] font-mono opacity-15 tracking-[0.2em] uppercase">{t('nexus.directivesSub')}</p>
                         </div>
                     </div>
 
@@ -351,7 +347,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                                 <Check size={10} className="text-[#22c55e]" style={{ opacity: 0.6 }} />
                             </div>
                             <p className="text-[8px] font-mono opacity-35 leading-relaxed tracking-wider">
-                                Voce nao pode editar, alterar ou adicionar informacoes dentro do aplicativo.
+                                {t('nexus.dir1')}
                             </p>
                         </div>
 
@@ -360,7 +356,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                                 <Check size={10} className="text-[#22c55e]" style={{ opacity: 0.6 }} />
                             </div>
                             <p className="text-[8px] font-mono opacity-35 leading-relaxed tracking-wider">
-                                Este aplicativo funciona apenas como <strong className="opacity-70">visualizador</strong> dos seus registros.
+                                {t('nexus.dir2pre')}<strong className="opacity-70">{t('nexus.dir2strong')}</strong>{t('nexus.dir2suf')}
                             </p>
                         </div>
 
@@ -371,7 +367,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                                 <Smartphone size={10} className="text-[#22c55e]" style={{ opacity: 0.6 }} />
                             </div>
                             <p className="text-[8px] font-mono opacity-35 leading-relaxed tracking-wider">
-                                Todas as acoes devem ser feitas <strong className="opacity-70">exclusivamente pelo WhatsApp</strong> com o Agente ORVAX.
+                                {t('nexus.dir3pre')}<strong className="opacity-70">{t('nexus.dir3strong')}</strong>{t('nexus.dir3suf')}
                             </p>
                         </div>
 
@@ -380,7 +376,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                                 <Smartphone size={10} className="text-[#22c55e]" style={{ opacity: 0.6 }} />
                             </div>
                             <p className="text-[8px] font-mono opacity-35 leading-relaxed tracking-wider">
-                                O Agente ORVAX e o unico responsavel por registrar, organizar e modificar seus dados.
+                                {t('nexus.dir4')}
                             </p>
                         </div>
                     </div>
@@ -397,7 +393,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                         <div className="absolute inset-0 rounded-[22px] pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.04), transparent 70%)' }}></div>
                         <Flame size={24} strokeWidth={1.5} className="text-[#ef4444] mb-1.5 relative z-10" style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.5))' }} />
                         <span className="text-[22px] font-outfit font-black leading-none relative z-10 opacity-85">{stats.streak}</span>
-                        <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.2em] mt-1 relative z-10">dias</span>
+                        <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.2em] mt-1 relative z-10">{t('nexus.days')}</span>
                     </div>
 
                     {/* Goals + Week */}
@@ -406,7 +402,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                         <div className="flex items-baseline gap-1.5 mb-3">
                             <span className="text-[28px] font-outfit font-black leading-none opacity-85">{stats.goalsCompleted}</span>
                             <span className="text-[14px] font-outfit opacity-20">/ {stats.goalsTotal}</span>
-                            <span className="text-[7px] font-mono opacity-15 uppercase tracking-[0.2em] ml-1">metas</span>
+                            <span className="text-[7px] font-mono opacity-15 uppercase tracking-[0.2em] ml-1">{t('nexus.goals')}</span>
                         </div>
 
                         {/* Progress Bar */}
@@ -423,7 +419,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
 
                         {/* Week Tracker */}
                         <div className="flex justify-between items-center w-full">
-                            {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((day, idx) => {
+                            {t('nexus.weekdays').map((day, idx) => {
                                 const isChecked = stats.weekStatus[idx];
                                 const isToday = new Date().getDay() === (idx + 1) % 7;
                                 return (
@@ -455,7 +451,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
             {/* Legacy task strip (compat com UI antiga) */}
             <ScrollReveal delay={0.2} className="w-full max-w-sm mx-auto mb-10 px-5 z-10 relative hidden">
                 <div className="flex items-center gap-2 mb-3 px-1">
-                    <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">tarefas pendentes</span>
+                    <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">{t('nexus.pendingTasks')}</span>
                     <span className="text-[8px] font-mono opacity-10">{pendingTasks.length}</span>
                 </div>
 
@@ -465,8 +461,8 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}>
                                 <ShieldAlert size={18} className="opacity-15" />
                             </div>
-                            <span className="text-[10px] font-outfit font-bold opacity-40 mb-0.5">Area Limpa</span>
-                            <span className="text-[7px] font-mono tracking-[0.2em] uppercase opacity-15">sem pendencias atuais</span>
+                            <span className="text-[10px] font-outfit font-bold opacity-40 mb-0.5">{t('nexus.clearArea')}</span>
+                            <span className="text-[7px] font-mono tracking-[0.2em] uppercase opacity-15">{t('nexus.noPending')}</span>
                         </div>
                     ) : (
                         pendingTasks.map((task) => {
@@ -495,7 +491,7 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                                             <h4 className={`text-[10px] font-outfit font-bold tracking-tight truncate max-w-[180px] ${
                                                 isActive ? 'text-[#22c55e] opacity-90' : 'opacity-60'
                                             }`}>{task.title}</h4>
-                                            <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.15em]">{task.category || 'Sistema'}</span>
+                                            <span className="text-[7px] font-mono opacity-20 uppercase tracking-[0.15em]">{task.category || t('nexus.systemCat')}</span>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end shrink-0">
