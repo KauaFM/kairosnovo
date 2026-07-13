@@ -19,6 +19,15 @@ export const translations = {
       back: 'Voltar',
       confirm: 'Confirmar',
       systemOnline: 'Sistema Online',
+      send: 'Enviar',
+      toggleTheme: 'Alternar tema',
+    },
+    mentorChat: {
+      error: 'Falha ao falar com o mentor. Tente novamente.',
+      innerMentor: 'Mentor Interior',
+      placeholder: 'Fale com {name}...',
+      iam: 'Eu sou {name}.',
+      intro: 'Fale comigo sobre seu dia, suas metas e seus hábitos. Estou aqui pra te levar à sua melhor versão.',
     },
     lang: {
       toggle: 'EN',       // rótulo do botão quando está em PT (leva pra EN)
@@ -215,6 +224,15 @@ export const translations = {
       back: 'Back',
       confirm: 'Confirm',
       systemOnline: 'System Online',
+      send: 'Send',
+      toggleTheme: 'Toggle theme',
+    },
+    mentorChat: {
+      error: 'Failed to reach the mentor. Please try again.',
+      innerMentor: 'Inner Mentor',
+      placeholder: 'Talk to {name}...',
+      iam: "I'm {name}.",
+      intro: "Talk to me about your day, your goals and your habits. I'm here to take you to your best version.",
     },
     lang: {
       toggle: 'PT',       // label when in EN (goes to PT)

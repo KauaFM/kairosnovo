@@ -3,6 +3,7 @@ import { Send, Loader2, Sun, Moon, Sparkles } from 'lucide-react';
 import { MENTORS } from './MentorConfig';
 import { getSelectedMentor } from '../services/db';
 import { getMentorHistory, sendMentorMessage } from '../services/mentorAgent';
+import { useLang } from '../i18n/LanguageContext';
 
 // ─── Bolha de mensagem ──────────────────────────────────────────
 const Bubble = ({ role, content, accent }) => {
@@ -24,6 +25,7 @@ const Bubble = ({ role, content, accent }) => {
 };
 
 const MentorAssistant = ({ theme, toggleTheme }) => {
+  const { t } = useLang();
   const [mentorId, setMentorId] = useState('atlas');
   const [messages, setMessages] = useState([]); // { role, content }
   const [input, setInput] = useState('');
@@ -72,7 +74,7 @@ const MentorAssistant = ({ theme, toggleTheme }) => {
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch (err) {
       console.error('[MentorAssistant] envio falhou:', err);
-      setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${err?.message || 'Falha ao falar com o mentor. Tente novamente.'}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${err?.message || t('mentorChat.error')}` }]);
     } finally {
       setSending(false);
     }
@@ -101,7 +103,7 @@ const MentorAssistant = ({ theme, toggleTheme }) => {
               <h1 className="text-[15px] font-syncopate font-black uppercase tracking-wider truncate">{mentor.name}</h1>
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
             </div>
-            <span className="text-[8px] font-mono uppercase tracking-[0.25em] opacity-40 block truncate">{mentor.archetype || 'Mentor Interior'}</span>
+            <span className="text-[8px] font-mono uppercase tracking-[0.25em] opacity-40 block truncate">{mentor.archetype || t('mentorChat.innerMentor')}</span>
           </div>
         </div>
 
@@ -110,7 +112,7 @@ const MentorAssistant = ({ theme, toggleTheme }) => {
           onClick={toggleTheme}
           className="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 opacity-60 hover:opacity-100 transition-opacity"
           style={{ borderColor: 'var(--border-color)' }}
-          aria-label="Alternar tema"
+          aria-label={t('common.toggleTheme')}
         >
           {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
         </button>
@@ -129,9 +131,9 @@ const MentorAssistant = ({ theme, toggleTheme }) => {
                 ? <img src={mentor.image} alt={mentor.name} className="w-full h-full object-cover" style={{ objectPosition: 'top center' }} />
                 : <Sparkles size={26} style={{ color: accent }} />}
             </div>
-            <p className="text-[13px] font-bold opacity-80 mb-1">Eu sou {mentor.name}.</p>
+            <p className="text-[13px] font-bold opacity-80 mb-1">{t('mentorChat.iam', { name: mentor.name })}</p>
             <p className="text-[11px] font-mono opacity-40 leading-relaxed max-w-[260px]">
-              Fale comigo sobre seu dia, suas metas e seus hábitos. Estou aqui pra te levar à sua melhor versão.
+              {t('mentorChat.intro')}
             </p>
           </div>
         ) : (
@@ -157,7 +159,7 @@ const MentorAssistant = ({ theme, toggleTheme }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Fale com ${mentor.name}...`}
+            placeholder={t('mentorChat.placeholder', { name: mentor.name })}
             rows={1}
             className="flex-1 bg-transparent outline-none resize-none text-[13px] py-1.5 max-h-28"
             style={{ color: 'var(--text-main)', scrollbarWidth: 'none' }}
@@ -167,7 +169,7 @@ const MentorAssistant = ({ theme, toggleTheme }) => {
             disabled={!input.trim() || sending}
             className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-90 disabled:opacity-30"
             style={{ backgroundColor: accent, color: '#000' }}
-            aria-label="Enviar"
+            aria-label={t('common.send')}
           >
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
