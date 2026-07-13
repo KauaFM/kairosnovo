@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { ScrollContainer, OrvaxHeader } from '../../../components/BaseLayout';
 import { supabase } from '../../../lib/supabase';
+import { useLang } from '../../../i18n/LanguageContext';
 import { useFoodDiary } from '../hooks/useFoodDiary';
 import { useNutritionPlan } from '../hooks/useNutritionPlan';
 import { useStreak } from '../hooks/useStreak';
@@ -103,7 +104,7 @@ const CalorieRing = ({ consumed, goal, onGoalChange }) => {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-[28px] font-outfit font-black leading-none opacity-90">{remaining}</span>
-          <span className="text-[7px] font-mono opacity-25 tracking-[0.3em] uppercase mt-1">restante</span>
+          <span className="text-[7px] font-mono opacity-25 tracking-[0.3em] uppercase mt-1">{t('fitcal.remaining')}</span>
         </div>
       </div>
 
@@ -123,12 +124,12 @@ const CalorieRing = ({ consumed, goal, onGoalChange }) => {
           ) : (
             <span className="text-[18px] font-outfit font-bold opacity-70 group-hover:opacity-100 transition-opacity">{goal}</span>
           )}
-          <span className="text-[8px] font-mono opacity-20 tracking-[0.25em] uppercase block mt-0.5">meta kcal</span>
+          <span className="text-[8px] font-mono opacity-20 tracking-[0.25em] uppercase block mt-0.5">{t('fitcal.kcalGoal')}</span>
         </button>
         {/* Consumido */}
         <div>
           <span className={`text-[18px] font-outfit font-bold ${isOver ? 'text-red-400' : ''}`}>{Math.round(consumed)}</span>
-          <span className="text-[8px] font-mono opacity-20 tracking-[0.25em] uppercase block mt-0.5">consumido</span>
+          <span className="text-[8px] font-mono opacity-20 tracking-[0.25em] uppercase block mt-0.5">{t('fitcal.consumed')}</span>
         </div>
         {/* Status */}
         <div className="flex items-center gap-2 pt-1">
@@ -237,7 +238,7 @@ const WaterCard = ({ totalMl, goalMl = 2000, onAdd, onRemove, onGoalChange }) =>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Droplets size={14} className="text-[#60a5fa]" style={{ opacity: 0.6 }} />
-            <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold">hidratacao</span>
+            <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold">{t('fitcal.hydration')}</span>
           </div>
           <div className="flex items-center gap-1">
             {editGoal ? (
@@ -349,7 +350,7 @@ const DiarySection = ({ entries, onAddMeal, onDeleteEntry }) => (
               <div className="w-1 h-6 rounded-full opacity-10" style={{ backgroundColor: 'var(--text-main)' }} />
               <div className="flex-1 min-w-0">
                 <span className="text-[10px] font-mono font-bold block truncate opacity-65">
-                  {entry.foods?.name || entry.notes || 'Alimento'}
+                  {entry.foods?.name || entry.notes || t('fitcal.food')}
                 </span>
                 <span className="text-[8px] font-mono opacity-20 block truncate">
                   {entry.quantity_g}g{entry.foods?.brand ? ` · ${entry.foods.brand}` : ''}
@@ -384,6 +385,7 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 const DAY_HDRS = ['D','S','T','Q','Q','S','S'];
 
 const MonthCalendarModal = ({ selectedDate, onSelect, onClose }) => {
+  const { t } = useLang();
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
 
@@ -436,7 +438,7 @@ const MonthCalendarModal = ({ selectedDate, onSelect, onClose }) => {
               <ChevronLeft size={14} />
             </button>
             <span className="text-[14px] font-outfit font-bold" style={{ color: 'var(--text-main)', opacity: 0.75 }}>
-              {MONTH_NAMES[viewMonth]} {viewYear}
+              {t('common.months')[viewMonth]} {viewYear}
             </span>
             <button
               onClick={nextMonth}
@@ -453,7 +455,7 @@ const MonthCalendarModal = ({ selectedDate, onSelect, onClose }) => {
 
         {/* Day-of-week headers */}
         <div className="grid grid-cols-7 mb-1">
-          {DAY_HDRS.map((h, i) => (
+          {t('common.weekdaysSun').map((h, i) => (
             <div key={i} className="text-center text-[8px] font-mono uppercase tracking-widest py-1.5" style={{ opacity: 0.2, color: 'var(--text-main)' }}>
               {h}
             </div>
@@ -501,6 +503,7 @@ const MonthCalendarModal = ({ selectedDate, onSelect, onClose }) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
+  const { t } = useLang();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekOffset, setWeekOffset] = useState(0);   // 0 = current week, -1 = last week, etc.
   const [showCalendar, setShowCalendar] = useState(false);
@@ -706,8 +709,8 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
           <div className="px-5 pt-4 pb-2 relative z-10">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-[18px] font-outfit font-black tracking-tight opacity-90 leading-tight">Rastreador Nutricional</h1>
-                <p className="text-[9px] font-mono opacity-15 tracking-[0.25em] uppercase mt-1">sistema nutricional</p>
+                <h1 className="text-[18px] font-outfit font-black tracking-tight opacity-90 leading-tight">{t('fitcal.title')}</h1>
+                <p className="text-[9px] font-mono opacity-15 tracking-[0.25em] uppercase mt-1">{t('fitcal.subtitle')}</p>
               </div>
 
               {/* Streak + Points Badges */}
@@ -736,7 +739,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                 </button>
                 <span className="text-[9px] font-mono font-semibold tracking-widest uppercase" style={{ opacity: 0.3, color: 'var(--text-main)' }}>
                   {weekRangeLabel}
-                  {weekOffset === 0 && <span className="ml-1.5 text-[#22c55e] opacity-80">· Hoje</span>}
+                  {weekOffset === 0 && <span className="ml-1.5 text-[#22c55e] opacity-80">{t('fitcal.today')}</span>}
                 </span>
                 <button
                   onClick={() => setWeekOffset(o => o + 1)}
@@ -791,7 +794,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                   style={{ borderColor: 'var(--border-color)' }}
                 >
                   <CalendarDays size={14} />
-                  <span className="text-[6px] font-mono uppercase opacity-60">Mês</span>
+                  <span className="text-[6px] font-mono uppercase opacity-60">{t('fitcal.month')}</span>
                 </button>
               </div>
             </div>
@@ -800,7 +803,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
           {isLoading ? (
             <div className="text-center py-28">
               <Loader2 size={22} className="animate-spin mx-auto opacity-15 mb-4" />
-              <span className="text-[8px] font-mono opacity-15 tracking-[0.3em] uppercase">carregando dados</span>
+              <span className="text-[8px] font-mono opacity-15 tracking-[0.3em] uppercase">{t('fitcal.loadingData')}</span>
             </div>
           ) : (
             <div className="px-5 space-y-4 relative z-10">
@@ -908,8 +911,8 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
 
               {/* ═══ BENTO GRID: Stats ═══ */}
               <div className="grid grid-cols-2 gap-2">
-                <StatCard icon={Moon} label="Sono Profundo" value="2.1" unit="hrs" sub="ciclo rem: 1.8h" />
-                <StatCard icon={Droplets} label="Hidratacao" value={((totalMl / 1000)).toFixed(1)} unit="L" sub={`${Math.min(Math.round((totalMl / (localWaterGoal ?? plan?.water_ml ?? 2000)) * 100), 100)}% da meta`} />
+                <StatCard icon={Moon} label={t('fitcal.deepSleep')} value="2.1" unit="hrs" sub={t('fitcal.remCycle')} />
+                <StatCard icon={Droplets} label={t('fitcal.hydrationCap')} value={((totalMl / 1000)).toFixed(1)} unit="L" sub={`${Math.min(Math.round((totalMl / (localWaterGoal ?? plan?.water_ml ?? 2000)) * 100), 100)}${t('fitcal.pctOfGoal')}`} />
               </div>
 
               {/* ═══ EXECUTION HEATMAP ═══ */}
@@ -953,7 +956,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
               >
                 <div className="flex items-center gap-3">
                   <TrendingUp size={14} className="opacity-25" />
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-[0.15em] opacity-40">Progresso & Peso</span>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-[0.15em] opacity-40">{t('fitcal.progressWeight')}</span>
                 </div>
                 <ChevronRight size={14} className="opacity-15" />
               </button>
@@ -961,7 +964,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
               {/* ═══ FOOD DIARY ═══ */}
               <div>
                 <div className="flex items-center gap-2 mb-3 px-1">
-                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">diario alimentar</span>
+                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">{t('fitcal.foodDiary')}</span>
                 </div>
                 <DiarySection entries={entries} onAddMeal={handleAddMeal} onDeleteEntry={handleDeleteEntry} />
               </div>
@@ -981,7 +984,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
               style={{ backgroundColor: 'var(--bg-color)', borderColor: 'var(--border-color)', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}
             >
               <Camera size={13} className="opacity-35" />
-              <span className="text-[9px] font-mono font-bold tracking-wider opacity-50">Scanner IA</span>
+              <span className="text-[9px] font-mono font-bold tracking-wider opacity-50">{t('fitcal.aiScanner')}</span>
             </button>
             <button
               onClick={() => handleAddMeal('lunch')}
@@ -989,7 +992,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
               style={{ backgroundColor: 'var(--bg-color)', borderColor: 'var(--border-color)', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}
             >
               <Search size={13} className="opacity-35" />
-              <span className="text-[9px] font-mono font-bold tracking-wider opacity-50">Buscar Alimento</span>
+              <span className="text-[9px] font-mono font-bold tracking-wider opacity-50">{t('fitcal.searchFood')}</span>
             </button>
           </div>
         )}
