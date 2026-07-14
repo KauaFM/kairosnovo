@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLang } from '../i18n/LanguageContext';
 import { X, Loader2 } from 'lucide-react';
 
 const MentorModal = ({
@@ -10,6 +11,7 @@ const MentorModal = ({
     isLoading,
     mentorReply
 }) => {
+    const { t } = useLang();
     if (!isOpen) return null;
 
     return (
@@ -28,15 +30,15 @@ const MentorModal = ({
             <div className="w-full max-w-sm relative z-10 text-[var(--bg-color)]">
                 <div className="flex items-center gap-4 mb-8">
                     <div className="w-3 h-3 bg-[var(--bg-color)] shadow-[0_0_10px_rgba(0,0,0,0.2)]"></div>
-                    <h2 className="text-2xl font-syncopate font-bold tracking-widest uppercase text-glow">O Arquiteto</h2>
+                    <h2 className="text-2xl font-syncopate font-bold tracking-widest uppercase text-glow">{t('mentorModal.title')}</h2>
                 </div>
 
-                <p className="text-[10px] font-mono tracking-[0.4em] mb-4 uppercase opacity-50">Input Neural Requerido</p>
+                <p className="text-[10px] font-mono tracking-[0.4em] mb-4 uppercase opacity-50">{t('mentorModal.neuralInput')}</p>
 
                 <textarea
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="[ Descreva o progresso ou determine novas coordenadas... ]"
+                    placeholder={t('mentorModal.ph')}
                     className="w-full h-40 bg-transparent border-t border-b p-4 text-sm font-space focus:outline-none transition-colors resize-none mb-8"
                     style={{ borderColor: 'var(--border-color)', color: 'var(--bg-color)' }}
                 />

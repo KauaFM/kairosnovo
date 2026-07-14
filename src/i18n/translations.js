@@ -57,6 +57,18 @@ export const translations = {
       emptyNetwork: 'Sua rede está vazia', addFriends: 'Adicione amigos para comparar progresso',
       noData: 'Sem Dados no Ranking', awaitingSync: 'Aguardando Sincronização Global...',
     },
+    exec: {
+      setTitle: 'Defina o título da diretriz.', logFail: 'Falha ao protocolar. Tente novamente.',
+      confirmDelete: 'Abortar e remover permanentemente esta tarefa?',
+      singleTask: 'Tarefa Única', routineHabit: 'Rotina · Hábito',
+      anchorTime: 'Horário Âncora (Gatilho)', repeatCycle: 'Ciclo de Repetição',
+      logging: 'Protocolando…', logRoutine: 'Protocolar ROTINA', logDirective: 'Protocolar DIRETRIZ',
+      timeline: 'Timeline de Execução', syncingMatrix: 'Sincronizando Matriz...', noDirectives: 'Nenhuma diretriz ativa hoje.',
+    },
+    mentorModal: {
+      title: 'O Arquiteto', neuralInput: 'Input Neural Requerido',
+      ph: '[ Descreva o progresso ou determine novas coordenadas... ]',
+    },
     quickLog: {
       title: 'Auditoria de Performance', globalImpact: 'Impacto Global',
       mentalNote: 'Nota Mental', notePh: 'O que travou ou impulsionou seu dia hoje?',
@@ -478,6 +490,18 @@ export const translations = {
     ranking: {
       emptyNetwork: 'Your network is empty', addFriends: 'Add friends to compare progress',
       noData: 'No Ranking Data', awaitingSync: 'Awaiting Global Sync...',
+    },
+    exec: {
+      setTitle: 'Set the directive title.', logFail: 'Failed to log. Please try again.',
+      confirmDelete: 'Abort and permanently remove this task?',
+      singleTask: 'Single Task', routineHabit: 'Routine · Habit',
+      anchorTime: 'Anchor Time (Trigger)', repeatCycle: 'Repeat Cycle',
+      logging: 'Logging…', logRoutine: 'Log ROUTINE', logDirective: 'Log DIRECTIVE',
+      timeline: 'Execution Timeline', syncingMatrix: 'Syncing Matrix...', noDirectives: 'No active directives today.',
+    },
+    mentorModal: {
+      title: 'The Architect', neuralInput: 'Neural Input Required',
+      ph: '[ Describe progress or set new coordinates... ]',
     },
     quickLog: {
       title: 'Performance Audit', globalImpact: 'Global Impact',

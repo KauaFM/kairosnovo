@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
 import * as Icons from 'lucide-react';
 import { Clock, CheckCircle2, X, Activity, Target, Zap, Plus, Timer, Flame, Trash2, BellRing, Repeat, CheckSquare } from 'lucide-react';
 import { getTasks, updateTaskState, createTask, deleteTask } from '../../../services/db';
@@ -29,6 +30,7 @@ interface ExecutionItem {
 }
 
 export function ExecutionBoard() {
+  const { t } = useLang();
   const [items, setItems] = useState<ExecutionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -125,7 +127,7 @@ export function ExecutionBoard() {
 
   const handleSubmit = async () => {
     if (!newTask.title.trim()) {
-      setFormErr('Defina o título da diretriz.');
+      setFormErr(t('exec.setTitle'));
       return;
     }
     setSaving(true);
@@ -167,7 +169,7 @@ export function ExecutionBoard() {
       setShowAddTask(false);
     } catch (e: any) {
       console.error('[ExecutionBoard]', e);
-      setFormErr(e?.message || 'Falha ao protocolar. Tente novamente.');
+      setFormErr(e?.message || t('exec.logFail'));
     } finally {
       setSaving(false);
     }
@@ -176,7 +178,7 @@ export function ExecutionBoard() {
   const handleDelete = async (e: React.MouseEvent, item: ExecutionItem) => {
     e.stopPropagation();
     const msg = item.type === 'T' 
-      ? 'Abortar e remover permanentemente esta tarefa?' 
+      ? t('exec.confirmDelete') 
       : 'ATENÇÃO: Isso deletará permanentemente este HÁBITO de todo o seu sistema. Continuar?';
       
     if (window.confirm(msg)) {
@@ -266,15 +268,15 @@ export function ExecutionBoard() {
               <div className="absolute inset-0 bg-current opacity-[0.01] pointer-events-none"></div>
               <div className="relative z-10">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90">Registro Operacional</h3>
+                  <h3 className="text-[11px] font-syncopate font-black uppercase tracking-[0.2em] opacity-90">{t('vault.opRecord')}</h3>
                   <Clock size={16} className="opacity-20" />
                 </div>
 
                 {/* Modo: diretriz única ou rotina recorrente */}
                 <div className="grid grid-cols-2 gap-2 mb-6">
                   {([
-                    { id: 'task' as const,  label: 'Tarefa Única', sub: 'só hoje',        Icon: CheckSquare },
-                    { id: 'habit' as const, label: 'Rotina · Hábito', sub: 'se repete',   Icon: Repeat },
+                    { id: 'task' as const,  label: t('exec.singleTask'), sub: 'só hoje',        Icon: CheckSquare },
+                    { id: 'habit' as const, label: t('exec.routineHabit'), sub: 'se repete',   Icon: Repeat },
                   ]).map((m) => (
                     <button
                       key={m.id}
@@ -300,11 +302,11 @@ export function ExecutionBoard() {
                   <div className="flex flex-col gap-3 relative">
                     <div className="flex items-center gap-2 mb-1">
                       <Target size={12} className="opacity-40" />
-                      <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Diretriz Primária (Título)</label>
+                      <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.primaryDirective')}</label>
                     </div>
                     <input 
                       type="text" 
-                      placeholder="EX: TREINO DE ALTA PERFORMANCE" 
+                      placeholder={t('vault.titlePlaceholder')} 
                       className="w-full bg-current/[0.03] border border-current/10 p-4 md:p-5 rounded-[22px] text-xs md:text-sm font-syncopate font-black outline-none focus:border-current/50 focus:bg-current/5 transition-all uppercase placeholder:opacity-30 tracking-widest text-current"
                       value={newTask.title}
                       onChange={e => setNewTask({...newTask, title: e.target.value})}
@@ -317,7 +319,7 @@ export function ExecutionBoard() {
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center gap-2 mb-1">
                         <Flame size={12} className="opacity-40" />
-                        <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Vetor (Categoria)</label>
+                        <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.vector')}</label>
                       </div>
                       <div className="grid grid-cols-5 gap-1.5">
                         {PILLARS.map((p) => {
@@ -358,7 +360,7 @@ export function ExecutionBoard() {
                         <div className="flex items-center gap-2 mb-1">
                           <Clock size={12} className="opacity-40" />
                           <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">
-                            {mode === 'habit' ? 'Horário Âncora (Gatilho)' : 'Horário de Início'}
+                            {mode === 'habit' ? t('exec.anchorTime') : t('vault.startTime')}
                           </label>
                         </div>
                         <input 
@@ -372,7 +374,7 @@ export function ExecutionBoard() {
                         <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-2 mb-1">
                             <Timer size={12} className="opacity-40" />
-                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Bloco de Duração</label>
+                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('vault.durationBlock')}</label>
                           </div>
                           <div className="grid grid-cols-4 gap-2">
                             {['15m', '30m', '1h', '2h+'].map((dur) => {
@@ -398,7 +400,7 @@ export function ExecutionBoard() {
                         <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-2 mb-1">
                             <Repeat size={12} className="opacity-40" />
-                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">Ciclo de Repetição</label>
+                            <label className="text-[9px] font-syncopate font-black uppercase tracking-widest opacity-60">{t('exec.repeatCycle')}</label>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <button
@@ -488,7 +490,7 @@ export function ExecutionBoard() {
                       disabled={saving}
                       className="flex-[2] py-4 md:py-5 rounded-[20px] text-[10px] md:text-[11px] font-syncopate font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:brightness-110 bg-[var(--text-main)] text-[var(--bg-color)] disabled:opacity-40"
                     >
-                      {saving ? 'Protocolando…' : mode === 'habit' ? 'Protocolar ROTINA' : 'Protocolar DIRETRIZ'}
+                      {saving ? t('exec.logging') : mode === 'habit' ? t('exec.logRoutine') : t('exec.logDirective')}
                     </button>
                     <button
                       onClick={() => { resetForm(); setShowAddTask(false); }}
@@ -506,16 +508,16 @@ export function ExecutionBoard() {
 
       {/* SECTIONS */}
       <div className="px-6 mb-6">
-        <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-4 px-2">Timeline de Execução</h4>
+        <h4 className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-4 px-2">{t('exec.timeline')}</h4>
         
         <div className="flex flex-col gap-6 relative">
           {/* Vertical Line */}
           <div className="absolute left-[79px] md:left-[87px] top-4 bottom-8 w-[1px] border-l-2 border-dashed border-current/10 z-0" />
 
           {loading && items.length === 0 ? (
-            <div className="py-10 text-center opacity-40 text-[10px] font-mono uppercase">Sincronizando Matriz...</div>
+            <div className="py-10 text-center opacity-40 text-[10px] font-mono uppercase">{t('exec.syncingMatrix')}</div>
           ) : items.length === 0 ? (
-            <div className="py-10 text-center opacity-40 text-[10px] font-mono uppercase">Nenhuma diretriz ativa hoje.</div>
+            <div className="py-10 text-center opacity-40 text-[10px] font-mono uppercase">{t('exec.noDirectives')}</div>
           ) : (
             items.map((item, idx) => {
               const isDone = item.status === 'done';
@@ -576,7 +578,7 @@ export function ExecutionBoard() {
                           </span>
                         )}
                         <span className={`px-2 py-0.5 rounded text-[7px] md:text-[8px] font-syncopate font-bold uppercase tracking-widest ${isActive ? 'bg-[var(--orvax-green)] text-black' : 'bg-zinc-900 dark:bg-white text-white dark:text-black'}`}>
-                          {item.type === 'T' ? 'TAREFA' : 'HÁBITO'}
+                          {item.type === 'T' ? 'TAREFA' : t('common.habitUpper')}
                         </span>
                         <span className={`text-[8px] font-mono uppercase tracking-[0.2em] font-bold ${isActive ? 'text-[var(--orvax-green)]' : 'opacity-40'}`}>
                           {item.category || 'GERAL'}
