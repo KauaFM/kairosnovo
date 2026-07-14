@@ -57,6 +57,11 @@ export const translations = {
       emptyNetwork: 'Sua rede está vazia', addFriends: 'Adicione amigos para comparar progresso',
       noData: 'Sem Dados no Ranking', awaitingSync: 'Aguardando Sincronização Global...',
     },
+    quickLog: {
+      title: 'Auditoria de Performance', globalImpact: 'Impacto Global',
+      mentalNote: 'Nota Mental', notePh: 'O que travou ou impulsionou seu dia hoje?',
+      audited: 'DIA AUDITADO', syncing: 'Sincronizando com o Compass...', registered: 'REGISTRADO', finish: 'FINALIZAR AUDITORIA',
+    },
     create: {
       creating: 'CRIANDO…', createBtn: 'CRIAR · +{xp} XP',
       kinds: {
@@ -463,6 +468,11 @@ export const translations = {
     ranking: {
       emptyNetwork: 'Your network is empty', addFriends: 'Add friends to compare progress',
       noData: 'No Ranking Data', awaitingSync: 'Awaiting Global Sync...',
+    },
+    quickLog: {
+      title: 'Performance Audit', globalImpact: 'Global Impact',
+      mentalNote: 'Mental Note', notePh: 'What blocked or boosted your day today?',
+      audited: 'DAY AUDITED', syncing: 'Syncing with Compass...', registered: 'LOGGED', finish: 'FINISH AUDIT',
     },
     create: {
       creating: 'CREATING…', createBtn: 'CREATE · +{xp} XP',

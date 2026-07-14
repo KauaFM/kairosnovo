@@ -98,6 +98,8 @@ const AUDIT_DOMAINS: DomainAudit[] = [
 ];
 
 export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps) {
+  const { t, lang } = useLang();
+  const dl = (d: any, f: string) => (lang === 'en' && EN_AUDIT[d.key]) ? EN_AUDIT[d.key][f] : d[f];
   const [activeChecks, setActiveChecks] = useState<Record<string, boolean>>({});
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -175,7 +177,7 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
                   {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                 </div>
               </div>
-              <p className="text-[9px] font-mono text-neutral-400 dark:text-white/20 mt-1 uppercase tracking-widest">Auditoria de Performance</p>
+              <p className="text-[9px] font-mono text-neutral-400 dark:text-white/20 mt-1 uppercase tracking-widest">{t('quickLog.title')}</p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -183,7 +185,7 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
                 <span className="text-[20px] font-outfit font-black text-neutral-900 dark:text-white tabular-nums leading-none">
                   {globalAvg}
                 </span>
-                <span className="text-[7px] font-mono text-neutral-400 dark:text-white/20 uppercase tracking-tighter">Impacto Global</span>
+                <span className="text-[7px] font-mono text-neutral-400 dark:text-white/20 uppercase tracking-tighter">{t('quickLog.globalImpact')}</span>
               </div>
               <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center bg-neutral-100 dark:bg-white/5 text-neutral-400">
                 <X size={16} />
@@ -220,8 +222,8 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
                       <Icon size={18} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-outfit font-bold uppercase tracking-wider dark:text-white/90">{domain.label}</span>
-                      <span className="text-[8px] font-mono text-neutral-400 dark:text-white/25 uppercase tracking-tight">{domain.hint}</span>
+                      <span className="text-[11px] font-outfit font-bold uppercase tracking-wider dark:text-white/90">{dl(domain, 'label')}</span>
+                      <span className="text-[8px] font-mono text-neutral-400 dark:text-white/25 uppercase tracking-tight">{dl(domain, 'hint')}</span>
                     </div>
                   </div>
                   
@@ -253,7 +255,7 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
                             <span className={`text-[10px] font-mono font-bold uppercase tracking-wide ${
                               isChecked ? 'text-white dark:text-black' : 'text-neutral-500 dark:text-white/40'
                             }`}>
-                              {cp.label}
+                              {(lang === 'en' && EN_AUDIT[domain.key]) ? EN_AUDIT[domain.key].cp[idx] : cp.label}
                             </span>
                             <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
                               isChecked ? 'bg-white dark:bg-black border-transparent' : 'border-neutral-300 dark:border-white/20'
@@ -274,12 +276,12 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
           <div className="pt-4 px-1">
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare size={12} className="text-neutral-400" />
-              <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-neutral-500">Nota Mental</span>
+              <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-neutral-500">{t('quickLog.mentalNote')}</span>
             </div>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="O que travou ou impulsionou seu dia hoje?"
+              placeholder={t('quickLog.notePh')}
               className="w-full bg-neutral-100 dark:bg-white/5 border border-transparent focus:border-neutral-300 dark:focus:border-white/10 rounded-2xl p-4 text-[12px] outline-none transition-all resize-none min-h-[100px] dark:text-white/80"
             />
           </div>
@@ -297,11 +299,11 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
             ) : submitted ? (
               <>
                 <Check size={18} strokeWidth={3} />
-                REGISTRADO
+                {t('quickLog.registered')}
               </>
             ) : (
               <>
-                FINALIZAR AUDITORIA
+                {t('quickLog.finish')}
               </>
             )}
           </button>
@@ -313,8 +315,8 @@ export function QuickLogEntry({ isOpen, onClose, onSubmit }: QuickLogEntryProps)
              <div className="w-20 h-20 rounded-[32px] bg-neutral-900 dark:bg-white flex items-center justify-center mb-6 shadow-2xl">
                 <Check size={32} className="text-white dark:text-black" strokeWidth={3} />
              </div>
-             <h3 className="text-lg font-outfit font-black uppercase tracking-widest dark:text-white">DIA AUDITADO</h3>
-             <p className="text-xs font-mono text-neutral-400 dark:text-white/20 mt-2">Sincronizando com o Compass...</p>
+             <h3 className="text-lg font-outfit font-black uppercase tracking-widest dark:text-white">{t('quickLog.audited')}</h3>
+             <p className="text-xs font-mono text-neutral-400 dark:text-white/20 mt-2">{t('quickLog.syncing')}</p>
           </div>
         )}
       </div>
