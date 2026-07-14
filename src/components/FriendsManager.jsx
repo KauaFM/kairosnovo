@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useLang } from '../i18n/LanguageContext';
 import { X, Search, UserPlus, Check, Clock, Trash2, Users, Inbox } from 'lucide-react';
 import {
     listFriends,
@@ -16,6 +17,7 @@ import {
 // ============================================================
 
 const FriendsManager = ({ onClose, onChange }) => {
+    const { t } = useLang();
     const [tab, setTab] = useState('friends'); // friends | requests | search
     const [friends, setFriends]   = useState([]);
     const [requests, setRequests] = useState([]);
@@ -69,7 +71,7 @@ const FriendsManager = ({ onClose, onChange }) => {
     };
 
     const handleRemove = async (friendshipId) => {
-        if (!confirm('Remover este amigo?')) return;
+        if (!confirm(t('common.friends.removeConfirm'))) return;
         setBusy(true);
         await removeFriend(friendshipId);
         await refresh();
@@ -83,7 +85,7 @@ const FriendsManager = ({ onClose, onChange }) => {
         >
             {/* Header */}
             <div className="px-6 pt-12 pb-4 flex items-center justify-between border-b border-current/10">
-                <h2 className="text-lg font-syncopate font-black tracking-widest uppercase">Amigos</h2>
+                <h2 className="text-lg font-syncopate font-black tracking-widest uppercase">{t('common.friends.title')}</h2>
                 <button
                     onClick={onClose}
                     className="w-9 h-9 rounded-full flex items-center justify-center border transition-transform hover:scale-105"
@@ -116,7 +118,7 @@ const FriendsManager = ({ onClose, onChange }) => {
                             {friends.map(f => (
                                 <Row
                                     key={f.friendship_id}
-                                    name={f.full_name || 'Agente ORVAX'}
+                                    name={f.full_name || t('common.agentDefault')}
                                     avatar={f.avatar_url}
                                     userId={f.friend_id}
                                     meta={`${Number(f.xp || 0).toLocaleString('pt-BR')} XP · ${f.streak_days || 0}d streak`}
@@ -143,7 +145,7 @@ const FriendsManager = ({ onClose, onChange }) => {
                             {requests.map(r => (
                                 <Row
                                     key={r.friendship_id}
-                                    name={r.full_name || 'Agente ORVAX'}
+                                    name={r.full_name || t('common.agentDefault')}
                                     avatar={r.avatar_url}
                                     userId={r.requester_id}
                                     meta={`${Number(r.xp || 0).toLocaleString('pt-BR')} XP`}
@@ -182,7 +184,7 @@ const FriendsManager = ({ onClose, onChange }) => {
                                 type="text"
                                 value={query}
                                 onChange={e => setQuery(e.target.value)}
-                                placeholder="Nome do operador…"
+                                placeholder={t('common.friends.operatorPh')}
                                 className="flex-1 bg-transparent outline-none text-[12px] font-mono placeholder:opacity-30"
                                 autoFocus
                             />
@@ -201,7 +203,7 @@ const FriendsManager = ({ onClose, onChange }) => {
                                 {results.map(u => (
                                     <Row
                                         key={u.id}
-                                        name={u.full_name || 'Agente ORVAX'}
+                                        name={u.full_name || t('common.agentDefault')}
                                         avatar={u.avatar_url}
                                         userId={u.id}
                                         meta={`${Number(u.xp || 0).toLocaleString('pt-BR')} XP`}
@@ -220,7 +222,7 @@ const FriendsManager = ({ onClose, onChange }) => {
 function renderSearchAction(u, handleSend, busy) {
     switch (u.friend_status) {
         case 'self':
-            return <span className="text-[9px] font-mono opacity-40 uppercase">Você</span>;
+            return <span className="text-[9px] font-mono opacity-40 uppercase">{t('common.friends.you')}</span>;
         case 'accepted':
             return (
                 <span className="px-2 py-1 rounded-lg border border-current/25 text-[9px] font-mono font-bold uppercase flex items-center gap-1">

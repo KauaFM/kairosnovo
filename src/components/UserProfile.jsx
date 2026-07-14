@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLang } from '../i18n/LanguageContext';
 import {
     ChevronLeft, Trophy, Flame, CheckSquare, Target,
     TrendingUp, Zap, Activity, Calendar,
@@ -49,6 +50,8 @@ function rankFromXP(xp) {
 }
 
 const UserProfile = ({ user, onClose }) => {
+    const { t } = useLang();
+    const srcLabel = (src) => { const k = 'common.sources.' + src; const v = t(k); return v === k ? (SOURCE_META[src]?.label || t('common.sources.system')) : v; };
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -102,7 +105,7 @@ const UserProfile = ({ user, onClose }) => {
                     />
                 </div>
                 <h1 className="text-2xl font-syncopate font-black tracking-widest uppercase text-glow text-center">
-                    {p.full_name || user.name || 'Agente ORVAX'}
+                    {p.full_name || user.name || t('common.agentDefault')}
                 </h1>
                 <div className="mt-2 flex items-center gap-2">
                     <span
@@ -147,7 +150,7 @@ const UserProfile = ({ user, onClose }) => {
                     {Object.keys(PILLAR_LABELS).map(k => (
                         <div key={k} className="flex items-center gap-3">
                             <span className="w-[88px] text-[10px] font-mono uppercase tracking-wider opacity-70">
-                                {PILLAR_LABELS[k]}
+                                {t('common.profileP.' + k)}
                             </span>
                             <div className="flex-1 h-[3px] rounded-full bg-current/10 overflow-hidden">
                                 <div
@@ -199,7 +202,7 @@ const UserProfile = ({ user, onClose }) => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <span className="text-[6px] font-mono font-bold uppercase tracking-[0.16em] opacity-50 px-1 py-[1px] rounded border border-current/15">
-                                            {meta.label}
+                                            {srcLabel(it.source)}
                                         </span>
                                         <p className="mt-0.5 text-[10px] font-mono font-bold truncate opacity-90">
                                             {it.title}

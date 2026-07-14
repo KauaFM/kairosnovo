@@ -4,6 +4,7 @@
 // Checkboxes funcionais + animação/XP no complete.
 // =============================================================
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useLang } from '../../i18n/LanguageContext';
 import {
   CheckSquare, Square, Repeat, Calendar, Bell, CreditCard, Clock, RefreshCw, Sparkles,
 } from 'lucide-react';
@@ -40,6 +41,7 @@ async function awardXp(amount, reason) {
 }
 
 export default function PendingTodayPanel({ date }) {
+  const { t } = useLang();
   const dateKey = useMemo(() => {
     if (!date) return toLocalDateStr(new Date());
     if (typeof date === 'string') return date.slice(0, 10);
@@ -160,11 +162,11 @@ export default function PendingTodayPanel({ date }) {
       </header>
 
       {loading && items.length === 0 ? (
-        <p className="text-[10px] font-mono text-zinc-500 py-4 text-center">carregando omni-sync…</p>
+        <p className="text-[10px] font-mono text-zinc-500 py-4 text-center">{t('common.pending.loading')}</p>
       ) : items.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-[11px] font-mono text-zinc-500">nada pra hoje. respira.</p>
-          <p className="text-[9px] font-mono text-zinc-400 mt-1 tracking-widest">CONSISTÊNCIA &gt; INTENSIDADE</p>
+          <p className="text-[11px] font-mono text-zinc-500">{t('common.pending.nothingToday')}</p>
+          <p className="text-[9px] font-mono text-zinc-400 mt-1 tracking-widest">{t('common.pending.consistency')}</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -186,7 +188,7 @@ export default function PendingTodayPanel({ date }) {
                 <button
                   onClick={() => toggleDone(it)}
                   className="shrink-0 transition-transform active:scale-90"
-                  aria-label={it.done ? 'Desmarcar' : 'Concluir'}
+                  aria-label={it.done ? t('common.pending.uncheck') : t('common.pending.complete')}
                 >
                   {it.done ? (
                     <div className="w-6 h-6 rounded-full flex items-center justify-center bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)]">
@@ -207,7 +209,7 @@ export default function PendingTodayPanel({ date }) {
                     {it.title}
                   </p>
                   <div className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 dark:text-zinc-500 tracking-widest">
-                    <span className="text-zinc-700 dark:text-zinc-300">{meta.label}</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">{t('common.kindLabels.' + it.kind)}</span>
                     {it.aspect_key && <><span>·</span><span className="uppercase">{it.aspect_key}</span></>}
                     {!it.all_day && it.starts_at && (
                       <>
