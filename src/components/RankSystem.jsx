@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { getRankFromXP, RANK_DEFS as RANK_XP } from '../services/db';
+import { useLang } from '../i18n/LanguageContext';
+import { RANK_LORE_EN } from '../i18n/rankLoreEn';
 
 // [ORVAX] Descrições/realidade por rank — o minXP vem do db.js (fórmula doubling).
 const RANK_LORE = {
@@ -33,11 +35,11 @@ const RANK_LORE = {
 
 const fmtXP = (n) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : `${n}`;
 
-const RANK_DEFS = RANK_XP.map(r => ({
+const buildRankDefs = (lore) => RANK_XP.map(r => ({
     id: r.rank,
-    name: RANK_LORE[r.rank]?.name || r.title,
-    desc: RANK_LORE[r.rank]?.desc || '',
-    real: RANK_LORE[r.rank]?.real || '',
+    name: lore[r.rank]?.name || RANK_LORE[r.rank]?.name || r.title,
+    desc: lore[r.rank]?.desc || RANK_LORE[r.rank]?.desc || '',
+    real: lore[r.rank]?.real || RANK_LORE[r.rank]?.real || '',
     minXP: r.minXP,
     color: r.color || 'var(--text-main)'
 }));
@@ -63,17 +65,19 @@ const RankHUD = ({ id, isCurrent, color }) => {
 };
 
 const RankSystem = ({ onClose, userXP = 0 }) => {
+    const { t, lang } = useLang();
     // Compute which rank is current based on XP
     const ranks = useMemo(() => {
+        const defs = buildRankDefs(lang === 'en' ? RANK_LORE_EN : RANK_LORE);
         let currentIdx = 0;
-        for (let i = RANK_DEFS.length - 1; i >= 0; i--) {
-            if (userXP >= RANK_DEFS[i].minXP) {
+        for (let i = defs.length - 1; i >= 0; i--) {
+            if (userXP >= defs[i].minXP) {
                 currentIdx = i;
                 break;
             }
         }
-        return RANK_DEFS.map((r, idx) => ({ ...r, current: idx === currentIdx }));
-    }, [userXP]);
+        return defs.map((r, idx) => ({ ...r, current: idx === currentIdx }));
+    }, [userXP, lang]);
 
     // Auto scroll to smooth land on current rank
     useEffect(() => {
@@ -96,8 +100,8 @@ const RankSystem = ({ onClose, userXP = 0 }) => {
             {/* Header - Floating Minimalist Glassmorphism */}
             <div className="pt-12 pb-6 px-8 flex justify-between items-center relative z-20 backdrop-blur-3xl border-b" style={{ backgroundColor: 'var(--bg-color)', borderColor: 'var(--border-color)' }}>
                 <div>
-                    <span className="text-[10px] font-mono opacity-40 uppercase tracking-[0.5em] block mb-2" style={{ color: 'var(--text-main)' }}>Painel_De_Visão</span>
-                    <h1 className="text-xl font-outfit font-bold tracking-[0.3em] uppercase drop-shadow-[0_0_15px_rgba(0,0,0,0.05)]" style={{ color: 'var(--text-main)' }}>Status de Nível</h1>
+                    <span className="text-[10px] font-mono opacity-40 uppercase tracking-[0.5em] block mb-2" style={{ color: 'var(--text-main)' }}>{t('mentorConfig.rankPanel')}</span>
+                    <h1 className="text-xl font-outfit font-bold tracking-[0.3em] uppercase drop-shadow-[0_0_15px_rgba(0,0,0,0.05)]" style={{ color: 'var(--text-main)' }}>{t('mentorConfig.rankStatus')}</h1>
                 </div>
                 <button
                     onClick={onClose}
@@ -162,7 +166,7 @@ const RankSystem = ({ onClose, userXP = 0 }) => {
                                             {isCurrent && (
                                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full self-start shadow-[0_0_15px_rgba(0,0,0,0.1)] backdrop-blur-md" style={{ border: `1px solid ${rank.color}4D`, backgroundColor: `${rank.color}1A` }}>
                                                     <div className="w-1.5 h-1.5 rounded-full animate-pulse blur-[1px]" style={{ backgroundColor: rank.color, boxShadow: `0 0 8px ${rank.color}` }}></div>
-                                                    <span className="text-[8px] font-mono font-bold uppercase tracking-[0.3em] pt-[1px]" style={{ color: rank.color }}>ALOCADO</span>
+                                                    <span className="text-[8px] font-mono font-bold uppercase tracking-[0.3em] pt-[1px]" style={{ color: rank.color }}>{t('mentorConfig.rankAllocated')}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -173,7 +177,7 @@ const RankSystem = ({ onClose, userXP = 0 }) => {
 
                                         <div>
                                             <span className={`text-[8px] font-mono uppercase tracking-[0.4em] block mb-2 ${isCurrent ? 'opacity-60' : 'opacity-40'}`} style={{ color: 'var(--text-main)' }}>
-                                                Manifestação na Realidade
+                                                {t('mentorConfig.rankRealManifest')}
                                             </span>
                                             <p className={`text-[11px] font-mono leading-relaxed ${isCurrent ? 'font-outfit tracking-wide opacity-100' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>
                                                 {rank.real}
