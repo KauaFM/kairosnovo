@@ -11,6 +11,7 @@ import {
   ArrowUpRight, ArrowDownRight, Sparkles,
 } from 'lucide-react';
 import { PILLARS, getPillar } from '../../pillars';
+import { useLang } from '../../../../i18n/LanguageContext';
 import type { CreateKind, CreatePayload, PillarKey } from '../../types';
 import { supabase } from '../../../../lib/supabase';
 import { createTransaction, createGoal as createFinancialGoal } from '../../services/finance';
@@ -68,6 +69,7 @@ interface Props {
 }
 
 export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKind }: Props) {
+  const { t } = useLang();
   const [kind, setKind] = useState<CreateKind>(defaultKind || 'task');
   const [pillar, setPillar] = useState<PillarKey>(defaultPillar || 'productivity');
   const [title, setTitle] = useState('');
@@ -126,22 +128,22 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
   const submit = async () => {
     setErr(null);
     if (!title.trim() && kind !== 'transaction') {
-      setErr('preencha o título pra continuar');
+      setErr(t('create.errTitle'));
       return;
     }
     if ((kind === 'transaction' || kind === 'payment') && !amount) {
-      setErr('informe o valor em reais');
+      setErr(t('create.errAmount'));
       return;
     }
     if (kind === 'goal' && target && parseNum(target) <= 0) {
-      setErr('o valor-alvo precisa ser maior que zero');
+      setErr(t('create.errTarget'));
       return;
     }
 
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('sem sessão — entre de novo');
+      if (!user) throw new Error(t('create.errSession'));
 
       // Pilar legado (PT-BR) — é o que os triggers SQL entendem pra
       // vincular o item à área da vida certa (pillar_to_aspect).
@@ -300,14 +302,14 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     ].join(' ')}
                   >
                     <k.Icon size={16} strokeWidth={active ? 2.4 : 2} />
-                    <span className="tracking-wider font-bold">{k.label.toUpperCase()}</span>
+                    <span className="tracking-wider font-bold">{t('create.kinds.' + k.kind + '.label').toUpperCase()}</span>
                   </button>
                 );
               })}
             </div>
             <p className="mt-2 text-[11px] text-zinc-600 dark:text-zinc-300 leading-snug">
-              <span className="font-semibold">{currentKind.friendly}.</span>{' '}
-              <span className="text-zinc-500">{currentKind.desc}</span>
+              <span className="font-semibold">{t('create.kinds.' + kind + '.friendly')}.</span>{' '}
+              <span className="text-zinc-500">{t('create.kinds.' + kind + '.desc')}</span>
             </p>
           </div>
 
@@ -360,11 +362,11 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={
-                      kind === 'habit' ? 'Ex: Ler 20 minutos'
-                      : kind === 'goal' ? 'Ex: Correr 10km'
-                      : kind === 'event' ? 'Ex: Consulta dentista'
-                      : kind === 'payment' ? 'Ex: Fatura do cartão'
-                      : 'Ex: Viagem de fim de ano'
+                      kind === 'habit' ? t('create.exTask')
+                      : kind === 'goal' ? t('create.exHabit')
+                      : kind === 'event' ? t('create.exEvent')
+                      : kind === 'payment' ? t('create.exPayment')
+                      : t('create.exGoal')
                     }
                     className={inputCls}
                   />
@@ -407,7 +409,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     <input
                       value={habitCue}
                       onChange={(e) => setHabitCue(e.target.value)}
-                      placeholder="Ex: Logo depois do café da manhã"
+                      placeholder={t('create.cuePh')}
                       className={inputCls}
                     />
                   </Field>
@@ -416,7 +418,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     <input
                       value={habitReward}
                       onChange={(e) => setHabitReward(e.target.value)}
-                      placeholder="Ex: Mais energia durante o dia"
+                      placeholder={t('create.rewardPh')}
                       className={inputCls}
                     />
                   </Field>
@@ -447,7 +449,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     <input
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      placeholder="mercado, transporte, salário…"
+                      placeholder={t('create.categoryPh')}
                       className={inputCls}
                     />
                   </Field>
@@ -456,7 +458,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     <input
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Ex: Mercado Extra"
+                      placeholder={t('create.txNamePh')}
                       className={inputCls}
                     />
                   </Field>
@@ -487,7 +489,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {(kind === 'task' || kind === 'goal' || kind === 'event' || kind === 'reminder' || kind === 'payment') && (
                 <Field
                   label="Descrição"
-                  help={kind === 'goal' ? 'Opcional — por que essa meta importa?' : 'Opcional — detalhes que ajudam a lembrar'}
+                  help={kind === 'goal' ? 'Opcional — por que essa meta importa?' : t('create.descOptional')}
                 >
                   <textarea
                     value={description}
@@ -567,7 +569,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                           <button
                             key={p.v}
                             onClick={() => setPriority(p.v)}
-                            title={p.v === 'low' ? 'Baixa' : p.v === 'normal' ? 'Normal' : 'Alta'}
+                            title={p.v === 'low' ? t('create.prioLow') : p.v === 'normal' ? t('create.prioNormal') : t('create.prioHigh')}
                             className={[
                               'h-[42px] rounded-xl border text-[13px] font-mono font-bold transition-all active:scale-95',
                               priority === p.v
@@ -587,7 +589,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {/* ── data/hora ── */}
               {(kind === 'task' || kind === 'event' || kind === 'reminder' || kind === 'payment' || kind === 'transaction') && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Data" help={kind === 'payment' ? 'Vencimento' : 'Quando'}>
+                  <Field label={t('create.dateLabel')} help={kind === 'payment' ? t('create.dueDate') : t('create.when')}>
                     <input
                       type="date"
                       value={date}
@@ -624,7 +626,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     <input
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Ex: Clínica centro"
+                      placeholder={t('create.eventLocationPh')}
                       className={inputCls}
                     />
                   </Field>
@@ -646,7 +648,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                             : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
                         ].join(' ')}
                       >
-                        {o.label.toUpperCase()}
+                        {(o.min === 0 ? t('create.remindNow') : o.min === 15 ? t('create.remind15') : o.min === 60 ? t('create.remind1h') : t('create.remind1d')).toUpperCase()}
                       </button>
                     ))}
                   </div>
@@ -676,7 +678,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
             disabled={saving}
             className="flex-[2] py-3 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[11px] font-mono font-bold tracking-wider hover:opacity-90 disabled:opacity-40 transition-all active:scale-[0.98]"
           >
-            {saving ? 'CRIANDO…' : `CRIAR · +${currentKind.xp} XP`}
+            {saving ? t('create.creating') : t('create.createBtn', { xp: currentKind.xp })}
           </button>
         </div>
       </div>
