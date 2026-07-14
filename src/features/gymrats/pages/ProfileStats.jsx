@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
 import { ArrowLeft, Trophy, Flame, Clock, Dumbbell } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { getWorkoutHistory } from '../services/checkinService';
 import { timeAgo, formatDuration, ACTIVITY_TYPES } from '../utils/formatters';
 
 const ProfileStats = ({ onBack }) => {
+  const { t } = useLang();
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, totalPoints: 0, totalMinutes: 0, totalCalories: 0 });
@@ -34,8 +36,8 @@ const ProfileStats = ({ onBack }) => {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-sm font-bold tracking-wider">MEU HISTORICO</h2>
-          <span className="text-[9px] font-mono opacity-40 tracking-widest">MARCAS PESSOAIS</span>
+          <h2 className="text-sm font-bold tracking-wider">{t('arena.myHistory')}</h2>
+          <span className="text-[9px] font-mono opacity-40 tracking-widest">{t('arena.personalBests')}</span>
         </div>
       </div>
 
@@ -59,14 +61,14 @@ const ProfileStats = ({ onBack }) => {
 
       {/* Workout list */}
       <div>
-        <h3 className="text-[10px] font-mono opacity-50 tracking-wider mb-3">TREINOS RECENTES</h3>
+        <h3 className="text-[10px] font-mono opacity-50 tracking-wider mb-3">{t('arena.recentWorkouts')}</h3>
         {loading ? (
           <div className="text-center py-8">
-            <span className="text-[10px] font-mono opacity-40 animate-pulse">CARREGANDO...</span>
+            <span className="text-[10px] font-mono opacity-40 animate-pulse">{t('arena.loading')}</span>
           </div>
         ) : workouts.length === 0 ? (
           <div className="text-center py-8 opacity-40">
-            <p className="text-[11px] font-mono">Nenhum treino registrado ainda</p>
+            <p className="text-[11px] font-mono">{t('arena.noWorkouts')}</p>
           </div>
         ) : (
           <div className="space-y-1.5">

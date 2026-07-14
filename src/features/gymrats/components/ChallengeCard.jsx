@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
 import { Users, Calendar, Trophy, Copy, Check, ChevronRight } from 'lucide-react';
 import { formatDate } from '../utils/formatters';
 
 const ChallengeCard = ({ challenge, onPress }) => {
+  const { t } = useLang();
   const [copied, setCopied] = useState(false);
   const memberCount = challenge.challenge_members?.[0]?.count ?? 0;
   const isActive = challenge.is_active && (!challenge.ends_at || new Date(challenge.ends_at) > new Date());
@@ -72,7 +74,7 @@ const ChallengeCard = ({ challenge, onPress }) => {
         {/* Code + Arrow */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[7px] font-mono opacity-15 tracking-[0.2em] uppercase">Codigo</span>
+            <span className="text-[7px] font-mono opacity-15 tracking-[0.2em] uppercase">{t('arena.code')}</span>
             <span
               className="text-[10px] font-mono font-bold tracking-[0.25em] px-2.5 py-1 rounded-xl"
               style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}

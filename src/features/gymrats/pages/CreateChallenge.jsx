@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
 import { ArrowLeft, Zap } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { createChallenge } from '../services/challengeService';
@@ -7,6 +8,7 @@ import ScoringConfig from '../components/ScoringConfig';
 import { toLocalDateStr } from '../../../utils/dateUtils';
 
 const CreateChallenge = ({ onBack, onCreated }) => {
+  const { t } = useLang();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [scoringType, setScoringType] = useState('workouts');
@@ -19,12 +21,12 @@ const CreateChallenge = ({ onBack, onCreated }) => {
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    if (!name.trim()) { setError('Nome obrigatorio'); return; }
+    if (!name.trim()) { setError(t('arena.errName')); return; }
     setSubmitting(true);
     setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Nao autenticado');
+      if (!session) throw new Error(t('arena.notAuth'));
 
       const challenge = await createChallenge(
         {
@@ -42,9 +44,9 @@ const CreateChallenge = ({ onBack, onCreated }) => {
       onCreated?.(challenge);
     } catch (err) {
       if (err.code === '23503') {
-        setError('Perfil não encontrado. Por favor, tente novamente ou contate o suporte.');
+        setError(t('arena.errProfile'));
       } else {
-        setError(err.message || 'Erro ao criar desafio');
+        setError(err.message || t('arena.errCreate'));
       }
     } finally {
       setSubmitting(false);
@@ -61,8 +63,8 @@ const CreateChallenge = ({ onBack, onCreated }) => {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-sm font-bold tracking-wider">CRIAR DESAFIO</h2>
-          <span className="text-[9px] font-mono opacity-40 tracking-widest">NOVO CAMPO DE BATALHA</span>
+          <h2 className="text-sm font-bold tracking-wider">{t('arena.createTitle')}</h2>
+          <span className="text-[9px] font-mono opacity-40 tracking-widest">{t('arena.newBattlefield')}</span>
         </div>
       </div>
 
@@ -74,11 +76,11 @@ const CreateChallenge = ({ onBack, onCreated }) => {
 
       {/* Name */}
       <div>
-        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">NOME DO DESAFIO *</label>
+        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('arena.challengeName')}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ex: Desafio Verao 2026"
+          placeholder={t('arena.namePh')}
           className={inputClass}
           style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
         />
@@ -86,11 +88,11 @@ const CreateChallenge = ({ onBack, onCreated }) => {
 
       {/* Description */}
       <div>
-        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">DESCRICAO</label>
+        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('arena.descLabel')}</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Regras e objetivos do desafio..."
+          placeholder={t('arena.descPh')}
           rows={3}
           className={inputClass + " resize-none"}
           style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
@@ -100,7 +102,7 @@ const CreateChallenge = ({ onBack, onCreated }) => {
       {/* Dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">INICIO *</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('arena.startLabel')}</label>
           <input
             type="date"
             value={startsAt}
@@ -110,7 +112,7 @@ const CreateChallenge = ({ onBack, onCreated }) => {
           />
         </div>
         <div>
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">FIM (OPCIONAL)</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('arena.endLabel')}</label>
           <input
             type="date"
             value={endsAt}
@@ -123,12 +125,12 @@ const CreateChallenge = ({ onBack, onCreated }) => {
 
       {/* Max participants */}
       <div>
-        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">MAX PARTICIPANTES (OPCIONAL)</label>
+        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('arena.maxLabel')}</label>
         <input
           type="number"
           value={maxParticipants}
           onChange={(e) => setMaxParticipants(e.target.value)}
-          placeholder="Sem limite"
+          placeholder={t('arena.maxPh')}
           className={inputClass}
           style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
         />
@@ -144,7 +146,7 @@ const CreateChallenge = ({ onBack, onCreated }) => {
           <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${allowTeams ? 'translate-x-5' : 'translate-x-0.5'}`}
             style={{ backgroundColor: 'var(--text-main)' }} />
         </button>
-        <span className="text-[11px] font-mono">Permitir times</span>
+        <span className="text-[11px] font-mono">{t('arena.allowTeams')}</span>
       </div>
 
       {/* Scoring */}
@@ -163,7 +165,7 @@ const CreateChallenge = ({ onBack, onCreated }) => {
         style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
       >
         <Zap size={14} />
-        {submitting ? 'CRIANDO...' : 'CRIAR DESAFIO'}
+        {submitting ? t('arena.creating') + '...' : t('arena.createTitle')}
       </button>
     </div>
   );

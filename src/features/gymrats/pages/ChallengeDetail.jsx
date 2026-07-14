@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
 import { ArrowLeft, Plus, Trophy, MessageCircle, Users, Activity, Copy, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useChallengeDetail } from '../hooks/useChallenges';
@@ -18,6 +19,7 @@ const TABS = [
 ];
 
 const ChallengeDetail = ({ challengeId, onBack }) => {
+  const { t } = useLang();
   const { challenge, members, loading: detailLoading } = useChallengeDetail(challengeId);
   const { workouts, refresh: refreshWorkouts } = useCheckin(challengeId);
   const { leaderboard, loading: lbLoading, refresh: refreshLb } = useLeaderboard(challengeId);
@@ -55,7 +57,7 @@ const ChallengeDetail = ({ challengeId, onBack }) => {
   if (detailLoading || !challenge) {
     return (
       <div className="text-center py-16">
-        <span className="text-[10px] font-mono opacity-40 animate-pulse tracking-wider">CARREGANDO DESAFIO...</span>
+        <span className="text-[10px] font-mono opacity-40 animate-pulse tracking-wider">{t('arena.loadingChallenge')}</span>
       </div>
     );
   }
@@ -97,7 +99,7 @@ const ChallengeDetail = ({ challengeId, onBack }) => {
               }}
             >
               <tab.icon size={12} />
-              {tab.label}
+              {tab.label === 'MEMBROS' ? t('arena.tabMembers') : tab.label}
             </button>
           ))}
         </div>
