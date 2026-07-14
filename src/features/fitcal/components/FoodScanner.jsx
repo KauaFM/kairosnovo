@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Camera, X, Check, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { analyzeFoodPhoto } from '../services/aiService';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
+  const { t } = useLang();
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -30,7 +32,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
       setResults(data);
     } catch (err) {
       console.error('Scanner error:', err);
-      setError(err?.message || 'Erro ao analisar a foto. Tente novamente.');
+      setError(err?.message || t('fitcal.analyzeError'));
     } finally {
       setScanning(false);
     }
@@ -52,8 +54,8 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
 
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-bold tracking-wider">SCANNER IA</h2>
-            <span className="text-[9px] font-mono opacity-40 tracking-widest">ANALISE POR FOTO</span>
+            <h2 className="text-sm font-bold tracking-wider">{t('fitcal.scannerTitle')}</h2>
+            <span className="text-[9px] font-mono opacity-40 tracking-widest">{t('fitcal.scannerSub')}</span>
           </div>
           <button onClick={onClose} className="opacity-40 hover:opacity-100 transition-opacity">
             <X size={20} />
@@ -72,7 +74,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
               style={{ borderColor: 'var(--border-color)' }}
             >
               <Camera size={26} />
-              <span className="text-[10px] font-mono tracking-wider">CÂMERA</span>
+              <span className="text-[10px] font-mono tracking-wider">{t('fitcal.camera')}</span>
             </button>
             <button
               onClick={() => fileRef.current?.click()}
@@ -80,7 +82,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
               style={{ borderColor: 'var(--border-color)' }}
             >
               <ImageIcon size={26} />
-              <span className="text-[10px] font-mono tracking-wider">GALERIA</span>
+              <span className="text-[10px] font-mono tracking-wider">{t('fitcal.gallery')}</span>
             </button>
           </div>
         ) : (
@@ -110,7 +112,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
             className="w-full py-3 rounded-sm font-bold text-[12px] tracking-wider mt-4 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
             style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
           >
-            {scanning ? <><Loader2 size={14} className="animate-spin" /> ANALISANDO...</> : <><Camera size={14} /> ANALISAR COM IA</>}
+            {scanning ? <><Loader2 size={14} className="animate-spin" /> {t('fitcal.analyzing')}</> : <><Camera size={14} /> {t('fitcal.analyzeWithAI')}</>}
           </button>
         )}
 
@@ -118,12 +120,12 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
         {results && results.items && results.items.length === 0 && (
           <div className="mt-4 text-center py-6 px-3 rounded-sm border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
             <AlertCircle size={20} className="mx-auto opacity-30 mb-2" />
-            <p className="text-[11px] font-mono opacity-60">Nenhum alimento reconhecido nesta foto.</p>
+            <p className="text-[11px] font-mono opacity-60">{t('fitcal.noFoodRecognized')}</p>
             <button
               onClick={() => { setResults(null); }}
               className="mt-3 text-[10px] font-mono tracking-wider underline opacity-50 hover:opacity-90"
             >
-              TENTAR OUTRA FOTO
+              {t('fitcal.tryAnotherPhoto')}
             </button>
           </div>
         )}
@@ -131,7 +133,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
         {/* Results */}
         {results && results.items && results.items.length > 0 && (
           <div className="mt-4 space-y-2">
-            <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-60 mb-2">ALIMENTOS IDENTIFICADOS</h3>
+            <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-60 mb-2">{t('fitcal.identifiedFoods')}</h3>
             {results.items.map((item, i) => (
               <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-sm border"
                 style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
@@ -161,7 +163,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
               className="w-full py-3 rounded-sm font-bold text-[12px] tracking-wider mt-3 transition-all flex items-center justify-center gap-2"
               style={{ backgroundColor: '#22c55e', color: '#000' }}
             >
-              <Check size={14} /> CONFIRMAR E REGISTRAR
+              <Check size={14} /> {t('fitcal.confirmLog')}
             </button>
           </div>
         )}

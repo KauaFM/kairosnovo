@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { X, Search, Plus, Loader2 } from 'lucide-react';
 import { searchFoods, logFood, logExternalFood } from '../services/foodServiceV2';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
+  const { t } = useLang();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -13,7 +15,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
 
   if (!open) return null;
 
-  const MEAL_LABELS = { breakfast: 'Cafe da Manha', lunch: 'Almoco', dinner: 'Jantar', snack: 'Lanche' };
+  const MEAL_LABELS = { breakfast: t('fitcal.meals.breakfast'), lunch: t('fitcal.meals.lunch'), dinner: t('fitcal.meals.dinner'), snack: t('fitcal.meals.snack') };
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -45,7 +47,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
       onClose();
     } catch (err) {
       console.error('Add meal error:', err);
-      setError(err?.message || JSON.stringify(err) || 'Erro desconhecido');
+      setError(err?.message || JSON.stringify(err) || t('fitcal.unknownError'));
     } finally {
       setAdding(false);
     }
@@ -78,7 +80,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
 
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-bold tracking-wider">ADICIONAR ALIMENTO</h2>
+            <h2 className="text-sm font-bold tracking-wider">{t('fitcal.addFood')}</h2>
             <span className="text-[9px] font-mono opacity-40 tracking-widest">{MEAL_LABELS[mealType] || mealType}</span>
           </div>
           <button onClick={onClose} className="opacity-40 hover:opacity-100 transition-opacity">
@@ -94,7 +96,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Buscar alimento..."
+                placeholder={t('fitcal.searchFoodPh')}
                 className="flex-1 text-[12px] font-mono bg-transparent border rounded-sm px-3 py-2.5 outline-none transition-all focus:border-[#22c55e]/50"
                 style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
               />
@@ -124,7 +126,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
                     </span>
                     <span className="text-[9px] font-mono opacity-40">
                       {food.brand && `${food.brand} · `}
-                      {food.default_portion_label || '100g'} · por 100g
+                      {food.default_portion_label || '100g'} · {t('fitcal.per100g')}
                     </span>
                   </div>
                   <div className="text-right ml-2">
@@ -134,7 +136,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
                 </button>
               ))}
               {results.length === 0 && query && !searching && (
-                <p className="text-center py-4 text-[10px] font-mono opacity-40">Nenhum resultado encontrado</p>
+                <p className="text-center py-4 text-[10px] font-mono opacity-40">{t('fitcal.noResults')}</p>
               )}
             </div>
           </>
@@ -149,12 +151,12 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
                   <span className="text-[12px] font-bold block">{selectedFood.name}</span>
                   <span className="text-[9px] font-mono opacity-40">{selectedFood.brand}</span>
                 </div>
-                <button onClick={() => setSelectedFood(null)} className="text-[9px] font-mono opacity-40 hover:opacity-100">TROCAR</button>
+                <button onClick={() => setSelectedFood(null)} className="text-[9px] font-mono opacity-40 hover:opacity-100">{t('fitcal.change')}</button>
               </div>
             </div>
 
             <div>
-              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">QUANTIDADE (g)</label>
+              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('fitcal.quantityG')}</label>
               <input
                 type="number"
                 value={quantity}
@@ -187,7 +189,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
                   { label: 'KCAL', value: preview.calories, color: '#22c55e' },
                   { label: 'PROT', value: `${preview.protein}g`, color: '#00B4D8' },
                   { label: 'CARB', value: `${preview.carbs}g`, color: '#F59E0B' },
-                  { label: 'GORD', value: `${preview.fat}g`, color: '#EF4444' },
+                  { label: t('fitcal.fatMacro'), value: `${preview.fat}g`, color: '#EF4444' },
                 ].map((m) => (
                   <div key={m.label} className="text-center p-2 rounded-sm border" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
                     <span className="text-[13px] font-bold font-mono block" style={{ color: m.color }}>{m.value}</span>
@@ -210,7 +212,7 @@ const AddMealModal = ({ open, mealType, onClose, onAdded }) => {
               style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
             >
               <Plus size={14} />
-              {adding ? 'ADICIONANDO...' : 'ADICIONAR'}
+              {adding ? t('fitcal.adding') : t('fitcal.add')}
             </button>
           </div>
         )}
