@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLang } from '../i18n/LanguageContext';
 import { Trophy, Star, Users, Globe, Gem, UserPlus } from 'lucide-react';
 import UserProfile from './UserProfile';
 import FriendsManager from './FriendsManager';
@@ -6,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { listFriends, listFriendRequests } from '../services/db';
 
 const GlobalRanking = () => {
+    const { t } = useLang();
     const [rankMode, setRankMode] = useState('global'); // 'global' | 'friends'
     const [selectedUser, setSelectedUser] = useState(null);
     const [globalUsers, setGlobalUsers] = useState([]);
@@ -30,7 +32,7 @@ const GlobalRanking = () => {
         return {
             id: p.id,
             rank: index + 1,
-            name: p.full_name || 'Agente Orvax',
+            name: p.full_name || t('dossier.defaultName'),
             handle: `@${(p.full_name || 'user').toLowerCase().replace(/\s/g, '')}`,
             avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`,
             score: xp,
@@ -266,8 +268,8 @@ const GlobalRanking = () => {
                     {rankMode === 'friends' ? (
                         <>
                             <Users size={40} className="mb-4" />
-                            <span className="text-[10px] font-mono tracking-widest uppercase">Sua rede está vazia</span>
-                            <span className="text-[8px] font-mono tracking-widest uppercase mt-2">Adicione amigos para comparar progresso</span>
+                            <span className="text-[10px] font-mono tracking-widest uppercase">{t('ranking.emptyNetwork')}</span>
+                            <span className="text-[8px] font-mono tracking-widest uppercase mt-2">{t('ranking.addFriends')}</span>
                             <button
                                 onClick={() => setShowManager(true)}
                                 className="mt-5 px-4 py-2 rounded-xl border border-current/40 text-[10px] font-mono uppercase tracking-widest opacity-100 hover:bg-current/5"
@@ -278,8 +280,8 @@ const GlobalRanking = () => {
                     ) : (
                         <>
                             <Trophy size={40} className="mb-4" />
-                            <span className="text-[10px] font-mono tracking-widest uppercase">Sem Dados no Ranking</span>
-                            <span className="text-[8px] font-mono tracking-widest uppercase mt-2">Aguardando Sincronização Global...</span>
+                            <span className="text-[10px] font-mono tracking-widest uppercase">{t('ranking.noData')}</span>
+                            <span className="text-[8px] font-mono tracking-widest uppercase mt-2">{t('ranking.awaitingSync')}</span>
                         </>
                     )}
                 </div>

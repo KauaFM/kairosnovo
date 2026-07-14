@@ -30,6 +30,20 @@ export const translations = {
       taskTitlePh: 'TÍTULO DA TAREFA', preset: 'pré-selec.', categoryPh: 'CATEGORIA', add: 'ADICIONAR',
       dayNames: ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'],
     },
+    blog: {
+      timeline: 'TIMELINE DE NOTÍCIAS', newPost: 'Novo Post',
+      publishing: 'Publicando...', publish: 'Publicar',
+      titleLabel: 'Título *', titlePh: 'Título do post...',
+      summary: 'Resumo (subtítulo)', summaryPh: 'Uma frase de impacto...',
+      category: 'Categoria', highlight: 'Destaque',
+      imageUrl: 'URL da Imagem (opcional)', content: 'Conteúdo *',
+      contentPh: 'Escreva o conteúdo completo aqui...',
+      confirmDelete: 'Deletar este post permanentemente?',
+    },
+    ranking: {
+      emptyNetwork: 'Sua rede está vazia', addFriends: 'Adicione amigos para comparar progresso',
+      noData: 'Sem Dados no Ranking', awaitingSync: 'Aguardando Sincronização Global...',
+    },
     arena: {
       notAuth: 'Nao autenticado', title: 'Arena', subtitle: 'competicoes fitness',
       create: 'Criar', join: 'Entrar', profile: 'Perfil',
@@ -389,6 +403,20 @@ export const translations = {
       activeUpper: 'ACTIVE', active: 'Active', newTask: 'New Task',
       taskTitlePh: 'TASK TITLE', preset: 'preset', categoryPh: 'CATEGORY', add: 'ADD',
       dayNames: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+    },
+    blog: {
+      timeline: 'NEWS TIMELINE', newPost: 'New Post',
+      publishing: 'Publishing...', publish: 'Publish',
+      titleLabel: 'Title *', titlePh: 'Post title...',
+      summary: 'Summary (subtitle)', summaryPh: 'An impactful sentence...',
+      category: 'Category', highlight: 'Highlight',
+      imageUrl: 'Image URL (optional)', content: 'Content *',
+      contentPh: 'Write the full content here...',
+      confirmDelete: 'Delete this post permanently?',
+    },
+    ranking: {
+      emptyNetwork: 'Your network is empty', addFriends: 'Add friends to compare progress',
+      noData: 'No Ranking Data', awaitingSync: 'Awaiting Global Sync...',
     },
     arena: {
       notAuth: 'Not authenticated', title: 'Arena', subtitle: 'fitness competitions',

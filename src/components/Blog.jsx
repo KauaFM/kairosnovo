@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLang } from '../i18n/LanguageContext';
 import { Play, Heart, MessageCircle, Share2, ArrowDown, Sun, Moon, ChevronLeft, Bookmark, X, Plus, Send, Trash2, Star } from 'lucide-react';
 import { getBlogPosts, createBlogPost, deleteBlogPost } from '../services/db';
 import { supabase } from '../lib/supabase';
@@ -102,6 +103,7 @@ const FEED_POSTS = [
 ];
 
 const Blog = ({ theme, toggleTheme, onScrollChange }) => {
+    const { t } = useLang();
     const [isScrolled, setIsScrolled] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState(null);
     const [highlights, setHighlights] = useState(HIGHLIGHTS);
@@ -211,7 +213,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
     // Admin: delete post
     const handleDelete = async (e, postId) => {
         e.stopPropagation();
-        if (!window.confirm('Deletar este post permanentemente?')) return;
+        if (!window.confirm(t('blog.confirmDelete'))) return;
         await deleteBlogPost(postId);
     };
 
@@ -313,7 +315,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
             {/* 3. BLOG BODY: O FEED SOCIAL BRUTALISTA (2ª TELA) */}
             <main className="min-h-screen w-full snap-start pt-32 px-6 pb-40 bg-gray-50 dark:bg-zinc-950 transition-colors">
                 <div className="mb-8 px-2">
-                    <h2 className="text-sm font-black tracking-[0.3em] text-black dark:text-white uppercase inline-block border-b-4 border-black dark:border-white pb-1">TIMELINE DE NOTÍCIAS</h2>
+                    <h2 className="text-sm font-black tracking-[0.3em] text-black dark:text-white uppercase inline-block border-b-4 border-black dark:border-white pb-1">{t('blog.timeline')}</h2>
                 </div>
 
                 {/* ── Audio Station (inline, entre titulo e feed) ── */}
@@ -461,7 +463,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                 <div className="fixed inset-0 z-[110] bg-white dark:bg-zinc-950 max-w-md mx-auto flex flex-col overflow-hidden animate-slide-up">
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-gray-100 dark:border-zinc-800">
-                        <span className="text-[11px] font-black tracking-[0.3em] uppercase text-black dark:text-white">Novo Post</span>
+                        <span className="text-[11px] font-black tracking-[0.3em] uppercase text-black dark:text-white">{t('blog.newPost')}</span>
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={handlePublish}
@@ -469,7 +471,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                                 className="flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-wider rounded-full active:scale-95 transition-all disabled:opacity-30"
                             >
                                 <Send size={12} />
-                                {publishing ? 'Publicando...' : 'Publicar'}
+                                {publishing ? t('blog.publishing') : t('blog.publish')}
                             </button>
                             <button onClick={() => setComposeOpen(false)} className="w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition-all">
                                 <X size={16} className="text-black dark:text-white" />
@@ -481,10 +483,10 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                     <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
                         {/* Title */}
                         <div>
-                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Título *</label>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">{t('blog.titleLabel')}</label>
                             <input
                                 type="text"
-                                placeholder="Título do post..."
+                                placeholder={t('blog.titlePh')}
                                 value={form.title}
                                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                                 className="w-full text-2xl font-black tracking-tight text-black dark:text-white bg-transparent border-b-2 border-gray-200 dark:border-zinc-700 focus:border-black dark:focus:border-white outline-none pb-2 placeholder:text-gray-200 dark:placeholder:text-zinc-800 transition-colors"
@@ -493,10 +495,10 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
 
                         {/* Summary */}
                         <div>
-                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Resumo (subtítulo)</label>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">{t('blog.summary')}</label>
                             <input
                                 type="text"
-                                placeholder="Uma frase de impacto..."
+                                placeholder={t('blog.summaryPh')}
                                 value={form.summary}
                                 onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
                                 className="w-full text-sm font-medium text-black dark:text-white bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 outline-none focus:border-black dark:focus:border-white transition-colors placeholder:text-gray-300 dark:placeholder:text-zinc-700"
@@ -506,7 +508,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                         {/* Category + Highlight row */}
                         <div className="flex gap-3">
                             <div className="flex-1">
-                                <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Categoria</label>
+                                <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">{t('blog.category')}</label>
                                 <select
                                     value={form.category}
                                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
@@ -516,7 +518,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
                                 </select>
                             </div>
                             <div className="flex flex-col items-center justify-center gap-1">
-                                <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400">Destaque</label>
+                                <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400">{t('blog.highlight')}</label>
                                 <button
                                     onClick={() => setForm(f => ({ ...f, is_highlight: !f.is_highlight }))}
                                     className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 border-2 ${form.is_highlight ? 'bg-black dark:bg-white border-black dark:border-white' : 'bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800'}`}
@@ -528,7 +530,7 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
 
                         {/* Image URL */}
                         <div>
-                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">URL da Imagem (opcional)</label>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">{t('blog.imageUrl')}</label>
                             <input
                                 type="url"
                                 placeholder="https://..."
@@ -540,9 +542,9 @@ const Blog = ({ theme, toggleTheme, onScrollChange }) => {
 
                         {/* Content */}
                         <div className="flex-1">
-                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">Conteúdo *</label>
+                            <label className="text-[8px] font-black tracking-[0.3em] uppercase text-gray-400 block mb-2">{t('blog.content')}</label>
                             <textarea
-                                placeholder="Escreva o conteúdo completo aqui..."
+                                placeholder={t('blog.contentPh')}
                                 value={form.content}
                                 onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
                                 rows={12}
