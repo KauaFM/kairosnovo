@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Clock, CheckCircle2, ListFilter, AlertCircle, Plus, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useLang } from '../i18n/LanguageContext';
 const FullCalendar = ({ onClose, onSelectDate }) => {
+    const { t } = useLang();
     const today = new Date();
     const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
     const [selectedDate, setSelectedDate] = useState(today.getDate());
@@ -16,9 +18,9 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDayIndex = new Date(year, month, 1).getDay(); // 0=Sun, 1=Mon...
 
-    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const monthNamesShort = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-    const dayNames = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+    const monthNames = t('common.months');
+    const monthNamesShort = t('common.monthsShort');
+    const dayNames = t('calendar.dayNames');
 
     const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
     const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -199,7 +201,7 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
                     <div className="w-[85px] bg-current/5 border border-current/10 rounded-[28px] py-4 flex flex-col items-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] backdrop-blur-md relative overflow-hidden">
                         <div className="text-[9px] font-syncopate tracking-widest uppercase opacity-40 mb-4 z-10 flex flex-col items-center gap-1">
                             Hora
-                            {selectedTime && <span className="text-[6px] bg-white/20 text-white px-1.5 py-0.5 rounded-full mt-1">ATIVO</span>}
+                            {selectedTime && <span className="text-[6px] bg-white/20 text-white px-1.5 py-0.5 rounded-full mt-1">{t('calendar.activeUpper')}</span>}
                         </div>
 
                         <div className="flex flex-col w-full px-2 gap-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-4 z-10 relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}>
@@ -283,8 +285,8 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
                     {showAddModal && (
                         <div className="mb-8 p-4 bg-white/5 border border-white/10 rounded-[20px] relative">
                             <button onClick={() => setShowAddModal(false)} className="absolute top-3 right-3 opacity-50 hover:opacity-100"><X size={14} /></button>
-                            <h4 className="text-[9px] font-syncopate tracking-widest uppercase opacity-60 mb-4">Nova Tarefa</h4>
-                            <input type="text" placeholder="TÍTULO DA TAREFA" value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })} className="w-full bg-transparent border-b border-white/20 text-[12px] font-mono mb-3 pb-1 outline-none focus:border-[#22c55e]" />
+                            <h4 className="text-[9px] font-syncopate tracking-widest uppercase opacity-60 mb-4">{t('calendar.newTask')}</h4>
+                            <input type="text" placeholder={t('calendar.taskTitlePh')} value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })} className="w-full bg-transparent border-b border-white/20 text-[12px] font-mono mb-3 pb-1 outline-none focus:border-[#22c55e]" />
                             <div className="flex gap-2 mb-4">
                                 <div className="bg-white/5 rounded-lg px-2 py-1 flex-1 flex items-center gap-1.5">
                                     <Clock size={10} className="opacity-40" />
@@ -295,12 +297,12 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
                                         className="bg-transparent text-[10px] font-mono flex-1 outline-none"
                                     />
                                     {selectedTime === newTask.time_start && (
-                                        <span className="text-[7px] font-mono opacity-50 uppercase tracking-widest">pré-selec.</span>
+                                        <span className="text-[7px] font-mono opacity-50 uppercase tracking-widest">{t('calendar.preset')}</span>
                                     )}
                                 </div>
-                                <input type="text" placeholder="CATEGORIA" value={newTask.category} onChange={e => setNewTask({ ...newTask, category: e.target.value })} className="bg-white/5 rounded-lg px-2 py-1 text-[10px] font-mono flex-1 outline-none" />
+                                <input type="text" placeholder={t('calendar.categoryPh')} value={newTask.category} onChange={e => setNewTask({ ...newTask, category: e.target.value })} className="bg-white/5 rounded-lg px-2 py-1 text-[10px] font-mono flex-1 outline-none" />
                             </div>
-                            <button onClick={handleCreateTask} className="w-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30 py-2 rounded-xl text-[10px] font-syncopate uppercase font-bold tracking-widest hover:bg-[#22c55e]/30 transition-colors">ADICIONAR</button>
+                            <button onClick={handleCreateTask} className="w-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30 py-2 rounded-xl text-[10px] font-syncopate uppercase font-bold tracking-widest hover:bg-[#22c55e]/30 transition-colors">{t('calendar.add')}</button>
                         </div>
                     )}
 
@@ -368,7 +370,7 @@ const FullCalendar = ({ onClose, onSelectDate }) => {
                                                     {isActive && (
                                                         <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full border border-white/30">
                                                             <div className="w-1 h-1 bg-white rounded-full animate-pulse"></div>
-                                                            <span className="text-[7px] font-mono tracking-widest text-white uppercase">Ativo</span>
+                                                            <span className="text-[7px] font-mono tracking-widest text-white uppercase">{t('calendar.active')}</span>
                                                         </div>
                                                     )}
                                                 </div>

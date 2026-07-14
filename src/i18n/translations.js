@@ -22,7 +22,21 @@ export const translations = {
       send: 'Enviar',
       toggleTheme: 'Alternar tema',
       months: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+      monthsShort: ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'],
       weekdaysSun: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    },
+    calendar: {
+      activeUpper: 'ATIVO', active: 'Ativo', newTask: 'Nova Tarefa',
+      taskTitlePh: 'TÍTULO DA TAREFA', preset: 'pré-selec.', categoryPh: 'CATEGORIA', add: 'ADICIONAR',
+      dayNames: ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'],
+    },
+    arena: {
+      notAuth: 'Nao autenticado', title: 'Arena', subtitle: 'competicoes fitness',
+      create: 'Criar', join: 'Entrar', profile: 'Perfil',
+      joinChallenge: 'Entrar em Desafio', enterCode: 'insira o codigo de 6 digitos',
+      codePh: 'Digite o codigo aqui...', syncing: 'sincronizando arena',
+      activeChallenges: 'desafios ativos', ended: 'encerrados',
+      noChallenges: 'Nenhum desafio', noChallengesSub: 'Crie ou entre em um desafio para competir',
     },
     mentorChat: {
       error: 'Falha ao falar com o mentor. Tente novamente.',
@@ -368,7 +382,21 @@ export const translations = {
       send: 'Send',
       toggleTheme: 'Toggle theme',
       months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+      monthsShort: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
       weekdaysSun: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    },
+    calendar: {
+      activeUpper: 'ACTIVE', active: 'Active', newTask: 'New Task',
+      taskTitlePh: 'TASK TITLE', preset: 'preset', categoryPh: 'CATEGORY', add: 'ADD',
+      dayNames: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+    },
+    arena: {
+      notAuth: 'Not authenticated', title: 'Arena', subtitle: 'fitness competitions',
+      create: 'Create', join: 'Join', profile: 'Profile',
+      joinChallenge: 'Join Challenge', enterCode: 'enter the 6-digit code',
+      codePh: 'Type the code here...', syncing: 'syncing arena',
+      activeChallenges: 'active challenges', ended: 'ended',
+      noChallenges: 'No challenges', noChallengesSub: 'Create or join a challenge to compete',
     },
     mentorChat: {
       error: 'Failed to reach the mentor. Please try again.',

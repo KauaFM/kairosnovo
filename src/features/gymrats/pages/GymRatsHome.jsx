@@ -8,8 +8,10 @@ import ChallengeCard from '../components/ChallengeCard';
 import ChallengeDetail from './ChallengeDetail';
 import CreateChallenge from './CreateChallenge';
 import ProfileStats from './ProfileStats';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const GymRatsHome = ({ theme, toggleTheme }) => {
+    const { t } = useLang();
   const { challenges, loading, refresh } = useChallenges();
   const [view, setView] = useState('home');
   const [selectedChallengeId, setSelectedChallengeId] = useState(null);
@@ -31,7 +33,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
     setJoinError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Nao autenticado');
+      if (!session) throw new Error(t('arena.notAuth'));
       await joinChallenge(joinCode.trim(), session.user.id);
       setJoinCode('');
       setView('home');
@@ -103,8 +105,8 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
           <div className="px-5 pt-4 pb-5 relative z-10">
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h1 className="text-[22px] font-outfit font-black tracking-tight opacity-90 leading-tight">Arena</h1>
-                <p className="text-[9px] font-mono opacity-15 tracking-[0.25em] uppercase mt-1">competicoes fitness</p>
+                <h1 className="text-[22px] font-outfit font-black tracking-tight opacity-90 leading-tight">{t('arena.title')}</h1>
+                <p className="text-[9px] font-mono opacity-15 tracking-[0.25em] uppercase mt-1">{t('arena.subtitle')}</p>
               </div>
               <div className="flex items-center gap-1.5 mt-1">
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
@@ -127,7 +129,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
                   <Plus size={18} className="text-[#22c55e]" style={{ opacity: 0.7 }} />
                 </div>
-                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">Criar</span>
+                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">{t('arena.create')}</span>
               </button>
 
               <button
@@ -139,7 +141,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
                   <LogIn size={18} className="text-[#3b82f6]" style={{ opacity: 0.7 }} />
                 </div>
-                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">Entrar</span>
+                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">{t('arena.join')}</span>
               </button>
 
               <button
@@ -151,7 +153,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)' }}>
                   <History size={18} style={{ opacity: 0.35 }} />
                 </div>
-                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">Perfil</span>
+                <span className="text-[8px] font-mono font-bold tracking-[0.2em] uppercase opacity-40">{t('arena.profile')}</span>
               </button>
             </div>
 
@@ -169,8 +171,8 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                         <LogIn size={14} className="text-[#3b82f6]" style={{ opacity: 0.7 }} />
                       </div>
                       <div>
-                        <h3 className="text-[10px] font-outfit font-bold tracking-tight opacity-70">Entrar em Desafio</h3>
-                        <p className="text-[7px] font-mono opacity-20 tracking-[0.2em] uppercase">insira o codigo de 6 digitos</p>
+                        <h3 className="text-[10px] font-outfit font-bold tracking-tight opacity-70">{t('arena.joinChallenge')}</h3>
+                        <p className="text-[7px] font-mono opacity-20 tracking-[0.2em] uppercase">{t('arena.enterCode')}</p>
                       </div>
                     </div>
                     <button onClick={() => { setView('home'); setJoinError(''); setJoinCode(''); }} className="text-[8px] font-mono opacity-15 hover:opacity-50 transition-opacity px-2 py-1 rounded-lg hover:bg-[var(--card-hover)]">X</button>
@@ -204,7 +206,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                   <input
                     value={joinCode}
                     onChange={(e) => { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v.length <= 6) setJoinCode(v); }}
-                    placeholder="Digite o codigo aqui..."
+                    placeholder={t('arena.codePh')}
                     maxLength={6}
                     autoFocus
                     className="w-full text-center text-[14px] font-mono font-bold tracking-[0.5em] bg-transparent border rounded-2xl px-4 py-3 outline-none uppercase transition-all focus:border-[#3b82f6]/30 mb-4 relative z-10 placeholder:text-[10px] placeholder:tracking-[0.15em] placeholder:opacity-20 placeholder:normal-case"
@@ -228,7 +230,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
             {loading && (
               <div className="text-center py-20">
                 <Loader2 size={20} className="animate-spin mx-auto opacity-15 mb-4" />
-                <span className="text-[8px] font-mono opacity-15 tracking-[0.3em] uppercase">sincronizando arena</span>
+                <span className="text-[8px] font-mono opacity-15 tracking-[0.3em] uppercase">{t('arena.syncing')}</span>
               </div>
             )}
 
@@ -237,7 +239,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
               <div>
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" style={{ boxShadow: '0 0 6px rgba(34,197,94,0.5)' }} />
-                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold">desafios ativos</span>
+                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold">{t('arena.activeChallenges')}</span>
                   <span className="text-[8px] font-mono opacity-15">{activeChallenges.length}</span>
                 </div>
                 <div className="space-y-2">
@@ -252,7 +254,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
             {!loading && endedChallenges.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3 px-1">
-                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">encerrados</span>
+                  <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-20 font-bold">{t('arena.ended')}</span>
                   <span className="text-[8px] font-mono opacity-10">{endedChallenges.length}</span>
                 </div>
                 <div className="space-y-2">
@@ -276,8 +278,8 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                     <Swords size={28} className="opacity-20" />
                   </div>
 
-                  <h3 className="text-[14px] font-outfit font-bold tracking-tight opacity-70 mb-1">Nenhum desafio</h3>
-                  <p className="text-[9px] font-mono opacity-20 tracking-wider mb-6">Crie ou entre em um desafio para competir</p>
+                  <h3 className="text-[14px] font-outfit font-bold tracking-tight opacity-70 mb-1">{t('arena.noChallenges')}</h3>
+                  <p className="text-[9px] font-mono opacity-20 tracking-wider mb-6">{t('arena.noChallengesSub')}</p>
 
                   <div className="flex gap-2 justify-center">
                     <button
