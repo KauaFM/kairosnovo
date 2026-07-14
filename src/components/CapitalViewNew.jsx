@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import { isIncomeTx, isExpenseTx } from '../lib/txType';
 
 import { toLocalDateStr } from '../utils/dateUtils';
+import { useLang } from '../i18n/LanguageContext';
 import { useCompassPillar } from '../features/metrics/compass/hooks/useCompassData';
 import { PillarLayered } from '../features/metrics/compass/components/PillarLayered';
 
@@ -345,6 +346,8 @@ function SparklineCard({ theme, dynamicData }) {
 
 /* ─── Main Component ────────────────────────────────────── */
 export default function CapitalViewNew({ onBack, theme }) {
+    const { t: tr, lang } = useLang();
+    const catL = (c) => { const k = 'capital.cats.' + c; const v = tr(k); return v === k ? c : v; };
     const isLight = theme === 'light';
     const [tab, setTab] = useState('overview');
     const [period, setPeriod] = useState('MES');
@@ -402,7 +405,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             const gls = await getGoals();
             setGoals(gls.map(g => ({
                 id: g.id,
-                name: g.title || g.name || 'Nova Meta',
+                name: g.title || g.name || tr('capital.newGoal'),
                 current: g.current_amount || 0,
                 target: g.target_amount,
                 progress: Math.round(((g.current_amount || 0) / g.target_amount) * 100),
@@ -427,7 +430,7 @@ export default function CapitalViewNew({ onBack, theme }) {
 
     const handleDeleteTransaction = async (id, e) => {
         if (e) e.stopPropagation();
-        if (window.confirm('Tem certeza que deseja excluir esta transação?')) {
+        if (window.confirm(tr('capital.confirmDeleteTx'))) {
             try {
                 await deleteTransaction(id);
                 setTransactions(prev => prev.filter(t => t.id !== id));
@@ -441,7 +444,7 @@ export default function CapitalViewNew({ onBack, theme }) {
 
     const handleDeleteGoal = async (id, e) => {
         if (e) e.stopPropagation();
-        if (window.confirm('Tem certeza que deseja excluir esta meta?')) {
+        if (window.confirm(tr('capital.confirmDeleteGoal'))) {
             try {
                 await deleteFinancialGoal(id);
                 setGoals(prev => prev.filter(g => g.id !== id));
@@ -455,10 +458,10 @@ export default function CapitalViewNew({ onBack, theme }) {
 
     const handleAddFundsToGoal = async (id, currentProgress, target, e) => {
         if (e) e.stopPropagation();
-        const amountStr = window.prompt('Quanto deseja depositar nesta meta? (R$)');
+        const amountStr = window.prompt(tr('capital.depositPrompt'));
         if (!amountStr) return;
         const amount = parseFloat(amountStr.replace(',', '.'));
-        if (isNaN(amount) || amount <= 0) return alert('Valor inválido.');
+        if (isNaN(amount) || amount <= 0) return alert(tr('capital.invalidAmount'));
 
         try {
             await updateFinancialGoalProgress(id, amount);
@@ -501,7 +504,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             const gls = await getGoals();
             setGoals(gls.map(g => ({
                 id: g.id,
-                name: g.title || g.name || 'Nova Meta',
+                name: g.title || g.name || tr('capital.newGoal'),
                 current: g.current_amount || 0,
                 target: g.target_amount,
                 progress: Math.round(((g.current_amount || 0) / g.target_amount) * 100),
@@ -595,7 +598,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                 </button>
                 <div className="flex items-center gap-2">
                     {isLoading && <div className="w-2 h-2 rounded-full bg-[#22c55e] animate-ping"></div>}
-                    <span className="text-[9px] font-mono opacity-30 uppercase tracking-[0.35em]">Sistema Financeiro</span>
+                    <span className="text-[9px] font-mono opacity-30 uppercase tracking-[0.35em]">{tr('capital.title')}</span>
                 </div>
             </div>
 
@@ -667,7 +670,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
                 className="flex gap-2 mb-6 px-1.5"
             >
-                {['Visão Geral', 'Gastos', 'Metas', 'Métricas'].map((t, i) => {
+                {[tr('capital.tabOverview'), tr('capital.tabExpenses'), tr('capital.tabGoals'), tr('capital.tabMetrics')].map((t, i) => {
                     const key = TABS[i];
                     return (
                         <button
@@ -691,10 +694,10 @@ export default function CapitalViewNew({ onBack, theme }) {
                     >
                         {/* Cash Flow */}
                         <Card delay={0.05} style={{ padding: '18px' }}>
-                            <SLabel>Fluxo do Período</SLabel>
+                            <SLabel>{tr('capital.periodFlow')}</SLabel>
                             {[
-                                { label: 'Receita',  value: totals.income, total: totals.income || 1, color: '#22c55e', Icon: ArrowUpRight },
-                                { label: 'Despesa',  value: totals.expense, total: totals.income || 1, color: '#ef4444', Icon: ArrowDownRight },
+                                { label: tr('capital.income'),  value: totals.income, total: totals.income || 1, color: '#22c55e', Icon: ArrowUpRight },
+                                { label: tr('capital.expense'),  value: totals.expense, total: totals.income || 1, color: '#ef4444', Icon: ArrowDownRight },
                             ].map(({ label, value, total, color, Icon }) => (
                                 <div key={label} className="mb-4 last:mb-0">
                                     <div className="flex justify-between items-center mb-2">
@@ -720,7 +723,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                 </div>
                             ))}
                             <div className="mt-4 pt-4 flex justify-between items-center" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                <span className="text-[9px] font-mono opacity-35 uppercase tracking-widest">Saldo Líquido</span>
+                                <span className="text-[9px] font-mono opacity-35 uppercase tracking-widest">{tr('capital.netBalance')}</span>
                                 <span className="text-[22px] font-syncopate font-black" style={{ letterSpacing: '-0.02em' }}>R$ {totals.balance.toLocaleString('pt-BR')}</span>
                             </div>
                         </Card>
@@ -728,7 +731,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                         {/* Transactions */}
                         <Card delay={0.1} style={{ padding: '18px' }}>
                              <div className="flex justify-between items-center mb-4">
-                                <SLabel>Transações Recentes</SLabel>
+                                <SLabel>{tr('capital.recentTx')}</SLabel>
                                 <button 
                                     onClick={() => setShowAddForm(true)}
                                     className="p-1.5 rounded-lg border border-current/10 hover:bg-current/5 transition-colors"
@@ -745,10 +748,10 @@ export default function CapitalViewNew({ onBack, theme }) {
                                     className="mb-8 p-5 rounded-[24px] border border-zinc-200/50 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex flex-col gap-4 shadow-sm"
                                 >
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Descrição</label>
+                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.description')}</label>
                                         <input 
                                             type="text" 
-                                            placeholder="Ex: Uber, Mercado, Freelance"
+                                            placeholder={tr('capital.descPh')}
                                             className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono uppercase focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
                                             value={newTx.description}
                                             onChange={e => setNewTx({...newTx, description: e.target.value})}
@@ -756,7 +759,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                     </div>
                                     <div className="flex gap-3">
                                         <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Valor</label>
+                                            <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.amount')}</label>
                                             <input 
                                                 type="number" 
                                                 placeholder="0,00"
@@ -785,7 +788,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2 mt-1">
-                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Categoria</label>
+                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.category')}</label>
                                         <div className="flex flex-wrap gap-2">
                                             {Object.keys(CATEGORIES_ICONS).map(cat => (
                                                 <button
@@ -794,7 +797,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                                     onClick={(e) => { e.preventDefault(); setNewTx({...newTx, category: cat}); }}
                                                     className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 ${newTx.category === cat ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-md' : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
                                                 >
-                                                    {cat}
+                                                    {catL(cat)}
                                                 </button>
                                             ))}
                                         </div>
@@ -818,7 +821,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                             )}
                             <div className="flex flex-col">
                                 {transactions.length === 0 ? (
-                                    <div className="py-8 text-center opacity-30 text-[10px] font-mono uppercase tracking-widest">Nenhuma transação no período</div>
+                                    <div className="py-8 text-center opacity-30 text-[10px] font-mono uppercase tracking-widest">{tr('capital.noTxPeriod')}</div>
                                 ) : (
                                     transactions.map((tx, i) => {
                                         const Icon = CATEGORIES_ICONS[tx.category] || DollarSign;
@@ -836,7 +839,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                                     <Icon size={15} color={color} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <span className="block text-[12px] font-mono font-bold truncate uppercase">{tx.description || tx.category}</span>
+                                                    <span className="block text-[12px] font-mono font-bold truncate uppercase">{tx.description || catL(tx.category)}</span>
                                                     <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{tx.category} · {new Date(tx.date || tx.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
@@ -865,7 +868,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                     >
                         {/* Donut-like visual */}
                         <Card delay={0} style={{ padding: '18px' }}>
-                            <SLabel>Distribuição de Gastos</SLabel>
+                            <SLabel>{tr('capital.expenseDist')}</SLabel>
 
                             {/* Visual bar stack */}
                             <div className="flex w-full h-2.5 rounded-full overflow-hidden gap-[2px] mb-5">
@@ -918,7 +921,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                             </div>
 
                             <div className="mt-5 pt-4 flex justify-between" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                <span className="text-[9px] font-mono opacity-35 uppercase tracking-widest">Total de Gastos</span>
+                                <span className="text-[9px] font-mono opacity-35 uppercase tracking-widest">{tr('capital.totalExpenses')}</span>
                                 <span className="text-[14px] font-mono font-black" style={{ color: '#ef4444' }}>R$ {totals.expense.toLocaleString('pt-BR')}</span>
                             </div>
                         </Card>
@@ -933,7 +936,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                         className="flex flex-col gap-3"
                     >
                         {goals.length === 0 ? (
-                            <div className="py-20 text-center opacity-30 text-[10px] font-mono uppercase tracking-widest">Sem metas ativas no momento</div>
+                            <div className="py-20 text-center opacity-30 text-[10px] font-mono uppercase tracking-widest">{tr('capital.noActiveGoals')}</div>
                         ) : (
                             goals.map((goal, i) => (
                                 <Card key={goal.name} delay={i * 0.08} style={{ padding: '18px' }}>
@@ -968,13 +971,13 @@ export default function CapitalViewNew({ onBack, theme }) {
 
                                     <div className="flex justify-between items-center text-left">
                                         <div>
-                                            <span className="text-[8px] font-mono opacity-30 block uppercase tracking-widest mb-0.5">Atingido</span>
+                                            <span className="text-[8px] font-mono opacity-30 block uppercase tracking-widest mb-0.5">{tr('capital.reached')}</span>
                                             <span className="text-[13px] font-mono font-black" style={{ color: goal.color }}>
                                                 R$ <AnimCounter to={goal.current} duration={1000} />
                                             </span>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-[8px] font-mono opacity-30 block uppercase tracking-widest mb-0.5">Meta</span>
+                                            <span className="text-[8px] font-mono opacity-30 block uppercase tracking-widest mb-0.5">{tr('capital.goal')}</span>
                                             <span className="text-[13px] font-mono font-black opacity-50">
                                                 R$ {goal.target.toLocaleString('pt-BR')}
                                             </span>
@@ -1009,17 +1012,17 @@ export default function CapitalViewNew({ onBack, theme }) {
                                 className="mb-4 p-5 rounded-[24px] border border-zinc-200/50 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex flex-col gap-4 shadow-sm"
                             >
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Nome da Meta</label>
+                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.goalName')}</label>
                                     <input
                                         type="text"
-                                        placeholder="Ex: Viagem, Reserva"
+                                        placeholder={tr('capital.goalNamePh')}
                                         className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono uppercase focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
                                         value={newGoal.name}
                                         onChange={e => setNewGoal({ ...newGoal, name: e.target.value })}
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Valor Alvo (R$)</label>
+                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.targetAmount')}</label>
                                     <input
                                         type="number"
                                         placeholder="0,00"
@@ -1029,7 +1032,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2 mt-1">
-                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">Categoria Relacionada</label>
+                                    <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.relatedCategory')}</label>
                                     <div className="flex flex-wrap gap-2">
                                         {Object.keys(CATEGORIES_ICONS).map(cat => (
                                             <button
@@ -1065,7 +1068,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                 className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 text-[9px] font-mono uppercase tracking-widest font-bold transition-all active:scale-95 hover:opacity-70"
                                 style={{ border: '1px dashed var(--border-color)', opacity: 0.45 }}
                             >
-                                <Plus size={13} /> Nova Meta Financeira
+                                <Plus size={13} /> {tr('capital.newFinancialGoal')}
                             </button>
                         )}
                     </motion.div>
@@ -1083,7 +1086,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                         ) : (
                             <div className="flex flex-col items-center justify-center py-20 opacity-50">
                                 <Activity className="animate-spin mb-4" />
-                                <span className="text-[10px] font-mono tracking-widest uppercase">Extraindo Dados Neurais...</span>
+                                <span className="text-[10px] font-mono tracking-widest uppercase">{tr('capital.extracting')}</span>
                             </div>
                         )}
                     </motion.div>
