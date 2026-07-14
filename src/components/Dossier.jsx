@@ -11,9 +11,10 @@ import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 // Conquistas · badges reais
 import { AchievementBadges as OrvaxAchievementBadges } from '../features/achievements';
 import { useLang } from '../i18n/LanguageContext';
+import { locRankTitle, locRankStatus } from '../i18n/rankMetaEn';
 
 const Dossier = ({ theme, toggleTheme }) => {
-    const { t } = useLang();
+    const { t, lang } = useLang();
     const [isViewingRanks, setIsViewingRanks] = useState(false);
     const [isViewingMentors, setIsViewingMentors] = useState(false);
     const [isViewingGlobalRanking, setIsViewingGlobalRanking] = useState(false);
@@ -200,7 +201,7 @@ const Dossier = ({ theme, toggleTheme }) => {
                                 <div className="flex items-center justify-between">
                                     <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-50 flex items-center gap-1.5">
                                         <span style={{ color: userStats.rankColor || '#ef4444' }}>{userStats.rank}</span>
-                                        <span className="opacity-40 font-normal">{userStats.rankTitle}</span>
+                                        <span className="opacity-40 font-normal">{locRankTitle(userStats.rank, userStats.rankTitle, lang)}</span>
                                     </span>
                                     <span className="text-[8px] font-mono font-bold opacity-30">{userStats.nextAt ? `→ ${userStats.nextAt} XP` : 'MAX'}</span>
                                 </div>
@@ -285,7 +286,7 @@ const Dossier = ({ theme, toggleTheme }) => {
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[7px] font-mono font-bold opacity-25 uppercase tracking-[0.2em] block mb-1.5">Status</span>
-                                                <span className="text-xl font-outfit font-black uppercase tracking-wide" style={{ color: userStats.rankColor || '#ef4444', opacity: 0.85 }}>{userStats.rankStatus || t('dossier.critical')}</span>
+                                                <span className="text-xl font-outfit font-black uppercase tracking-wide" style={{ color: userStats.rankColor || '#ef4444', opacity: 0.85 }}>{locRankStatus(userStats.rankStatus, lang) || t('dossier.critical')}</span>
                                             </div>
                                         </div>
                                     </button>
