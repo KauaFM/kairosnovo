@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { PILLARS, getPillar } from '../../pillars';
 import { useLang } from '../../../../i18n/LanguageContext';
+import { PILLARS_EN } from '../../../../i18n/pillarsEn';
 import type { CreateKind, CreatePayload, PillarKey } from '../../types';
 import { supabase } from '../../../../lib/supabase';
 import { createTransaction, createGoal as createFinancialGoal } from '../../services/finance';
@@ -69,7 +70,8 @@ interface Props {
 }
 
 export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKind }: Props) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const pL = (p: any, f: string) => (lang === 'en' && PILLARS_EN[p.key]) ? PILLARS_EN[p.key][f] : p[f];
   const [kind, setKind] = useState<CreateKind>(defaultKind || 'task');
   const [pillar, setPillar] = useState<PillarKey>(defaultPillar || 'productivity');
   const [title, setTitle] = useState('');
@@ -271,7 +273,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
           </div>
           <button
             onClick={onClose}
-            aria-label="Fechar"
+            aria-label={t('create.f.close')}
             className="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
           >
             <X size={18} />
@@ -283,7 +285,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
           <div>
             <div className="flex items-baseline justify-between mb-2">
               <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-500">
-                1. O que você vai criar?
+                {t('create.step1')}
               </label>
               <span className="text-[9px] font-mono text-zinc-400">+{currentKind.xp} XP</span>
             </div>
@@ -316,7 +318,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
           {/* pillar picker — MONO */}
           <div>
             <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-500 block mb-2">
-              2. Qual área da vida?
+              {t('create.step2')}
             </label>
             <div className="grid grid-cols-5 gap-1.5">
               {PILLARS.map((p) => {
@@ -326,8 +328,8 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                   <button
                     key={p.key}
                     onClick={() => setPillar(p.key)}
-                    title={p.label}
-                    aria-label={p.label}
+                    title={pL(p, 'label')}
+                    aria-label={pL(p, 'label')}
                     className={[
                       'aspect-square rounded-2xl border flex items-center justify-center transition-all active:scale-95',
                       active
@@ -341,8 +343,8 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               })}
             </div>
             <p className="mt-2 text-[11px] text-zinc-600 dark:text-zinc-300 leading-snug">
-              <span className="font-semibold uppercase tracking-wider">{pillarCfg.label}</span>
-              <span className="text-zinc-500"> · {pillarCfg.description}</span>
+              <span className="font-semibold uppercase tracking-wider">{pL(pillarCfg, 'label')}</span>
+              <span className="text-zinc-500"> · {pL(pillarCfg, 'description')}</span>
             </p>
           </div>
 
@@ -351,13 +353,13 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
 
           <div>
             <label className="text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-500 block mb-3">
-              3. Detalhes
+              {t('create.step3')}
             </label>
 
             <div className="space-y-3">
               {/* campos variáveis por tipo */}
               {kind !== 'transaction' && (
-                <Field label="Título" help="Dê um nome curto e claro">
+                <Field label={t('create.f.title')} help={t('create.f.titleHelp')}>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -376,13 +378,13 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {/* ── HÁBITO ── */}
               {kind === 'habit' && (
                 <>
-                  <Field label="Com que frequência?" help="Todo dia ou algumas vezes por semana">
+                  <Field label={t('create.f.freq')} help={t('create.f.freqHelp')}>
                     <div className="grid grid-cols-2 gap-2">
                       <SegButton active={habitFreq === 'daily'} onClick={() => setHabitFreq('daily')}>
-                        TODO DIA
+                        {t('create.everyDay')}
                       </SegButton>
                       <SegButton active={habitFreq === 'weekly'} onClick={() => setHabitFreq('weekly')}>
-                        {habitFreq === 'weekly' ? `${habitTimes}X POR SEMANA` : 'X POR SEMANA'}
+                        {habitFreq === 'weekly' ? t('create.perWeekN', { n: habitTimes }) : t('create.perWeek')}
                       </SegButton>
                     </div>
                     {habitFreq === 'weekly' && (
@@ -405,7 +407,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     )}
                   </Field>
 
-                  <Field label="Gatilho" help="Opcional — quando você vai fazer?">
+                  <Field label={t('create.f.trigger')} help={t('create.f.triggerHelp')}>
                     <input
                       value={habitCue}
                       onChange={(e) => setHabitCue(e.target.value)}
@@ -414,7 +416,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     />
                   </Field>
 
-                  <Field label="Recompensa" help="Opcional — o que você ganha com isso?">
+                  <Field label={t('create.f.reward')} help={t('create.f.rewardHelp')}>
                     <input
                       value={habitReward}
                       onChange={(e) => setHabitReward(e.target.value)}
@@ -428,24 +430,24 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {/* ── DINHEIRO (transação) ── */}
               {kind === 'transaction' && (
                 <>
-                  <Field label="Entrou ou saiu?" help="Dinheiro que entrou na conta (receita) ou saiu (despesa)">
+                  <Field label={t('create.f.inOut')} help={t('create.f.inOutHelp')}>
                     <div className="grid grid-cols-2 gap-2">
                       <SegButton active={txType === 'expense'} onClick={() => setTxType('expense')}>
                         <ArrowDownRight size={16} strokeWidth={txType === 'expense' ? 2.6 : 2} />
-                        SAIU
+                        {t('create.outFlow')}
                       </SegButton>
                       <SegButton active={txType === 'income'} onClick={() => setTxType('income')}>
                         <ArrowUpRight size={16} strokeWidth={txType === 'income' ? 2.6 : 2} />
-                        ENTROU
+                        {t('create.inFlow')}
                       </SegButton>
                     </div>
                   </Field>
 
-                  <Field label="Valor" help="Em reais">
+                  <Field label={t('create.f.amount')} help={t('create.f.amountHelpReais')}>
                     <MoneyInput value={amount} onChange={setAmount} />
                   </Field>
 
-                  <Field label="Categoria" help="Pra onde foi / de onde veio">
+                  <Field label={t('create.f.category')} help={t('create.f.categoryHelp')}>
                     <input
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
@@ -454,7 +456,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     />
                   </Field>
 
-                  <Field label="Descrição" help="Opcional — onde foi feito">
+                  <Field label={t('create.f.description')} help={t('create.f.descHelp')}>
                     <input
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
@@ -468,10 +470,10 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {/* ── PAGAR ── */}
               {kind === 'payment' && (
                 <>
-                  <Field label="Valor" help="Quanto custa, em reais">
+                  <Field label={t('create.f.amount')} help={t('create.f.amountHelpCost')}>
                     <MoneyInput value={amount} onChange={setAmount} />
                   </Field>
-                  <Field label="Repete todo mês?" help="Assinatura, aluguel, mensalidade">
+                  <Field label={t('create.f.monthly')} help={t('create.f.monthlyHelp')}>
                     <div className="grid grid-cols-2 gap-2">
                       <SegButton active={!recurring} onClick={() => setRecurring(false)}>
                         SÓ UMA VEZ
@@ -488,7 +490,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {/* descrição livre (tipos que salvam esse campo) */}
               {(kind === 'task' || kind === 'goal' || kind === 'event' || kind === 'reminder' || kind === 'payment') && (
                 <Field
-                  label="Descrição"
+                  label={t('create.f.description')}
                   help={kind === 'goal' ? 'Opcional — por que essa meta importa?' : t('create.descOptional')}
                 >
                   <textarea
@@ -505,7 +507,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {kind === 'goal' && (
                 <>
                   <div className="grid grid-cols-2 gap-2">
-                    <Field label="Alvo (valor)" help="Número a alcançar">
+                    <Field label={t('create.f.target')} help={t('create.f.targetHelp')}>
                       <input
                         value={target}
                         onChange={(e) => setTarget(e.target.value.replace(/[^0-9.,]/g, ''))}
@@ -514,7 +516,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Unidade" help="km, R$, livros…">
+                    <Field label={t('create.f.unit')} help={t('create.f.unitHelp')}>
                       <input
                         value={unit}
                         onChange={(e) => setUnit(e.target.value)}
@@ -540,7 +542,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     ))}
                   </div>
 
-                  <Field label="Já tenho hoje" help="Opcional — seu ponto de partida">
+                  <Field label={t('create.f.haveToday')} help={t('create.f.haveTodayHelp')}>
                     <input
                       value={currentValue}
                       onChange={(e) => setCurrentValue(e.target.value.replace(/[^0-9.,]/g, ''))}
@@ -551,7 +553,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                   </Field>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <Field label="Prazo" help="Data limite">
+                    <Field label={t('create.f.deadline')} help={t('create.f.deadlineHelp')}>
                       <input
                         type="date"
                         value={deadline}
@@ -559,7 +561,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                         className={inputCls}
                       />
                     </Field>
-                    <Field label="Prioridade" help="Importância">
+                    <Field label={t('create.f.priority')} help={t('create.f.priorityHelp')}>
                       <div className="grid grid-cols-3 gap-1">
                         {([
                           { v: 'low',    l: '−' },
@@ -598,7 +600,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                     />
                   </Field>
                   {(kind === 'event' || kind === 'reminder' || kind === 'payment') && (
-                    <Field label="Hora" help="Opcional">
+                    <Field label={t('create.f.time')} help={t('create.f.optional')}>
                       <input
                         type="time"
                         value={time}
@@ -613,7 +615,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {/* ── EVENTO: término + local ── */}
               {kind === 'event' && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Termina às" help="Opcional">
+                  <Field label={t('create.f.endsAt')} help={t('create.f.optional')}>
                     <input
                       type="time"
                       value={timeEnd}
@@ -622,7 +624,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                       className={`${inputCls} disabled:opacity-40`}
                     />
                   </Field>
-                  <Field label="Local" help="Opcional">
+                  <Field label={t('create.f.location')} help={t('create.f.optional')}>
                     <input
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
@@ -635,7 +637,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
 
               {/* ── LEMBRETE: avisar antes ── */}
               {kind === 'reminder' && (
-                <Field label="Avisar antes" help="Quanto tempo antes do horário">
+                <Field label={t('create.f.remindBefore')} help={t('create.f.remindBeforeHelp')}>
                   <div className="grid grid-cols-4 gap-1.5">
                     {REMIND_OPTIONS.map((o) => (
                       <button
