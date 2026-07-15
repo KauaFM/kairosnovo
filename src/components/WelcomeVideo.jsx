@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLang } from '../i18n/LanguageContext';
+import { WELCOME_TEXT_EN } from '../i18n/welcomeTextEn';
 
 const textPhases = [
     { s: -0.3, d: 0 },
@@ -55,6 +57,7 @@ const textPhases = [
 ];
 
 const WelcomeVideo = ({ onComplete }) => {
+    const { lang } = useLang();
     const [step, setStep] = useState(0);
 
     useEffect(() => {
@@ -81,7 +84,9 @@ const WelcomeVideo = ({ onComplete }) => {
     }, [onComplete]);
 
     // Find current text based on step
-    const currentText = textPhases.find(p => p.s === step)?.t || "";
+    const currentText = (lang === 'en' && WELCOME_TEXT_EN[step] != null)
+        ? WELCOME_TEXT_EN[step]
+        : (textPhases.find(p => p.s === step)?.t || "");
 
     // Determine Entity Zoom Level based on steps
     let entityScale = "scale-100";

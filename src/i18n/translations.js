@@ -54,6 +54,7 @@ export const translations = {
       confirmDelete: 'Deletar este post permanentemente?',
     },
     admin: { titleRequired: 'Título obrigatório.', loading: 'Carregando...', sciencePh: 'CIÊNCIA' },
+    achievements: { unlocked: 'Conquistado', locked: 'Bloqueado', empty: 'Nenhuma conquista ainda', emptySub: 'Use o sistema pra começar a desbloquear.', cats: { geral: 'Geral', streak: 'Sequência', xp: 'Experiência', focus: 'Foco', financial: 'Financeiro' } },
     ranking: {
       emptyNetwork: 'Sua rede está vazia', addFriends: 'Adicione amigos para comparar progresso',
       noData: 'Sem Dados no Ranking', awaitingSync: 'Aguardando Sincronização Global...',
@@ -510,6 +511,7 @@ export const translations = {
       confirmDelete: 'Delete this post permanently?',
     },
     admin: { titleRequired: 'Title required.', loading: 'Loading...', sciencePh: 'SCIENCE' },
+    achievements: { unlocked: 'Unlocked', locked: 'Locked', empty: 'No achievements yet', emptySub: 'Use the system to start unlocking.', cats: { geral: 'General', streak: 'Streak', xp: 'Experience', focus: 'Focus', financial: 'Financial' } },
     ranking: {
       emptyNetwork: 'Your network is empty', addFriends: 'Add friends to compare progress',
       noData: 'No Ranking Data', awaitingSync: 'Awaiting Global Sync...',

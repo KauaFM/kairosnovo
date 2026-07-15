@@ -10,6 +10,7 @@
 // =============================================================
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLang } from '../../../i18n/LanguageContext';
 import { Lock, Check, Trophy, X, Sparkles } from 'lucide-react';
 
 export interface AchievementItem {
@@ -100,13 +101,13 @@ function BadgeTile({ a, index, onSelect }: { a: AchievementItem; index: number; 
       {a.unlocked ? (
         <span className="text-[7px] font-mono font-bold uppercase tracking-wider"
           style={{ color: ACCENT }}>
-          {a.xp_reward > 0 ? `+${a.xp_reward} XP` : 'Conquistado'}
+          {a.xp_reward > 0 ? `+${a.xp_reward} XP` : t('achievements.unlocked')}
         </span>
       ) : (
         <span className="flex items-center gap-1 text-[7px] font-mono uppercase tracking-wider opacity-25"
           style={{ color: 'var(--text-main)' }}>
           <Lock size={8} strokeWidth={2.5} />
-          {a.xp_reward > 0 ? `${a.xp_reward} XP` : 'Bloqueado'}
+          {a.xp_reward > 0 ? `${a.xp_reward} XP` : t('achievements.locked')}
         </span>
       )}
     </motion.button>
@@ -115,6 +116,7 @@ function BadgeTile({ a, index, onSelect }: { a: AchievementItem; index: number; 
 
 // ─── Componente principal ───────────────────────────────────────
 export function AchievementBadges({ achievements }: Props) {
+  const { t } = useLang();
   const [selected, setSelected] = useState<AchievementItem | null>(null);
 
   const groups = useMemo(() => {
@@ -131,8 +133,8 @@ export function AchievementBadges({ achievements }: Props) {
     return (
       <div className="text-center py-10 opacity-40">
         <Trophy size={22} className="mx-auto mb-3 opacity-40" />
-        <p className="text-[10px] font-mono tracking-widest uppercase">Nenhuma conquista ainda</p>
-        <p className="text-[9px] font-mono opacity-60 mt-1">Use o sistema pra começar a desbloquear.</p>
+        <p className="text-[10px] font-mono tracking-widest uppercase">{t('achievements.empty')}</p>
+        <p className="text-[9px] font-mono opacity-60 mt-1">{t('achievements.emptySub')}</p>
       </div>
     );
   }
@@ -146,7 +148,7 @@ export function AchievementBadges({ achievements }: Props) {
             <div key={cat}>
               <div className="flex items-center justify-between mb-2.5 px-0.5">
                 <span className="text-[9px] font-mono font-bold tracking-[0.28em] uppercase opacity-45">
-                  {CATEGORY_META[cat]?.label ?? cat}
+                  {t('achievements.cats.' + cat)}
                 </span>
                 <span className="text-[8px] font-mono tabular-nums opacity-30">{done}/{items.length}</span>
               </div>
