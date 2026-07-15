@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
 import {
   Camera, X, Check, AlertTriangle, Aperture,
   Maximize2, HardDrive, Clock, ChevronDown, ChevronUp,
