@@ -53,6 +53,7 @@ export const translations = {
       contentPh: 'Escreva o conteúdo completo aqui...',
       confirmDelete: 'Deletar este post permanentemente?',
     },
+    admin: { titleRequired: 'Título obrigatório.', loading: 'Carregando...', sciencePh: 'CIÊNCIA' },
     ranking: {
       emptyNetwork: 'Sua rede está vazia', addFriends: 'Adicione amigos para comparar progresso',
       noData: 'Sem Dados no Ranking', awaitingSync: 'Aguardando Sincronização Global...',
@@ -376,7 +377,7 @@ export const translations = {
       camera: 'CÂMERA',
       gallery: 'GALERIA',
       noFoodRecognized: 'Nenhum alimento reconhecido nesta foto.',
-      identifiedFoods: 'ALIMENTOS IDENTIFICADOS',
+      identifiedFoods: 'ALIMENTOS IDENTIFICADOS', dailyLimit: 'Limite Diário Atingido', fatShort: 'Gord', invalidFileType: 'INVALID_FILE_TYPE: Apenas imagens sao aceitas', fileTooLarge: 'FILE_TOO_LARGE: Limite maximo de 50MB',
       analyzeError: 'Erro ao analisar a foto. Tente novamente.',
       adding: 'ADICIONANDO...',
       add: 'ADICIONAR',
@@ -508,6 +509,7 @@ export const translations = {
       contentPh: 'Write the full content here...',
       confirmDelete: 'Delete this post permanently?',
     },
+    admin: { titleRequired: 'Title required.', loading: 'Loading...', sciencePh: 'SCIENCE' },
     ranking: {
       emptyNetwork: 'Your network is empty', addFriends: 'Add friends to compare progress',
       noData: 'No Ranking Data', awaitingSync: 'Awaiting Global Sync...',
@@ -831,7 +833,7 @@ export const translations = {
       camera: 'CAMERA',
       gallery: 'GALLERY',
       noFoodRecognized: 'No food recognized in this photo.',
-      identifiedFoods: 'IDENTIFIED FOODS',
+      identifiedFoods: 'IDENTIFIED FOODS', dailyLimit: 'Daily Limit Reached', fatShort: 'Fat', invalidFileType: 'INVALID_FILE_TYPE: Only images are accepted', fileTooLarge: 'FILE_TOO_LARGE: Max limit of 50MB',
       analyzeError: 'Error analyzing the photo. Please try again.',
       adding: 'ADDING...',
       add: 'ADD',

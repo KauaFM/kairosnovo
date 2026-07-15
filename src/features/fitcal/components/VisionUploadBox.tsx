@@ -62,6 +62,7 @@ export default function VisionUploadBox({
   onResult,
   onClose,
 }: VisionUploadBoxProps) {
+  const { t } = useLang();
   const [state, setState] = useState<ViewState>('idle');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -81,14 +82,14 @@ export default function VisionUploadBox({
 
     // Validate file type
     if (!f.type.startsWith('image/')) {
-      setError('INVALID_FILE_TYPE: Apenas imagens sao aceitas');
+      setError(t('fitcal.invalidFileType'));
       setState('error');
       return;
     }
 
     // Validate file size (50MB hard limit matches compression util)
     if (f.size > 50 * 1024 * 1024) {
-      setError('FILE_TOO_LARGE: Limite maximo de 50MB');
+      setError(t('fitcal.fileTooLarge'));
       setState('error');
       return;
     }
@@ -259,7 +260,7 @@ export default function VisionUploadBox({
                 <span className="block text-[8px] font-mono text-zinc-300 dark:text-zinc-700 tracking-wider">
                   {rateStatus.allowed
                     ? 'JPEG comprimido para 512x512 antes do envio'
-                    : 'Limite Diário Atingido'}
+                    : t('fitcal.dailyLimit')}
                 </span>
               </div>
 
@@ -453,7 +454,7 @@ export default function VisionUploadBox({
                 <span className="text-[7px] font-mono font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider text-right">Kcal</span>
                 <span className="text-[7px] font-mono font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider text-right">Prot</span>
                 <span className="text-[7px] font-mono font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider text-right">Carb</span>
-                <span className="text-[7px] font-mono font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider text-right">Gord</span>
+                <span className="text-[7px] font-mono font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider text-right">{t('fitcal.fatShort')}</span>
                 <span className="text-[7px] font-mono font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider text-right">Conf</span>
               </div>
 

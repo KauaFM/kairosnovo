@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLang } from '../i18n/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { Plus, Pencil, Trash2, Eye, EyeOff, Star, ArrowLeft, Save, AlertTriangle } from 'lucide-react';
 
@@ -19,6 +20,7 @@ const EMPTY = {
 };
 
 export default function AdminBlog() {
+    const { t } = useLang();
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
   const [view, setView]               = useState('list'); // 'list' | 'form'
@@ -48,7 +50,7 @@ export default function AdminBlog() {
   function openNew() { setEditingId(null); setForm(EMPTY); setError(''); setView('form'); }
 
   async function save() {
-    if (!form.title.trim()) { setError('Título obrigatório.'); return; }
+    if (!form.title.trim()) { setError(t('admin.titleRequired')); return; }
     setSaving(true); setError('');
     const payload = {
       ...form,
@@ -81,7 +83,7 @@ export default function AdminBlog() {
   // ── LOADING ──────────────────────────────────────────────────
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-[var(--bg-color)]">
-      <span className="font-mono text-xs tracking-[0.4em] text-[var(--text-main)] opacity-40 animate-pulse uppercase">Carregando...</span>
+      <span className="font-mono text-xs tracking-[0.4em] text-[var(--text-main)] opacity-40 animate-pulse uppercase">{t('admin.loading')}</span>
     </div>
   );
 
@@ -118,7 +120,7 @@ export default function AdminBlog() {
           className="flex items-center gap-2 text-[var(--text-main)] opacity-40 hover:opacity-100 transition-opacity"
         >
           <ArrowLeft size={16} />
-          <span className="font-black text-[10px] tracking-widest uppercase">Voltar</span>
+          <span className="font-black text-[10px] tracking-widest uppercase">{t('common.back')}</span>
         </button>
         <span className="font-black text-[10px] tracking-[0.4em] uppercase text-[var(--text-main)]">
           {editingId ? 'EDITAR POST' : 'NOVO POST'}
@@ -134,7 +136,7 @@ export default function AdminBlog() {
         <Field label="SUMMARY"         value={form.summary}      onChange={set('summary')}  multiline rows={2} />
         <Field label="CONTEÚDO"        value={form.content}      onChange={set('content')}  multiline rows={7} />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="CATEGORIA"       value={form.category}     onChange={set('category')}     placeholder="CIÊNCIA" />
+          <Field label="CATEGORIA"       value={form.category}     onChange={set('category')}     placeholder={t('admin.sciencePh')} />
           <Field label="READ TIME (min)" value={form.read_time_min} onChange={set('read_time_min')} type="number" />
         </div>
         <Field label="IMAGEM (URL)"    value={form.image_url}    onChange={set('image_url')}    placeholder="https://..." />
