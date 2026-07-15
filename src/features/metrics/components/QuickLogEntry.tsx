@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import { useLang } from '../../../i18n/LanguageContext';
+import { EN_AUDIT } from '../../../i18n/auditDomainsEn';
 import {
   X, Brain, Dumbbell, Users, Zap, Heart, TrendingUp,
   Briefcase, Sparkles, Check, Loader2, ChevronUp,
