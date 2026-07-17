@@ -243,7 +243,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
       onClose();
     } catch (e: any) {
       console.error('[CreationHub]', e);
-      setErr(e?.message || 'não deu pra salvar. tenta de novo.');
+      setErr(e?.message || t('lo.saveFailFallback'));
     } finally {
       setSaving(false);
     }
@@ -491,13 +491,13 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
               {(kind === 'task' || kind === 'goal' || kind === 'event' || kind === 'reminder' || kind === 'payment') && (
                 <Field
                   label={t('create.f.description')}
-                  help={kind === 'goal' ? 'Opcional — por que essa meta importa?' : t('create.descOptional')}
+                  help={kind === 'goal' ? t('lo.goalHelp') : t('create.descOptional')}
                 >
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={2}
-                    placeholder={kind === 'goal' ? 'quando bater vontade de desistir, é isso que segura…' : 'detalhes adicionais…'}
+                    placeholder={kind === 'goal' ? t('lo.goalPlaceholder') : t('lo.descPlaceholder')}
                     className={`${inputCls} resize-none`}
                   />
                 </Field>
@@ -537,7 +537,7 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
                             : 'border-zinc-200 dark:border-white/10 text-zinc-500 hover:border-zinc-500',
                         ].join(' ')}
                       >
-                        {u}
+                        {lang === 'en' ? (u === 'horas' ? 'hours' : u === 'livros' ? 'books' : u) : u}
                       </button>
                     ))}
                   </div>

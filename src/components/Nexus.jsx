@@ -269,12 +269,12 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                     <span 
                         className="text-[8px] font-mono tracking-[0.35em] uppercase font-bold text-[#22c55e] opacity-60"
                     >
-                        Monitoramento Ativo
+                        {t('nexus.monitoringActive')}
                     </span>
                 </div>
 
                 <h2 className="text-[18px] font-outfit font-black tracking-tight text-center max-w-[85%] leading-relaxed mb-4 opacity-85">
-                    Estou sempre te observando, <br />não erre.
+                    {t('nexus.watching1')} <br />{t('nexus.watching2')}
                 </h2>
 
                 {/* Rotating Quote */}

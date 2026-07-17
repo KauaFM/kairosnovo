@@ -413,7 +413,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             })));
         } catch (err) {
             console.error('createGoal Error:', err);
-            alert(`Erro na base de dados (RLS ou Schema): ${err.message}. A meta será adicionada localmente para visualização.`);
+            alert(tr('lo.dbErrGoal', { msg: err.message }));
             // Local Presentation Fallback so the UI updates and feels responsive to the user
             setShowGoalForm(false);
             setGoals(prev => [...prev, {
@@ -479,7 +479,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             }));
         } catch (err) {
             console.error('Add funds error:', err);
-            alert(`Erro no banco: ${err.message}. Atualizando localmente.`);
+            alert(tr('lo.dbErrFunds', { msg: err.message }));
             // Local fallback
             setGoals(prev => prev.map(g => {
                 if (g.id === id) {
@@ -515,7 +515,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             const monthly = await getMonthlyFinancialSummary(6);
             if (monthly && monthly.length > 0) {
                 setMonthlyData(monthly.map(m => ({
-                    month: new Date(m.month + '-01').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+                    month: new Date(m.month + '-01').toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short' }).replace('.', ''),
                     value: Math.abs(m.net)
                 })));
             }
@@ -611,7 +611,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                 style={{ color: headlineColor }}
             >
                 <p className="text-center text-[12px] font-outfit font-semibold tracking-[0.15em] mb-2 uppercase opacity-40">
-                    {period === 'MES' ? 'SALDO DO MÊS' : `SALDO (${period})`}
+                    {period === 'MES' ? tr('capital.balanceMonth') : tr('capital.balancePeriod', { period })}
                 </p>
                 <div className="flex items-baseline justify-center gap-1.5 px-4 overflow-hidden w-full">
                     <span className="text-[18px] md:text-[24px] font-outfit font-bold opacity-30 shrink-0">R$</span>
@@ -659,7 +659,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                             onClick={() => setPeriod(p)}
                             className={`flex-1 py-1.5 rounded-[12px] text-[9px] font-mono font-bold uppercase tracking-widest transition-all duration-300 ${period === p ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
                         >
-                            {p}
+                            {tr('capital.period.' + p)}
                         </button>
                     ))}
                 </div>
@@ -840,13 +840,13 @@ export default function CapitalViewNew({ onBack, theme }) {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <span className="block text-[12px] font-mono font-bold truncate uppercase">{tx.description || catL(tx.category)}</span>
-                                                    <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{tx.category} · {new Date(tx.date || tx.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
+                                                    <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{catL(tx.category)} · {new Date(tx.date || tx.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
                                                     <span className="text-[13px] font-mono font-black" style={{ color: isIncomeTx(tx) ? '#22c55e' : '#ef4444' }}>
                                                         {isIncomeTx(tx) ? '+' : '-'} R$ {tx.amount.toLocaleString('pt-BR')}
                                                     </span>
-                                                    <button onClick={(e) => handleDeleteTransaction(tx.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir Transação">
+                                                    <button onClick={(e) => handleDeleteTransaction(tx.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title={tr('lo.deleteTx')}>
                                                         <Trash2 size={12} />
                                                     </button>
                                                 </div>
@@ -992,10 +992,10 @@ export default function CapitalViewNew({ onBack, theme }) {
                                             Faltam R$ {Math.max(0, goal.target - goal.current).toLocaleString('pt-BR')}
                                         </span>
                                         <div className="flex items-center gap-1 ml-1 shrink-0">
-                                            <button onClick={(e) => handleAddFundsToGoal(goal.id, goal.progress, goal.target, e)} className="p-1.5 text-[#22c55e] bg-[#22c55e]/10 hover:bg-[#22c55e]/20 rounded-lg transition-all active:scale-95" title="Depositar">
+                                            <button onClick={(e) => handleAddFundsToGoal(goal.id, goal.progress, goal.target, e)} className="p-1.5 text-[#22c55e] bg-[#22c55e]/10 hover:bg-[#22c55e]/20 rounded-lg transition-all active:scale-95" title={tr('lo.deposit')}>
                                                 <Plus size={11} strokeWidth={3.5} />
                                             </button>
-                                            <button onClick={(e) => handleDeleteGoal(goal.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Excluir Meta">
+                                            <button onClick={(e) => handleDeleteGoal(goal.id, e)} className="p-1.5 opacity-30 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title={tr('lo.deleteGoal')}>
                                                 <Trash2 size={11} />
                                             </button>
                                         </div>

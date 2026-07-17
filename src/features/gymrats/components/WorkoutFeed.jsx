@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Heart, MessageCircle, Trash2, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { timeAgo, formatDuration, ACTIVITY_TYPES } from '../utils/formatters';
 import { toggleReaction, addComment, getComments, deleteWorkout } from '../services/checkinService';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const WorkoutCard = ({ workout, currentUserId, onDelete }) => {
+  const { t } = useLang();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [showComments, setShowComments] = useState(false);
@@ -108,7 +110,7 @@ const WorkoutCard = ({ workout, currentUserId, onDelete }) => {
       {/* Comments section */}
       {showComments && (
         <div className="mt-3 pt-3 border-t space-y-2" style={{ borderColor: 'var(--border-color)' }}>
-          {loadingComments && <span className="text-[10px] font-mono opacity-40">Carregando...</span>}
+          {loadingComments && <span className="text-[10px] font-mono opacity-40">{t('gym.loading')}</span>}
           {comments.map((c) => (
             <div key={c.id} className="flex gap-2">
               <div className="w-5 h-5 rounded-full overflow-hidden border flex-shrink-0 mt-0.5"
@@ -145,10 +147,11 @@ const WorkoutCard = ({ workout, currentUserId, onDelete }) => {
 };
 
 const WorkoutFeed = ({ workouts, currentUserId, onDelete }) => {
+  const { t } = useLang();
   if (!workouts.length) {
     return (
       <div className="text-center py-12 opacity-40">
-        <p className="text-[11px] font-mono tracking-wider">NENHUM TREINO REGISTRADO</p>
+        <p className="text-[11px] font-mono tracking-wider">{t('gym.noWorkouts')}</p>
         <p className="text-[9px] font-mono mt-1">Seja o primeiro a fazer check-in!</p>
       </div>
     );

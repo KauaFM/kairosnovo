@@ -37,7 +37,7 @@ import { ExecutionBoard } from '../features/vault/components/ExecutionBoard';
 import { useLang } from '../i18n/LanguageContext';
 
 const Vault = ({ habits = [], theme, toggleTheme }) => {
-    const { t } = useLang();
+    const { t, lang } = useLang();
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [mode, setMode] = useState('execucao'); // 'execucao' | 'agenda' | 'archive' | 'notes' | 'capital'
@@ -92,7 +92,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
         const userNotes = await getUserNotes();
         setNotes(userNotes.map(n => ({
             id: n.id,
-            date: new Date(n.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
+            date: new Date(n.updated_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
             text: n.content || n.title || t('vault.noteEmpty')
         })));
 
@@ -135,8 +135,8 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
             imgUrl: m.file_url,
             title: m.description || t('vault.noTitle'),
             type: m.segment || 'GERAL',
-            date: new Date(m.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase(),
-            time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            date: new Date(m.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short' }).toUpperCase(),
+            time: new Date(m.created_at).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' }),
             metric: '--',
             note: m.description,
             icon: m.segment === 'TREINO' ? Dumbbell : m.segment === 'FOCO' ? Brain : Quote
@@ -261,7 +261,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
             // Fallback local: Injeta a nota na UI de imediato para não impactar a experiência
             setNotes([{
                 id: Math.random(),
-                date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
+                date: new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase(),
                 text: newNote.trim()
             }, ...notes]);
             setNewNote('');
@@ -867,7 +867,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                     <div className="flex justify-between items-center mb-4 px-6">
                         <div>
                             <span className="text-[9px] font-mono opacity-35 uppercase tracking-[0.35em] block mb-0.5">{t('vault.visualMemory')}</span>
-                            <span className="text-[11px] font-syncopate font-black uppercase tracking-widest">{archiveLogs.length} Registros</span>
+                            <span className="text-[11px] font-syncopate font-black uppercase tracking-widest">{archiveLogs.length} {t('vault.records')}</span>
                         </div>
                     </div>
                      {/* Add Media Button & Form */}
@@ -882,7 +882,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                     onClick={() => setShowAddMedia(true)}
                                     className="w-full py-5 rounded-[28px] border border-dashed border-current/20 flex items-center justify-center gap-3 text-[10px] font-syncopate font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 hover:border-current/40 transition-all bg-current/[0.02]"
                                 >
-                                    <Plus size={16} /> Registrar Foto em Arquivo
+                                    <Plus size={16} /> {t('vault.logPhoto')}
                                 </motion.button>
                             ) : (
                                 <motion.div 
@@ -940,7 +940,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                             </div>
 
                                             <div className="flex flex-col gap-3">
-                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› DESCRIÇÃO OPERACIONAL</label>
+                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">{t('lo.descOperational')}</label>
                                                 <input 
                                                     type="text" 
                                                     placeholder={t('vault.mediaTitlePlaceholder')} 
@@ -951,7 +951,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
                                             </div>
 
                                             <div className="flex flex-col gap-4">
-                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">› SEGMENTAÇÃO</label>
+                                                <label className="text-[9px] font-mono uppercase tracking-[0.3em] font-bold opacity-50 italic px-1">{t('lo.segmentation')}</label>
                                                 <div className="flex p-1 bg-current/[0.05] rounded-[22px] border border-current/10 gap-1">
                                                     {['TREINO', 'FOCO', 'ESTILO', 'LIFE'].map((seg) => (
                                                         <button

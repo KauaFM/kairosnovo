@@ -54,7 +54,7 @@ const ChallengeCard = ({ challenge, onPress }) => {
               border: `1px solid ${isActive ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)'}`,
             }}
           >
-            {isActive ? 'ATIVO' : 'FIM'}
+            {isActive ? t('gym.activeChip') : t('gym.endedChip')}
           </div>
         </div>
 

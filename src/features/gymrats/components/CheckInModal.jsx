@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { X, Camera, Upload, Zap } from 'lucide-react';
 import { ACTIVITY_TYPES } from '../utils/formatters';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
+  const { t } = useLang();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [activityType, setActivityType] = useState('gym');
@@ -68,7 +70,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-main)' }}>CHECK-IN</h2>
-            <span className="text-[9px] font-mono opacity-40 tracking-widest">REGISTRAR TREINO</span>
+            <span className="text-[9px] font-mono opacity-40 tracking-widest">{t('gym.checkinTitle')}</span>
           </div>
           <button onClick={onClose} className="opacity-40 hover:opacity-100 transition-opacity">
             <X size={20} />
@@ -78,7 +80,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
         <div className="space-y-4">
           {/* Activity type selector */}
           <div>
-            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-2">ATIVIDADE</label>
+            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-2">{t('gym.activity')}</label>
             <div className="flex flex-wrap gap-1.5">
               {ACTIVITY_TYPES.map((a) => (
                 <button
@@ -98,11 +100,11 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
 
           {/* Title */}
           <div>
-            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">TITULO *</label>
+            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.titleLabel')}</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Treino de peito e triceps"
+              placeholder={t('gym.titlePh')}
               className={inputClass}
               style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
             />
@@ -110,11 +112,11 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
 
           {/* Description */}
           <div>
-            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">DESCRICAO</label>
+            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.descLabel')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detalhes do treino..."
+              placeholder={t('gym.descPh')}
               rows={2}
               className={inputClass + " resize-none"}
               style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
@@ -124,7 +126,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
           {/* Stats row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">DURACAO (min)</label>
+              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.duration')}</label>
               <input
                 type="number"
                 value={durationMin}
@@ -135,7 +137,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
               />
             </div>
             <div>
-              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">CALORIAS</label>
+              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.calories')}</label>
               <input
                 type="number"
                 value={calories}
@@ -147,7 +149,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
             </div>
             {(scoringType === 'steps' || scoringType === 'custom') && (
               <div>
-                <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">PASSOS</label>
+                <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.steps')}</label>
                 <input
                   type="number"
                   value={steps}
@@ -159,7 +161,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
               </div>
             )}
             <div>
-              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">DISTANCIA (km)</label>
+              <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.distance')}</label>
               <input
                 type="number"
                 step="0.1"
@@ -174,7 +176,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
 
           {/* Photo upload */}
           <div>
-            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">FOTO DO TREINO</label>
+            <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.workoutPhoto')}</label>
             <input type="file" accept="image/*" ref={fileRef} onChange={handleFileChange} className="hidden" />
             {preview ? (
               <div className="relative rounded-sm overflow-hidden border" style={{ borderColor: 'var(--border-color)' }}>
@@ -191,7 +193,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
                 style={{ borderColor: 'var(--border-color)' }}
               >
                 <Camera size={20} />
-                <span className="text-[10px] font-mono">Toque para adicionar foto</span>
+                <span className="text-[10px] font-mono">{t('gym.tapAddPhoto')}</span>
               </button>
             )}
           </div>
@@ -207,7 +209,7 @@ const CheckInModal = ({ open, onClose, onSubmit, scoringType }) => {
             }}
           >
             <Zap size={14} />
-            {submitting ? 'REGISTRANDO...' : 'REGISTRAR CHECK-IN'}
+            {submitting ? t('gym.submitting') : t('gym.submitCheckin')}
           </button>
         </div>
       </div>

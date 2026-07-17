@@ -9,7 +9,7 @@ import { Languages } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
 
 const LanguageToggle = ({ variant = 'default', className = '' }) => {
-  const { lang, toggle } = useLang();
+  const { lang, toggle, t } = useLang();
   const next = lang === 'pt' ? 'EN' : 'PT';
 
   const glass = variant === 'glass';
@@ -21,7 +21,7 @@ const LanguageToggle = ({ variant = 'default', className = '' }) => {
     <button
       type="button"
       onClick={toggle}
-      aria-label={lang === 'pt' ? 'Switch to English' : 'Mudar para Português'}
+      aria-label={t('lo.switchLang')}
       className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[10px] font-mono font-bold uppercase tracking-widest transition-all hover:opacity-100 opacity-80 active:scale-95 ${className}`}
       style={style}
     >

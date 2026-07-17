@@ -1,13 +1,15 @@
 import React from 'react';
 import { Trophy, TrendingUp, Flame } from 'lucide-react';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
 const Leaderboard = ({ leaderboard, currentUserId, loading }) => {
+  const { t } = useLang();
   if (loading) {
     return (
       <div className="text-center py-8">
-        <span className="text-[10px] font-mono opacity-40 tracking-wider animate-pulse">CALCULANDO RANKING...</span>
+        <span className="text-[10px] font-mono opacity-40 tracking-wider animate-pulse">{t('gym.calculatingRanking')}</span>
       </div>
     );
   }
@@ -16,7 +18,7 @@ const Leaderboard = ({ leaderboard, currentUserId, loading }) => {
     return (
       <div className="text-center py-8 opacity-40">
         <Trophy size={24} className="mx-auto mb-2 opacity-30" />
-        <p className="text-[11px] font-mono tracking-wider">SEM DADOS AINDA</p>
+        <p className="text-[11px] font-mono tracking-wider">{t('gym.noDataYet')}</p>
       </div>
     );
   }
@@ -92,9 +94,9 @@ const Leaderboard = ({ leaderboard, currentUserId, loading }) => {
               {/* Name */}
               <div className="flex-1 min-w-0">
                 <span className={`text-[11px] font-bold tracking-wide truncate block ${isMe ? 'text-[#22c55e]' : ''}`}>
-                  {entry.username} {isMe && '(voce)'}
+                  {entry.username} {isMe && t('gym.you')}
                 </span>
-                <span className="text-[9px] font-mono opacity-40">{entry.workouts} treinos</span>
+                <span className="text-[9px] font-mono opacity-40">{entry.workouts} {t('gym.workoutsSuffix')}</span>
               </div>
 
               {/* Points */}

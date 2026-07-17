@@ -30,7 +30,7 @@ interface ExecutionItem {
 }
 
 export function ExecutionBoard() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [items, setItems] = useState<ExecutionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -69,7 +69,7 @@ export function ExecutionBoard() {
       title: h.title,
       type: 'H',
       status: h.done_today ? 'done' : 'pending',
-      category: h.frequency === 'weekly' ? `${h.target_count || 1}×/SEM` : 'DIÁRIO',
+      category: h.frequency === 'weekly' ? `${h.target_count || 1}×/${t('exec.weekAbbr')}` : t('exec.daily'),
       raw: h
     }));
 
@@ -179,7 +179,7 @@ export function ExecutionBoard() {
     e.stopPropagation();
     const msg = item.type === 'T' 
       ? t('exec.confirmDelete') 
-      : 'ATENÇÃO: Isso deletará permanentemente este HÁBITO de todo o seu sistema. Continuar?';
+      : t('lo.confirmDeleteHabit');
       
     if (window.confirm(msg)) {
       // Optimistic Update
@@ -197,10 +197,10 @@ export function ExecutionBoard() {
   const missingCount = items.length - doneCount;
 
   // Insight generator
-  let insight = "SISTEMA INICIADO. EXECUTE SUAS DIRETRIZES.";
-  if (progress === 100) insight = "EXECUÇÃO PERFEITA. PROTOCOLO CONCLUÍDO.";
-  else if (progress > 50) insight = "PROGRESSO SÓLIDO. MANTENHA O RITMO.";
-  else if (progress > 0) insight = "TRABALHO INICIADO. FOCO NO PRÓXIMO BLOCO.";
+  let insight = t('exec.insight0');
+  if (progress === 100) insight = t('exec.insight100');
+  else if (progress > 50) insight = t('exec.insight50');
+  else if (progress > 0) insight = t('exec.insightStarted');
 
   return (
     <div className="animate-in fade-in duration-500 pb-20">
@@ -218,14 +218,14 @@ export function ExecutionBoard() {
             <div className="flex justify-between items-end">
               <div>
                 <h3 className="text-[10px] font-mono tracking-widest uppercase opacity-50 mb-1">
-                  {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                  {new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
                 </h3>
                 <div className="text-3xl font-syncopate font-black tracking-widest text-glow">
                   {progress}%
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-mono tracking-widest uppercase opacity-40">Status</span>
+                <span className="text-[10px] font-mono tracking-widest uppercase opacity-40">{t('exec.status')}</span>
                 <div className="flex items-center gap-2 mt-1">
                   <Activity size={14} className={progress > 0 ? "text-[var(--orvax-green)]" : "opacity-40"} />
                   <span className="text-[12px] font-space font-bold uppercase">{doneCount}/{items.length}</span>
@@ -255,7 +255,7 @@ export function ExecutionBoard() {
               onClick={() => setShowAddTask(true)}
               className="w-full py-5 rounded-[24px] border border-dashed border-current/20 flex items-center justify-center gap-3 text-[10px] font-syncopate font-black uppercase tracking-[0.3em] opacity-40 hover:opacity-100 hover:border-current/40 transition-all bg-current/[0.02]"
             >
-              <Plus size={16} /> Nova Diretriz Operacional
+              <Plus size={16} /> {t('exec.newDirective')}
             </motion.button>
           ) : (
             <motion.div 
@@ -275,8 +275,8 @@ export function ExecutionBoard() {
                 {/* Modo: diretriz única ou rotina recorrente */}
                 <div className="grid grid-cols-2 gap-2 mb-6">
                   {([
-                    { id: 'task' as const,  label: t('exec.singleTask'), sub: 'só hoje',        Icon: CheckSquare },
-                    { id: 'habit' as const, label: t('exec.routineHabit'), sub: 'se repete',   Icon: Repeat },
+                    { id: 'task' as const,  label: t('exec.singleTask'), sub: t('lo.subToday'),    Icon: CheckSquare },
+                    { id: 'habit' as const, label: t('exec.routineHabit'), sub: t('lo.subRepeats'), Icon: Repeat },
                   ]).map((m) => (
                     <button
                       key={m.id}
@@ -423,7 +423,7 @@ export function ExecutionBoard() {
                                 : 'bg-transparent border-current/10 opacity-40 hover:opacity-70 text-current'
                               }`}
                             >
-                              {habitFreq === 'weekly' ? `${habitTimes}× / Semana` : '×/ Semana'}
+                              {habitFreq === 'weekly' ? t('lo.perWeek', { n: habitTimes }) : t('lo.perWeekEmpty')}
                             </button>
                           </div>
                           {habitFreq === 'weekly' && (
@@ -462,7 +462,7 @@ export function ExecutionBoard() {
                         }`}
                       >
                         <BellRing size={14} className={newTask.is_important ? "animate-pulse" : ""} />
-                        {newTask.is_important ? "Prioridade Máxima Ativada" : "Marcar como Prioridade (Alerta)"}
+                        {newTask.is_important ? t('lo.priorityOn') : t('lo.priorityOff')}
                       </button>
                     </div>
                   )}
@@ -589,7 +589,7 @@ export function ExecutionBoard() {
                       <button 
                         onClick={(e) => handleDelete(e, item)}
                         className="opacity-40 hover:opacity-100 transition-opacity p-2 text-red-500 rounded-full hover:bg-red-500/10 active:scale-95"
-                        title="Remover Registro"
+                        title={t('lo.removeRecord')}
                       >
                         <Trash2 size={14} />
                       </button>

@@ -40,6 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const en = (typeof localStorage !== 'undefined' && localStorage.getItem('orvax_lang') === 'en');
       return (
         <div className="flex flex-col items-center justify-center min-h-[300px] px-8 py-12">
           {/* Icon */}
@@ -49,12 +50,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
           {/* Title */}
           <h2 className="text-[13px] font-mono font-bold text-neutral-700 dark:text-white/60 mb-2 uppercase tracking-wider">
-            {this.props.fallbackTitle || 'Falha no Modulo'}
+            {this.props.fallbackTitle || (en ? 'Module Failure' : 'Falha no Módulo')}
           </h2>
 
           {/* Error detail */}
           <p className="text-[9px] font-mono text-neutral-400 dark:text-white/20 text-center leading-relaxed mb-1 max-w-[280px]">
-            Um erro inesperado ocorreu neste componente.
+            {en ? 'An unexpected error occurred in this component.' : 'Um erro inesperado ocorreu neste componente.'}
           </p>
           {this.state.error && (
             <code className="text-[8px] font-mono text-neutral-300 dark:text-white/12 text-center mb-5 max-w-[300px] break-all">
@@ -68,7 +69,7 @@ export class ErrorBoundary extends Component<Props, State> {
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 dark:border-white/[0.06] text-[9px] font-mono font-bold uppercase tracking-wider text-neutral-500 dark:text-white/35 transition-all hover:border-neutral-400 dark:hover:border-white/15 hover:bg-neutral-50 dark:hover:bg-white/[0.02] active:scale-[0.97]"
           >
             <RefreshCw size={12} />
-            Tentar Novamente
+            {en ? 'Try Again' : 'Tentar Novamente'}
           </button>
         </div>
       );

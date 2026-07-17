@@ -70,7 +70,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
   }, []);
 
   return (
-    <ErrorBoundary fallbackTitle="Erro no Modulo Metricas">
+    <ErrorBoundary fallbackTitle={t('lo.metricsErr')}>
       {/* Fundo pontilhado · cobre a aba inteira. Cores seguem o tema
           (inline style não aceita dark: do Tailwind, então usamos o prop). */}
       <div
@@ -118,7 +118,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
             animation: 'compass-slide-up 0.3s ease-out',
           }}
         >
-          <ErrorBoundary fallbackTitle={`Erro no módulo ${activePillar}`}>
+          <ErrorBoundary fallbackTitle={t('lo.moduleErr', { p: activePillar })}>
             <PillarLayered data={pillarData} onBack={closePillar} />
           </ErrorBoundary>
         </div>
@@ -138,7 +138,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
         <button
           onClick={() => updateLogModal(true)}
           className="group flex items-center gap-2 h-11 pr-3 pl-3 rounded-full bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-100 border border-zinc-300 dark:border-white/15 shadow-md backdrop-blur-sm transition-all hover:scale-[1.03] active:scale-95"
-          aria-label="Registrar como foi o dia"
+          aria-label={t('lo.logDayAria')}
         >
           <ClipboardList size={15} />
           <span className="text-[10px] font-mono font-bold tracking-wider uppercase">{t('compass.logDay')}</span>
@@ -148,7 +148,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
         <button
           onClick={() => setCreatorOpen(true)}
           className="group flex items-center gap-2 h-14 pr-5 pl-4 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border border-white/10 shadow-xl transition-all hover:scale-[1.04] active:scale-95"
-          aria-label="Criar algo novo"
+          aria-label={t('lo.createNewAria')}
         >
           <div className="w-7 h-7 rounded-full flex items-center justify-center bg-white/15 dark:bg-zinc-900/15">
             <Plus size={20} strokeWidth={2.4} />

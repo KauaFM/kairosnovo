@@ -150,13 +150,13 @@ export default function PendingTodayPanel({ date }) {
       <header className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-[12px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-800 dark:text-zinc-100 flex items-center gap-1.5">
-            <Sparkles size={11} className="text-zinc-400" /> Tarefas Pendentes
+            <Sparkles size={11} className="text-zinc-400" /> {t('common.pending.title')}
           </h2>
           <span className="text-[9px] font-mono text-zinc-500 tracking-widest">
-            {pending.length} pendentes · {done.length} concluídas · OMNI-SYNC
+            {pending.length} {t('common.pending.pendingWord')} · {done.length} {t('common.pending.completedWord')} · OMNI-SYNC
           </span>
         </div>
-        <button onClick={load} className="opacity-40 hover:opacity-100 transition-opacity p-1" aria-label="Atualizar">
+        <button onClick={load} className="opacity-40 hover:opacity-100 transition-opacity p-1" aria-label={t('lo.refresh')}>
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>
       </header>

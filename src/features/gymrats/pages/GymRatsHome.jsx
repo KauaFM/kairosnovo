@@ -219,7 +219,7 @@ const GymRatsHome = ({ theme, toggleTheme }) => {
                     className="w-full py-3.5 rounded-2xl font-bold text-[10px] font-mono tracking-[0.2em] uppercase transition-all disabled:opacity-15 hover:brightness-110 active:scale-[0.98] relative z-10 flex items-center justify-center gap-2"
                     style={{ backgroundColor: '#3b82f6', color: '#fff', boxShadow: joinCode.length >= 6 ? '0 4px 20px rgba(59,130,246,0.3)' : 'none' }}
                   >
-                    {joining ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} /> ENTRAR NO DESAFIO</>}
+                    {joining ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} /> {t('gym.joinChallenge')}</>}
                   </button>
                 </div>
               );

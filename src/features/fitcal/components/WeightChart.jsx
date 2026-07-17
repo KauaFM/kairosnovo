@@ -1,11 +1,13 @@
 import React from 'react';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const WeightChart = ({ data = [] }) => {
+  const { t } = useLang();
   if (data.length === 0) {
     return (
       <div className="text-center py-6 opacity-40">
-        <p className="text-[10px] font-mono tracking-wider">SEM DADOS DE PESO</p>
+        <p className="text-[10px] font-mono tracking-wider">{t('lo.noWeightData')}</p>
       </div>
     );
   }
@@ -32,7 +34,7 @@ const WeightChart = ({ data = [] }) => {
   return (
     <div className="p-3 rounded-sm border" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] font-mono font-bold tracking-wider opacity-60">EVOLUCAO DE PESO</span>
+        <span className="text-[10px] font-mono font-bold tracking-wider opacity-60">{t('lo.weightEvolution')}</span>
         <div className="flex items-center gap-1">
           {trend === 'down' && <TrendingDown size={12} className="text-[#22c55e]" />}
           {trend === 'up' && <TrendingUp size={12} className="text-[#ef4444]" />}

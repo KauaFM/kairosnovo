@@ -112,7 +112,7 @@ const FriendsManager = ({ onClose, onChange }) => {
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 {tab === 'friends' && (
                     friends.length === 0 ? (
-                        <EmptyState text="Sem amigos ainda. Use a busca para adicionar." />
+                        <EmptyState text={t('lo.noFriends')} />
                     ) : (
                         <ul className="flex flex-col gap-2">
                             {friends.map(f => (
@@ -139,7 +139,7 @@ const FriendsManager = ({ onClose, onChange }) => {
 
                 {tab === 'requests' && (
                     requests.length === 0 ? (
-                        <EmptyState text="Nenhum pedido pendente." />
+                        <EmptyState text={t('lo.noRequests')} />
                     ) : (
                         <ul className="flex flex-col gap-2">
                             {requests.map(r => (
@@ -197,7 +197,7 @@ const FriendsManager = ({ onClose, onChange }) => {
                                 <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : results.length === 0 ? (
-                            <EmptyState text="Nenhum operador encontrado." />
+                            <EmptyState text={t('lo.noOperators')} />
                         ) : (
                             <ul className="flex flex-col gap-2">
                                 {results.map(u => (

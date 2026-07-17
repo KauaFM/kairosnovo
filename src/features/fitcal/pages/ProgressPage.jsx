@@ -5,8 +5,10 @@ import { useWeight } from '../hooks/useWeight';
 import { logWeight } from '../services/weightService';
 import { getWeeklySummary } from '../services/foodService';
 import WeightChart from '../components/WeightChart';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const ProgressPage = ({ onBack }) => {
+  const { t } = useLang();
   const { history, loading: weightLoading, refresh: refreshWeight } = useWeight(60);
   const [newWeight, setNewWeight] = useState('');
   const [saving, setSaving] = useState(false);
@@ -37,7 +39,7 @@ const ProgressPage = ({ onBack }) => {
       refreshWeight();
     } catch (err) {
       console.error('Weight save error:', err);
-      setError('Erro ao salvar peso. Verifique sua conexao ou perfil.');
+      setError(t('lo.weightSaveErr'));
     } finally {
       setSaving(false);
     }
@@ -50,8 +52,8 @@ const ProgressPage = ({ onBack }) => {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-sm font-bold tracking-wider">PROGRESSO</h2>
-          <span className="text-[9px] font-mono opacity-40 tracking-widest">PESO & NUTRICAO</span>
+          <h2 className="text-sm font-bold tracking-wider">{t('lo.progress')}</h2>
+          <span className="text-[9px] font-mono opacity-40 tracking-widest">{t('lo.weightNutrition')}</span>
         </div>
       </div>
       
@@ -65,7 +67,7 @@ const ProgressPage = ({ onBack }) => {
       <div className="p-3 rounded-sm border" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
         <div className="flex items-center gap-2 mb-2">
           <Scale size={14} className="text-[#22c55e]" />
-          <span className="text-[10px] font-mono font-bold tracking-wider opacity-60">REGISTRAR PESO</span>
+          <span className="text-[10px] font-mono font-bold tracking-wider opacity-60">{t('lo.logWeight')}</span>
         </div>
         <div className="flex gap-2">
           <input
@@ -84,7 +86,7 @@ const ProgressPage = ({ onBack }) => {
             className="px-4 rounded-sm font-bold text-[11px] tracking-wider transition-all disabled:opacity-30"
             style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)' }}
           >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : 'SALVAR'}
+            {saving ? <Loader2 size={14} className="animate-spin" /> : t('lo.save')}
           </button>
         </div>
       </div>
@@ -100,13 +102,13 @@ const ProgressPage = ({ onBack }) => {
 
       {/* Weekly summary */}
       <div>
-        <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-60 mb-3">RESUMO SEMANAL</h3>
+        <h3 className="text-[10px] font-mono font-bold tracking-wider opacity-60 mb-3">{t('lo.weeklySummary')}</h3>
         {summaryLoading ? (
           <div className="text-center py-4">
-            <span className="text-[10px] font-mono opacity-40 animate-pulse">CARREGANDO...</span>
+            <span className="text-[10px] font-mono opacity-40 animate-pulse">{t('lo.loadingUpper')}</span>
           </div>
         ) : weeklySummary.length === 0 ? (
-          <p className="text-center py-4 text-[10px] font-mono opacity-40">Nenhum dado esta semana</p>
+          <p className="text-center py-4 text-[10px] font-mono opacity-40">{t('lo.noDataWeek')}</p>
         ) : (
           <div className="space-y-1">
             {weeklySummary.map((day) => (

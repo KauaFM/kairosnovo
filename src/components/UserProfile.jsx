@@ -28,15 +28,15 @@ const SOURCE_META = {
     goal_complete: { label: 'META ✓',  Icon: Trophy },
 };
 
-function relTime(iso) {
+function relTime(iso, lang) {
     if (!iso) return '—';
     const d = new Date(iso);
     const diff = (Date.now() - d.getTime()) / 1000;
-    if (diff < 60)    return 'agora';
+    if (diff < 60)    return lang === 'en' ? 'now' : 'agora';
     if (diff < 3600)  return `${Math.floor(diff / 60)}min`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
     if (diff < 604800)return `${Math.floor(diff / 86400)}d`;
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short' });
 }
 
 function rankFromXP(xp) {
@@ -50,7 +50,7 @@ function rankFromXP(xp) {
 }
 
 const UserProfile = ({ user, onClose }) => {
-    const { t } = useLang();
+    const { t, lang } = useLang();
     const srcLabel = (src) => { const k = 'common.sources.' + src; const v = t(k); return v === k ? (SOURCE_META[src]?.label || t('common.sources.system')) : v; };
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -125,14 +125,14 @@ const UserProfile = ({ user, onClose }) => {
                 <div className="grid grid-cols-3 gap-3">
                     <KPI label="Streak"   value={`${p.streak_days ?? 0}d`} Icon={Flame} />
                     <KPI label="Tasks 7d" value={pillars.tasks_7d ?? 0}    Icon={CheckSquare} />
-                    <KPI label="Hábitos 7d" value={pillars.habits_7d ?? 0} Icon={Activity} />
+                    <KPI label={t('lo.habits7d')} value={pillars.habits_7d ?? 0} Icon={Activity} />
                 </div>
                 <div className="grid grid-cols-3 gap-3 mt-3">
                     <KPI label="XP 7d"   value={pillars.xp_7d ?? 0}    Icon={Zap} />
-                    <KPI label="XP hoje" value={stats.today_xp ?? 0}   Icon={TrendingUp} />
-                    <KPI label="Desde" value={
+                    <KPI label={t('lo.xpToday')} value={stats.today_xp ?? 0}   Icon={TrendingUp} />
+                    <KPI label={t('lo.since')} value={
                         p.created_at
-                          ? new Date(p.created_at).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+                          ? new Date(p.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short', year: '2-digit' })
                           : '—'
                     } Icon={Calendar} />
                 </div>
@@ -175,7 +175,7 @@ const UserProfile = ({ user, onClose }) => {
                 <div className="flex items-center gap-2 mb-3">
                     <Activity size={12} className="opacity-50" />
                     <span className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] opacity-60">
-                        O que está fazendo
+                        {t('lo.whatDoing')}
                     </span>
                 </div>
                 {loading ? (
@@ -184,7 +184,7 @@ const UserProfile = ({ user, onClose }) => {
                     </div>
                 ) : recent.length === 0 ? (
                     <p className="text-[10px] font-mono opacity-40 py-4 text-center">
-                        Nenhuma atividade recente registrada.
+                        {t('lo.noRecentActivity')}
                     </p>
                 ) : (
                     <ul className="flex flex-col">
@@ -214,7 +214,7 @@ const UserProfile = ({ user, onClose }) => {
                                             <span className="text-[7px] font-mono font-normal opacity-40 ml-0.5">XP</span>
                                         </span>
                                         <span className="text-[8px] font-mono opacity-40 tabular-nums">
-                                            {relTime(it.created_at)}
+                                            {relTime(it.created_at, lang)}
                                         </span>
                                     </div>
                                 </li>

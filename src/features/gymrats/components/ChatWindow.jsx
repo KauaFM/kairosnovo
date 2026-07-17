@@ -3,8 +3,10 @@ import { Send, MessageCircle } from 'lucide-react';
 import { sendMessage } from '../services/chatService';
 import { useChat } from '../hooks/useChat';
 import { timeAgo } from '../utils/formatters';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const ChatWindow = ({ challengeId, userId }) => {
+  const { t } = useLang();
   const { messages, loading } = useChat(challengeId);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -33,14 +35,14 @@ const ChatWindow = ({ challengeId, userId }) => {
       <div className="flex-1 overflow-y-auto space-y-2 pb-3" style={{ scrollbarWidth: 'none' }}>
         {loading && (
           <div className="text-center py-8">
-            <span className="text-[10px] font-mono opacity-40 animate-pulse tracking-wider">CARREGANDO MENSAGENS...</span>
+            <span className="text-[10px] font-mono opacity-40 animate-pulse tracking-wider">{t('gym.loadingMsgs')}</span>
           </div>
         )}
         {!loading && messages.length === 0 && (
           <div className="text-center py-12 opacity-30">
             <MessageCircle size={24} className="mx-auto mb-2" />
-            <p className="text-[10px] font-mono tracking-wider">CHAT VAZIO</p>
-            <p className="text-[9px] font-mono mt-1">Envie a primeira mensagem!</p>
+            <p className="text-[10px] font-mono tracking-wider">{t('gym.chatEmpty')}</p>
+            <p className="text-[9px] font-mono mt-1">{t('gym.sendFirst')}</p>
           </div>
         )}
         {messages.map((msg) => {
@@ -86,7 +88,7 @@ const ChatWindow = ({ challengeId, userId }) => {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Mensagem..."
+          placeholder={t('gym.messagePh')}
           className="flex-1 text-[12px] font-mono bg-transparent border rounded-sm px-3 py-2.5 outline-none transition-all focus:border-[#22c55e]/50"
           style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
         />

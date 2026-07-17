@@ -52,6 +52,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // ─── CALORIE RING ───────────────────────────────────────────────────────────────
 const CalorieRing = ({ consumed, goal, onGoalChange }) => {
+  const { t } = useLang();
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState('');
 
@@ -135,7 +136,7 @@ const CalorieRing = ({ consumed, goal, onGoalChange }) => {
         <div className="flex items-center gap-2 pt-1">
           <div className={`w-2 h-2 rounded-full ${isOver ? 'bg-red-400 animate-pulse' : pct > 85 ? 'bg-amber-400' : 'bg-emerald-400'}`} />
           <span className="text-[8px] font-mono opacity-25 tracking-[0.15em] uppercase">
-            {isOver ? 'excedido' : pct > 85 ? 'proximo ao limite' : 'no caminho'}
+            {isOver ? t('lo.over') : pct > 85 ? t('lo.nearLimit') : t('lo.onTrack')}
           </span>
         </div>
       </div>
@@ -315,7 +316,9 @@ const StatCard = ({ icon: Icon, label, value, unit, sub }) => (
 );
 
 // ─── FOOD DIARY ─────────────────────────────────────────────────────────────────
-const DiarySection = ({ entries, onAddMeal, onDeleteEntry }) => (
+const DiarySection = ({ entries, onAddMeal, onDeleteEntry }) => {
+  const { t } = useLang();
+  return (
   <div className="space-y-3">
     {MEAL_TYPES.map((meal) => {
       const items = entries[meal.value] || [];
@@ -369,14 +372,15 @@ const DiarySection = ({ entries, onAddMeal, onDeleteEntry }) => (
               className="w-full py-4 text-center border-t transition-colors hover:bg-[var(--card-hover)]"
               style={{ borderColor: 'var(--border-color)' }}
             >
-              <span className="text-[8px] font-mono tracking-[0.2em] opacity-15">+ adicionar</span>
+              <span className="text-[8px] font-mono tracking-[0.2em] opacity-15">{t('lo.addBtn')}</span>
             </button>
           )}
         </div>
       );
     })}
   </div>
-);
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MONTH CALENDAR MODAL
@@ -850,7 +854,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                           backgroundColor: isLight ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                         } : {}}
                       >
-                        {p}
+                        {t('capital.period.' + p)}
                       </button>
                     ))}
                   </div>
@@ -922,7 +926,7 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                     <Dumbbell size={13} className="opacity-25" />
                     <span className="text-[9px] font-mono uppercase tracking-[0.25em] opacity-30 font-bold">execution map</span>
                   </div>
-                  <span className="text-[7px] font-mono opacity-12 tracking-wider">12 semanas</span>
+                  <span className="text-[7px] font-mono opacity-12 tracking-wider">{t('lo.weeks12')}</span>
                 </div>
                 <Heatmap data={heatmapData} />
                 {/* Scale */}

@@ -123,7 +123,7 @@ export default function AdminBlog() {
           <span className="font-black text-[10px] tracking-widest uppercase">{t('common.back')}</span>
         </button>
         <span className="font-black text-[10px] tracking-[0.4em] uppercase text-[var(--text-main)]">
-          {editingId ? 'EDITAR POST' : 'NOVO POST'}
+          {editingId ? t('admin.editPost') : t('admin.newPost')}
         </span>
       </div>
 
@@ -132,30 +132,30 @@ export default function AdminBlog() {
       )}
 
       <div className="space-y-4">
-        <Field label="TÍTULO *"        value={form.title}        onChange={set('title')} />
+        <Field label={t('admin.fTitle')}        value={form.title}        onChange={set('title')} />
         <Field label="SUMMARY"         value={form.summary}      onChange={set('summary')}  multiline rows={2} />
-        <Field label="CONTEÚDO"        value={form.content}      onChange={set('content')}  multiline rows={7} />
+        <Field label={t('admin.fContent')}        value={form.content}      onChange={set('content')}  multiline rows={7} />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="CATEGORIA"       value={form.category}     onChange={set('category')}     placeholder={t('admin.sciencePh')} />
+          <Field label={t('admin.fCategory')}       value={form.category}     onChange={set('category')}     placeholder={t('admin.sciencePh')} />
           <Field label="READ TIME (min)" value={form.read_time_min} onChange={set('read_time_min')} type="number" />
         </div>
-        <Field label="IMAGEM (URL)"    value={form.image_url}    onChange={set('image_url')}    placeholder="https://..." />
+        <Field label={t('admin.fImage')}    value={form.image_url}    onChange={set('image_url')}    placeholder="https://..." />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="AUTOR"           value={form.author_name}  onChange={set('author_name')} />
+          <Field label={t('admin.fAuthor')}           value={form.author_name}  onChange={set('author_name')} />
           <Field label="AVATAR (URL)"    value={form.author_avatar} onChange={set('author_avatar')} placeholder="https://..." />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="DIA"   value={form.date_day}   onChange={set('date_day')}   placeholder="24" />
-          <Field label="MÊS"   value={form.date_month} onChange={set('date_month')} placeholder="MAR" />
+          <Field label={t('admin.fDay')}   value={form.date_day}   onChange={set('date_day')}   placeholder="24" />
+          <Field label={t('admin.fMonth')}   value={form.date_month} onChange={set('date_month')} placeholder="MAR" />
         </div>
 
         <div className="grid grid-cols-2 gap-3 pt-1">
-          <Toggle label="PUBLICADO" checked={!!form.published}   onChange={set('published')} />
+          <Toggle label={t('admin.fPublished')} checked={!!form.published}   onChange={set('published')} />
           <Toggle label="HIGHLIGHT" checked={!!form.is_highlight} onChange={set('is_highlight')} />
         </div>
 
         {form.is_highlight && (
-          <Field label="ORDEM DO HIGHLIGHT" value={form.highlight_order} onChange={set('highlight_order')} type="number" />
+          <Field label={t('admin.fHighlightOrder')} value={form.highlight_order} onChange={set('highlight_order')} type="number" />
         )}
       </div>
 
@@ -165,7 +165,7 @@ export default function AdminBlog() {
         className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 px-8 py-4 bg-[var(--text-main)] text-[var(--bg-color)] font-black text-xs tracking-widest uppercase rounded-full shadow-lg disabled:opacity-40 active:scale-95 transition-all"
       >
         <Save size={15} />
-        {saving ? 'SALVANDO...' : 'SALVAR POST'}
+        {saving ? t('admin.saving') : t('admin.savePost')}
       </button>
     </div>
   );
@@ -238,7 +238,7 @@ export default function AdminBlog() {
                   onClick={() => toggle(post.id, 'is_highlight', post.is_highlight)} />
 
                 <div className="ml-auto flex items-center gap-3">
-                  <ActionBtn icon={<Pencil size={13}/>} label="EDITAR"
+                  <ActionBtn icon={<Pencil size={13}/>} label={t('admin.edit')}
                     onClick={() => openEdit(post.id)} />
                   <ActionBtn icon={<Trash2 size={13}/>} label="DEL"
                     onClick={() => setDeleteTarget(post.id)} />

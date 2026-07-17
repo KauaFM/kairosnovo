@@ -87,7 +87,7 @@ const FoodScanner = ({ userId, mealType, onResult, onClose }) => {
           </div>
         ) : (
           <div className="relative rounded-sm overflow-hidden border mb-4" style={{ borderColor: 'var(--border-color)' }}>
-            <img src={preview} alt="Foto da refeicao" className="w-full max-h-52 object-cover" />
+            <img src={preview} alt={t('lo.mealPhotoAlt')} className="w-full max-h-52 object-cover" />
             <button
               onClick={() => { setFile(null); setPreview(null); setResults(null); }}
               className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"

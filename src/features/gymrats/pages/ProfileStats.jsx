@@ -44,10 +44,10 @@ const ProfileStats = ({ onBack }) => {
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-2">
         {[
-          { label: 'TOTAL TREINOS', value: stats.total, icon: Dumbbell, color: '#22c55e' },
-          { label: 'PONTOS TOTAIS', value: stats.totalPoints.toFixed(0), icon: Trophy, color: '#FFD700' },
-          { label: 'MINUTOS TOTAIS', value: formatDuration(stats.totalMinutes), icon: Clock, color: '#3b82f6' },
-          { label: 'CALORIAS', value: stats.totalCalories.toLocaleString(), icon: Flame, color: '#ef4444' },
+          { label: t('gym.totalWorkouts'), value: stats.total, icon: Dumbbell, color: '#22c55e' },
+          { label: t('gym.totalPoints'), value: stats.totalPoints.toFixed(0), icon: Trophy, color: '#FFD700' },
+          { label: t('gym.totalMinutes'), value: formatDuration(stats.totalMinutes), icon: Clock, color: '#3b82f6' },
+          { label: t('gym.caloriesLabel'), value: stats.totalCalories.toLocaleString(), icon: Flame, color: '#ef4444' },
         ].map((s, i) => (
           <div key={i} className="p-3 rounded-sm border" style={{ backgroundColor: 'var(--glass-bg)', borderColor: 'var(--border-color)' }}>
             <div className="flex items-center gap-2 mb-2">

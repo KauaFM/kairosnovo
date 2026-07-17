@@ -1,7 +1,9 @@
 import React from 'react';
 import { SCORING_TYPES, ACTIVITY_TYPES } from '../utils/formatters';
+import { useLang } from '../../../i18n/LanguageContext';
 
 const ScoringConfig = ({ scoringType, setScoringType, config, setConfig }) => {
+  const { t } = useLang();
   const handleConfigChange = (key, value) => {
     setConfig((prev) => ({ ...prev, [key]: parseFloat(value) || 0 }));
   };
@@ -32,7 +34,7 @@ const ScoringConfig = ({ scoringType, setScoringType, config, setConfig }) => {
       {/* Config fields based on type */}
       {scoringType === 'workouts' && (
         <div>
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">PONTOS POR TREINO</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.ptsPerWorkout')}</label>
           <input
             type="number"
             value={config.per_workout ?? 1}
@@ -45,7 +47,7 @@ const ScoringConfig = ({ scoringType, setScoringType, config, setConfig }) => {
 
       {scoringType === 'minutes' && (
         <div>
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">PONTOS POR MINUTO</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.ptsPerMinute')}</label>
           <input
             type="number"
             step="0.1"
@@ -59,7 +61,7 @@ const ScoringConfig = ({ scoringType, setScoringType, config, setConfig }) => {
 
       {scoringType === 'calories' && (
         <div>
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">PONTOS POR CALORIA</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.ptsPerCalorie')}</label>
           <input
             type="number"
             step="0.01"
@@ -73,7 +75,7 @@ const ScoringConfig = ({ scoringType, setScoringType, config, setConfig }) => {
 
       {scoringType === 'steps' && (
         <div>
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">PONTOS POR 1000 PASSOS</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-1.5">{t('gym.ptsPer1000Steps')}</label>
           <input
             type="number"
             value={config.per_1k_steps ?? 1}
@@ -86,7 +88,7 @@ const ScoringConfig = ({ scoringType, setScoringType, config, setConfig }) => {
 
       {scoringType === 'custom' && (
         <div className="space-y-2">
-          <label className="text-[9px] font-mono opacity-50 tracking-wider block">PONTOS POR ATIVIDADE</label>
+          <label className="text-[9px] font-mono opacity-50 tracking-wider block">{t('gym.ptsPerActivity')}</label>
           {ACTIVITY_TYPES.map((a) => (
             <div key={a.value} className="flex items-center gap-3">
               <span className="text-[11px] w-24">{a.icon} {a.label}</span>

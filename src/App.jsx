@@ -7,6 +7,7 @@ import MentorModal from './components/MentorModal';
 import { XpToastLayer } from './features/lifeOs/components/XpToastLayer';
 import Login from './components/Login/Login';
 import SubscriptionGate from './components/SubscriptionGate';
+import { useLang } from './i18n/LanguageContext';
 
 // Abas pesadas · carregadas sob demanda (code-splitting) para o app abrir rápido
 const Vault = lazy(() => import('./components/Vault'));
@@ -71,6 +72,7 @@ const TabLoader = () => (
 
 
 export default function App() {
+    const { t } = useLang();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoadingInit, setIsLoadingInit] = useState(true);
 
@@ -176,7 +178,7 @@ export default function App() {
     // Handle Mentor Process (IA: Gemini/OpenAI)
     const handleProcess = async () => {
         if (!llmAvailable()) {
-            setMentorReply("ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.");
+            setMentorReply(t('lo.aiNotConfig'));
             return;
         }
 
@@ -200,7 +202,7 @@ export default function App() {
                 }
             }
         } catch (error) {
-            setMentorReply("ERRO DE CONEXÃO NEURAL. Sistema instável.");
+            setMentorReply(t('lo.neuralErr'));
         } finally {
             setIsLoading(false);
         }
@@ -269,7 +271,7 @@ export default function App() {
     }
 
     return (
-        <ErrorBoundary fallbackTitle="Erro Critico ORVAX">
+        <ErrorBoundary fallbackTitle={t('lo.criticalError')}>
         <React.Fragment>
             {/* Life OS · global XP toast */}
             <XpToastLayer />
@@ -303,7 +305,7 @@ export default function App() {
                         onClick={() => setShowBlog(false)}
                         className="fixed top-5 right-5 z-[80] w-10 h-10 rounded-full border flex items-center justify-center backdrop-blur-xl transition-all hover:scale-105"
                         style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)' }}
-                        aria-label="Fechar notícias"
+                        aria-label={t('lo.closeNews')}
                     >
                         <X size={18} />
                     </button>

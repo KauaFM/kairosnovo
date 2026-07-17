@@ -1,3 +1,5 @@
+import { useLang } from '../../../../i18n/LanguageContext';
+
 type Cell = { day: number; intensity: number };
 
 function levelFor(i: number): 0 | 1 | 2 | 3 | 4 {
@@ -11,6 +13,7 @@ function levelFor(i: number): 0 | 1 | 2 | 3 | 4 {
 const OPACITY = [0, 0.25, 0.45, 0.7, 1];
 
 export function YearHeatmap({ cells }: { cells: Cell[] }) {
+  const { t } = useLang();
   const cols = Math.ceil(cells.length / 7);
   const grid: (Cell | null)[][] = Array.from({ length: cols }, () => Array(7).fill(null));
   cells.forEach((c, i) => {
@@ -45,7 +48,7 @@ export function YearHeatmap({ cells }: { cells: Cell[] }) {
         </div>
       </div>
       <div className="flex items-center justify-between compass-label-meta">
-        <span>365d atrás</span>
+        <span>{t('lo.daysAgo365')}</span>
         <div className="flex items-center gap-1.5">
           <span>menos</span>
           {[0, 1, 2, 3, 4].map((l) => (
@@ -58,7 +61,7 @@ export function YearHeatmap({ cells }: { cells: Cell[] }) {
           ))}
           <span>mais</span>
         </div>
-        <span>hoje</span>
+        <span>{t('lo.todayLower')}</span>
       </div>
     </div>
   );
