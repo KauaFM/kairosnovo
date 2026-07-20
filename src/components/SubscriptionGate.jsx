@@ -62,16 +62,22 @@ const PlansScreen = ({ processing }) => {
                   backgroundColor: 'var(--glass-bg)',
                   boxShadow: p.highlight ? `0 0 30px ${ACCENT}22` : 'none',
                 }}>
-                {p.highlight && (
+                {p.badge === 'popular' && (
                   <span className="absolute top-4 right-4 text-[8px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1"
                     style={{ color: '#000', backgroundColor: ACCENT }}>
                     <Crown size={9} /> {t('paywall.popular')}
                   </span>
                 )}
+                {p.badge === 'save' && (
+                  <span className="absolute top-4 right-4 text-[8px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded-full border"
+                    style={{ color: ACCENT, borderColor: `${ACCENT}66`, backgroundColor: `${ACCENT}12` }}>
+                    {t('plans.saveBadge')}
+                  </span>
+                )}
                 <h3 className="text-[15px] font-outfit font-black uppercase tracking-wide">{t(`plans.${id}.name`)}</h3>
                 <div className="flex items-baseline gap-1 mt-1 mb-1">
                   <span className="text-[30px] font-outfit font-black tracking-tight">{p.price}</span>
-                  <span className="text-[11px] font-mono opacity-40">{t('plans.period')}</span>
+                  <span className="text-[11px] font-mono opacity-40">{t(p.period === 'quarter' ? 'plans.periodQuarter' : 'plans.periodMonth')}</span>
                 </div>
                 <p className="text-[10px] font-mono opacity-45 leading-snug mb-4">{t(`plans.${id}.tagline`)}</p>
 

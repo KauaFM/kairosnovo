@@ -4,7 +4,11 @@
 // Autentica pelo JWT do usuário; guarda o stripe_customer_id no perfil.
 //
 // Secrets necessários (supabase secrets set ...):
-//   STRIPE_SECRET_KEY, STRIPE_PRICE_ESSENCIAL, STRIPE_PRICE_COMPLETO
+//   STRIPE_SECRET_KEY
+//   STRIPE_PRICE_ESSENCIAL       (Essencial · mensal)
+//   STRIPE_PRICE_ESSENCIAL_TRI   (Essencial · trimestral)
+//   STRIPE_PRICE_COMPLETO        (Completo · mensal)
+//   STRIPE_PRICE_COMPLETO_TRI    (Completo · trimestral)
 //   (SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY são padrão)
 //
 // Deploy: supabase functions deploy create-checkout
@@ -14,10 +18,13 @@ import Stripe from "https://esm.sh/stripe@17.7.0?target=deno"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? ""
-const PRICE = {
+const PRICE: Record<string, string> = {
   essencial: Deno.env.get("STRIPE_PRICE_ESSENCIAL") ?? "",
+  essencial_tri: Deno.env.get("STRIPE_PRICE_ESSENCIAL_TRI") ?? "",
   completo: Deno.env.get("STRIPE_PRICE_COMPLETO") ?? "",
+  completo_tri: Deno.env.get("STRIPE_PRICE_COMPLETO_TRI") ?? "",
 }
+const VALID_PLANS = new Set(["essencial", "essencial_tri", "completo", "completo_tri"])
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -49,7 +56,7 @@ Deno.serve(async (req: Request) => {
 
   let body: { plan?: string; origin?: string }
   try { body = await req.json() } catch { return json({ error: "JSON inválido." }, 400) }
-  const plan = body.plan === "completo" ? "completo" : "essencial"
+  const plan = VALID_PLANS.has(body.plan ?? "") ? (body.plan as string) : "essencial"
   const priceId = PRICE[plan]
   if (!priceId) return json({ error: `Preço do plano "${plan}" não configurado no servidor.` }, 500)
 
@@ -88,7 +95,8 @@ Deno.serve(async (req: Request) => {
       return json({ url: `${origin}/?checkout=success`, updated: true })
     }
 
-    // 3. Cria a sessão de checkout (assinatura mensal)
+    // 3. Cria a sessão de checkout (assinatura recorrente — o intervalo
+    //    mensal/trimestral vem do próprio price configurado no Stripe)
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,

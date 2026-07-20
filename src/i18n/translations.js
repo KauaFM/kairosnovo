@@ -318,21 +318,34 @@ export const translations = {
       processing: 'Confirmando seu pagamento… liberamos em instantes.',
       subscribeTo: 'Assinar {name}',
       popular: 'Popular',
-      footer: 'Cobrança mensal · cancele quando quiser',
+      footer: 'Cobrança recorrente · cancele quando quiser',
       signOut: 'Sair da conta',
       startError: 'Não foi possível iniciar o pagamento.',
     },
     plans: {
       period: '/mês',
+      periodMonth: '/mês',
+      periodQuarter: '/trimestre',
+      saveBadge: 'Economize 33%',
       essencial: {
         name: 'Essencial',
         tagline: 'Acesso completo ao sistema ORVAX',
-        features: ['Cofre, Agenda e Capital', 'Telemetria e Dimensões da vida', 'Mentor de IA e Dossiê', 'Arena e ranking'],
+        features: ['Cofre, Agenda e Capital', 'Telemetria e Dimensões da vida', 'Mentor de IA e Dossiê', 'Arena e ranking', 'Agente ORVAX dentro do app'],
+      },
+      essencial_tri: {
+        name: 'Essencial · Trimestral',
+        tagline: 'Equivale a R$ 19,97/mês · 3 meses pelo preço de 2',
+        features: ['Tudo do Essencial Mensal', 'Preço travado por 3 meses', 'Grupo WhatsApp VIP', 'Grupo Telegram VIP'],
       },
       completo: {
         name: 'Completo',
         tagline: 'Tudo do Essencial + Rastreador Nutricional',
         features: ['Tudo do plano Essencial', 'Scanner IA de refeições', 'Diário alimentar e macros', 'Hidratação, peso e progresso'],
+      },
+      completo_tri: {
+        name: 'Completo · Trimestral',
+        tagline: 'Equivale a R$ 26,63/mês · Economize 33%',
+        features: ['Tudo do plano Completo', 'Preço travado por 3 meses', 'Grupos VIP (WhatsApp + Telegram)', 'Prioridade em novos recursos'],
       },
     },
     fitcalPaywall: {
@@ -882,21 +895,34 @@ export const translations = {
       processing: 'Confirming your payment… unlocking shortly.',
       subscribeTo: 'Subscribe to {name}',
       popular: 'Popular',
-      footer: 'Monthly billing · cancel anytime',
+      footer: 'Recurring billing · cancel anytime',
       signOut: 'Sign out',
       startError: 'Could not start the payment.',
     },
     plans: {
       period: '/mo',
+      periodMonth: '/mo',
+      periodQuarter: '/quarter',
+      saveBadge: 'Save 33%',
       essencial: {
         name: 'Essential',
         tagline: 'Full access to the ORVAX system',
-        features: ['Vault, Agenda and Capital', 'Telemetry and Life Dimensions', 'AI Mentor and Dossier', 'Arena and ranking'],
+        features: ['Vault, Agenda and Capital', 'Telemetry and Life Dimensions', 'AI Mentor and Dossier', 'Arena and ranking', 'ORVAX Agent inside the app'],
+      },
+      essencial_tri: {
+        name: 'Essential · Quarterly',
+        tagline: 'Equals R$ 19.97/mo · 3 months for the price of 2',
+        features: ['Everything in Essential Monthly', 'Price locked for 3 months', 'VIP WhatsApp group', 'VIP Telegram group'],
       },
       completo: {
         name: 'Complete',
         tagline: 'Everything in Essential + Nutrition Tracker',
         features: ['Everything in the Essential plan', 'AI meal Scanner', 'Food diary and macros', 'Hydration, weight and progress'],
+      },
+      completo_tri: {
+        name: 'Complete · Quarterly',
+        tagline: 'Equals R$ 26.63/mo · Save 33%',
+        features: ['Everything in the Complete plan', 'Price locked for 3 months', 'VIP groups (WhatsApp + Telegram)', 'Priority on new features'],
       },
     },
     fitcalPaywall: {

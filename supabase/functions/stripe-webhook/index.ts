@@ -7,7 +7,8 @@
 // A autenticidade vem da assinatura do webhook (STRIPE_WEBHOOK_SECRET).
 //
 // Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-//          STRIPE_PRICE_ESSENCIAL, STRIPE_PRICE_COMPLETO
+//          STRIPE_PRICE_ESSENCIAL, STRIPE_PRICE_ESSENCIAL_TRI,
+//          STRIPE_PRICE_COMPLETO, STRIPE_PRICE_COMPLETO_TRI
 // Deploy:  supabase functions deploy stripe-webhook --no-verify-jwt
 // ============================================================
 
@@ -17,7 +18,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? ""
 const WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? ""
 const PRICE_ESSENCIAL = Deno.env.get("STRIPE_PRICE_ESSENCIAL") ?? ""
+const PRICE_ESSENCIAL_TRI = Deno.env.get("STRIPE_PRICE_ESSENCIAL_TRI") ?? ""
 const PRICE_COMPLETO = Deno.env.get("STRIPE_PRICE_COMPLETO") ?? ""
+const PRICE_COMPLETO_TRI = Deno.env.get("STRIPE_PRICE_COMPLETO_TRI") ?? ""
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
@@ -31,13 +34,15 @@ const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 // Status que dão acesso ao app
 const ACTIVE = new Set(["active", "trialing"])
 
-// Preço → plano
+// Preço → FAMÍLIA do plano ('essencial' | 'completo').
+// A família define o acesso (completo = Rastreador Nutricional/premium);
+// o período (mensal/trimestral) não muda os recursos liberados.
 function planFromSubscription(sub: any): "essencial" | "completo" {
   const priceId = sub?.items?.data?.[0]?.price?.id
-  if (priceId && priceId === PRICE_COMPLETO) return "completo"
-  if (priceId && priceId === PRICE_ESSENCIAL) return "essencial"
-  // fallback: metadata setada no checkout
-  return sub?.metadata?.plan === "completo" ? "completo" : "essencial"
+  if (priceId && (priceId === PRICE_COMPLETO || priceId === PRICE_COMPLETO_TRI)) return "completo"
+  if (priceId && (priceId === PRICE_ESSENCIAL || priceId === PRICE_ESSENCIAL_TRI)) return "essencial"
+  // fallback: metadata setada no checkout (ex: 'completo_tri' → completo)
+  return String(sub?.metadata?.plan || "").startsWith("completo") ? "completo" : "essencial"
 }
 
 // Aplica o estado da assinatura no profile
@@ -45,7 +50,7 @@ async function syncSubscription(sub: any) {
   const plan = planFromSubscription(sub)
   const active = ACTIVE.has(sub.status)
   const isSubscribed = active                       // essencial ou completo ativo → app liberado
-  const isPremium = active && plan === "completo"   // FitCal só no completo
+  const isPremium = active && plan === "completo"   // Rastreador Nutricional só no completo
 
   // Descobre o user: metadata da subscription ou lookup pelo customer
   let userId: string | undefined = sub?.metadata?.user_id
