@@ -366,11 +366,6 @@ export const translations = {
         features: ['Tudo do plano Completo', 'Preço travado por 3 meses', 'Grupos VIP (WhatsApp + Telegram)', 'Prioridade em novos recursos'],
         excludes: [],
       },
-      completo_tri: {
-        name: 'Completo · Trimestral',
-        tagline: 'Equivale a R$ 26,63/mês · Economize 33%',
-        features: ['Tudo do plano Completo', 'Preço travado por 3 meses', 'Grupos VIP (WhatsApp + Telegram)', 'Prioridade em novos recursos'],
-      },
     },
     fitcalPaywall: {
       badge: 'Recurso Premium',
@@ -966,11 +961,6 @@ export const translations = {
         tagline: '',
         features: ['Everything in the Complete plan', 'Price locked for 3 months', 'VIP groups (WhatsApp + Telegram)', 'Priority on new features'],
         excludes: [],
-      },
-      completo_tri: {
-        name: 'Complete · Quarterly',
-        tagline: 'Equals R$ 26.63/mo · Save 33%',
-        features: ['Everything in the Complete plan', 'Price locked for 3 months', 'VIP groups (WhatsApp + Telegram)', 'Priority on new features'],
       },
     },
     fitcalPaywall: {

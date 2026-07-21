@@ -1,30 +1,14 @@
-// ============================================================
-// ORVAX — create-checkout (Stripe Checkout, modo subscription)
-// Cria a sessão de pagamento para o plano escolhido e devolve a URL.
-// Autentica pelo JWT do usuário; guarda o stripe_customer_id no perfil.
-//
-// Secrets necessários (supabase secrets set ...):
-//   STRIPE_SECRET_KEY
-//   STRIPE_PRICE_ESSENCIAL       (Essencial · mensal)
-//   STRIPE_PRICE_ESSENCIAL_TRI   (Essencial · trimestral)
-//   STRIPE_PRICE_COMPLETO        (Completo · mensal)
-//   STRIPE_PRICE_COMPLETO_TRI    (Completo · trimestral)
-//   (SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY são padrão)
-//
-// Deploy: supabase functions deploy create-checkout
-// ============================================================
-
+// ORVAX — create-checkout (Stripe Checkout, modo subscription) — 4 planos
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? ""
 const PRICE: Record<string, string> = {
-  essencial: Deno.env.get("STRIPE_PRICE_ESSENCIAL") ?? "",
-  essencial_tri: Deno.env.get("STRIPE_PRICE_ESSENCIAL_TRI") ?? "",
-  completo: Deno.env.get("STRIPE_PRICE_COMPLETO") ?? "",
-  completo_tri: Deno.env.get("STRIPE_PRICE_COMPLETO_TRI") ?? "",
+  essencial_mensal:     Deno.env.get("STRIPE_PRICE_ESSENCIAL") ?? "",
+  essencial_trimestral: Deno.env.get("STRIPE_PRICE_ESSENCIAL_TRIMESTRAL") ?? "",
+  completo_mensal:      Deno.env.get("STRIPE_PRICE_COMPLETO") ?? "",
+  completo_trimestral:  Deno.env.get("STRIPE_PRICE_COMPLETO_TRIMESTRAL") ?? "",
 }
-const VALID_PLANS = new Set(["essencial", "essencial_tri", "completo", "completo_tri"])
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -48,7 +32,6 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405)
   if (!STRIPE_SECRET_KEY) return json({ error: "STRIPE_SECRET_KEY não configurada." }, 500)
 
-  // 1. Autentica o usuário pelo JWT
   const authHeader = req.headers.get("Authorization") || ""
   const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } })
   const { data: { user }, error: authErr } = await userClient.auth.getUser()
@@ -56,14 +39,14 @@ Deno.serve(async (req: Request) => {
 
   let body: { plan?: string; origin?: string }
   try { body = await req.json() } catch { return json({ error: "JSON inválido." }, 400) }
-  const plan = VALID_PLANS.has(body.plan ?? "") ? (body.plan as string) : "essencial"
+  const plan = (body.plan && PRICE[body.plan]) ? body.plan : "essencial_mensal"
+  const tier = plan.startsWith("completo") ? "completo" : "essencial"
   const priceId = PRICE[plan]
   if (!priceId) return json({ error: `Preço do plano "${plan}" não configurado no servidor.` }, 500)
 
   const origin = (body.origin || "").replace(/\/$/, "") || "https://app.orvax.com"
 
   try {
-    // 2. Reaproveita ou cria o customer do Stripe
     const { data: profile } = await admin.from("profiles")
       .select("stripe_customer_id, full_name").eq("id", user.id).maybeSingle()
 
@@ -78,8 +61,6 @@ Deno.serve(async (req: Request) => {
       await admin.from("profiles").update({ stripe_customer_id: customerId }).eq("id", user.id)
     }
 
-    // 2.5. Já tem assinatura ativa? Então é UPGRADE/DOWNGRADE de plano —
-    // atualiza o item existente (com proração) em vez de criar outra.
     const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 3 })
     const activeSub = existing.data.find((s: any) => s.status === "active" || s.status === "trialing")
     if (activeSub) {
@@ -88,15 +69,12 @@ Deno.serve(async (req: Request) => {
         await stripe.subscriptions.update(activeSub.id, {
           items: [{ id: item.id, price: priceId }],
           proration_behavior: "create_prorations",
-          metadata: { user_id: user.id, plan },
+          metadata: { user_id: user.id, plan, tier },
         })
       }
-      // webhook (customer.subscription.updated) sincroniza o profile
       return json({ url: `${origin}/?checkout=success`, updated: true })
     }
 
-    // 3. Cria a sessão de checkout (assinatura recorrente — o intervalo
-    //    mensal/trimestral vem do próprio price configurado no Stripe)
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
@@ -104,8 +82,8 @@ Deno.serve(async (req: Request) => {
       allow_promotion_codes: true,
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancel`,
-      subscription_data: { metadata: { user_id: user.id, plan } },
-      metadata: { user_id: user.id, plan },
+      subscription_data: { metadata: { user_id: user.id, plan, tier } },
+      metadata: { user_id: user.id, plan, tier },
     })
 
     return json({ url: session.url })

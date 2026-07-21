@@ -1,26 +1,13 @@
-// ============================================================
-// ORVAX — stripe-webhook
-// Recebe eventos do Stripe e sincroniza o acesso em `profiles`.
-// É o ÚNICO responsável por liberar/tirar acesso (fonte de verdade).
-//
-// IMPORTANTE: verify_jwt = false (é o Stripe que chama, não o usuário).
-// A autenticidade vem da assinatura do webhook (STRIPE_WEBHOOK_SECRET).
-//
-// Secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-//          STRIPE_PRICE_ESSENCIAL, STRIPE_PRICE_ESSENCIAL_TRI,
-//          STRIPE_PRICE_COMPLETO, STRIPE_PRICE_COMPLETO_TRI
-// Deploy:  supabase functions deploy stripe-webhook --no-verify-jwt
-// ============================================================
-
+// ORVAX — stripe-webhook (fonte de verdade do acesso; verify_jwt=false) — 4 planos
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? ""
 const WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? ""
 const PRICE_ESSENCIAL = Deno.env.get("STRIPE_PRICE_ESSENCIAL") ?? ""
-const PRICE_ESSENCIAL_TRI = Deno.env.get("STRIPE_PRICE_ESSENCIAL_TRI") ?? ""
+const PRICE_ESSENCIAL_TRI = Deno.env.get("STRIPE_PRICE_ESSENCIAL_TRIMESTRAL") ?? ""
 const PRICE_COMPLETO = Deno.env.get("STRIPE_PRICE_COMPLETO") ?? ""
-const PRICE_COMPLETO_TRI = Deno.env.get("STRIPE_PRICE_COMPLETO_TRI") ?? ""
+const PRICE_COMPLETO_TRI = Deno.env.get("STRIPE_PRICE_COMPLETO_TRIMESTRAL") ?? ""
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
@@ -31,47 +18,42 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 const cryptoProvider = Stripe.createSubtleCryptoProvider()
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-// Status que dão acesso ao app
 const ACTIVE = new Set(["active", "trialing"])
 
-// Preço → FAMÍLIA do plano ('essencial' | 'completo').
-// A família define o acesso (completo = Rastreador Nutricional/premium);
-// o período (mensal/trimestral) não muda os recursos liberados.
-function planFromSubscription(sub: any): "essencial" | "completo" {
+// Preco -> tier (essencial | completo). O intervalo (mensal/trimestral) nao muda o acesso.
+function tierFromSubscription(sub: any): "essencial" | "completo" {
   const priceId = sub?.items?.data?.[0]?.price?.id
   if (priceId && (priceId === PRICE_COMPLETO || priceId === PRICE_COMPLETO_TRI)) return "completo"
   if (priceId && (priceId === PRICE_ESSENCIAL || priceId === PRICE_ESSENCIAL_TRI)) return "essencial"
-  // fallback: metadata setada no checkout (ex: 'completo_tri' → completo)
-  return String(sub?.metadata?.plan || "").startsWith("completo") ? "completo" : "essencial"
+  const m = String(sub?.metadata?.tier || sub?.metadata?.plan || "")
+  return m.startsWith("completo") ? "completo" : "essencial"
 }
 
-// Aplica o estado da assinatura no profile
 async function syncSubscription(sub: any) {
-  const plan = planFromSubscription(sub)
+  const tier = tierFromSubscription(sub)
   const active = ACTIVE.has(sub.status)
-  const isSubscribed = active                       // essencial ou completo ativo → app liberado
-  const isPremium = active && plan === "completo"   // Rastreador Nutricional só no completo
+  const isSubscribed = active
+  const isPremium = active && tier === "completo"
 
-  // Descobre o user: metadata da subscription ou lookup pelo customer
   let userId: string | undefined = sub?.metadata?.user_id
   if (!userId && sub.customer) {
     const { data } = await admin.from("profiles").select("id")
       .eq("stripe_customer_id", sub.customer).maybeSingle()
     userId = data?.id
   }
-  if (!userId) { console.warn("webhook: user_id não encontrado para sub", sub.id); return }
+  if (!userId) { console.warn("webhook: user_id nao encontrado para sub", sub.id); return }
 
   const { error } = await admin.from("profiles").update({
     subscription_id: sub.id,
     subscription_status: sub.status,
-    plan: active ? plan : "none",
+    plan: active ? tier : "none",
     is_subscribed: isSubscribed,
     is_premium: isPremium,
     current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
     stripe_customer_id: sub.customer ?? undefined,
   }).eq("id", userId)
   if (error) console.error("webhook: update profile falhou:", error.message)
-  else console.log(`webhook: ${userId} → ${sub.status}/${plan} (sub=${isSubscribed}, premium=${isPremium})`)
+  else console.log(`webhook: ${userId} -> ${sub.status}/${tier} (sub=${isSubscribed}, premium=${isPremium})`)
 }
 
 Deno.serve(async (req: Request) => {
@@ -84,7 +66,7 @@ Deno.serve(async (req: Request) => {
   try {
     event = await stripe.webhooks.constructEventAsync(raw, sig, WEBHOOK_SECRET, undefined, cryptoProvider)
   } catch (err: any) {
-    console.error("Assinatura inválida do webhook:", err?.message)
+    console.error("Assinatura invalida do webhook:", err?.message)
     return new Response(`Webhook signature error: ${err?.message}`, { status: 400 })
   }
 
@@ -94,9 +76,8 @@ Deno.serve(async (req: Request) => {
         const session = event.data.object
         if (session.mode === "subscription" && session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription as string)
-          // garante o vínculo metadata caso não tenha vindo
           if (!sub.metadata?.user_id && session.metadata?.user_id) {
-            sub.metadata = { ...sub.metadata, user_id: session.metadata.user_id, plan: session.metadata.plan }
+            sub.metadata = { ...sub.metadata, user_id: session.metadata.user_id, plan: session.metadata.plan, tier: session.metadata.tier }
           }
           await syncSubscription(sub)
         }
@@ -109,7 +90,6 @@ Deno.serve(async (req: Request) => {
         break
       }
       default:
-        // outros eventos ignorados
         break
     }
     return new Response(JSON.stringify({ received: true }), { status: 200, headers: { "Content-Type": "application/json" } })
