@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { getTodayPending } from '../../services/lifeOs';
 import { supabase } from '../../lib/supabase';
+import { reportXpEvent } from '../../services/xp';
+import VerifySheet from './VerifySheet';
 import { toLocalDateStr } from '../../utils/dateUtils';
 
 // MONO: toda a paleta colapsa em tinta única. Os tipos se distinguem
@@ -28,17 +30,8 @@ const fmtTime = (iso) => {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
-/** Awards XP to profile and dispatches toast event. */
-async function awardXp(amount, reason) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  const { data: p } = await supabase.from('profiles').select('xp').eq('id', user.id).single();
-  const newXp = Math.max(0, (p?.xp || 0) + amount);
-  await supabase.from('profiles').update({ xp: newXp }).eq('id', user.id);
-  window.dispatchEvent(new CustomEvent('orvax:xp-gain', {
-    detail: { amount, reason, total: newXp },
-  }));
-}
+// VERITAS F1: o valor de XP é decidido pelo xp-engine (server-side).
+// Aqui só reportamos o FATO da conclusão. (profiles.xp é blindado por trigger.)
 
 export default function PendingTodayPanel({ date }) {
   const { t } = useLang();
@@ -51,6 +44,7 @@ export default function PendingTodayPanel({ date }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [flying, setFlying] = useState([]); // animação +XP
+  const [verify, setVerify] = useState(null); // { item } quando o sheet N2 está aberto
   const lastClickRef = useRef({});
 
   const load = useCallback(async () => {
@@ -102,13 +96,8 @@ export default function PendingTodayPanel({ date }) {
           await supabase.from('universal_events').update({ status: 'done' }).eq('id', item.source_id);
         }
 
-        // animação XP (mono)
-        const id = `${item.kind}-${item.source_id}-${now}`;
-        setFlying((prev) => [...prev, { id, xp: meta.xp }]);
-        setTimeout(() => setFlying((prev) => prev.filter((f) => f.id !== id)), 1100);
-
-        // award no estado global (profiles.xp)
-        await awardXp(meta.xp, `done:${item.kind}`);
+        // abre a micro-entrevista N2; o XP é reportado quando ela resolve
+        setVerify({ item });
       } else {
         // desfazer: só reverte tasks/events (habit_logs não desmarcam nesse MVP)
         if (item.kind === 'task') {
@@ -123,11 +112,33 @@ export default function PendingTodayPanel({ date }) {
     }
   }, [load]);
 
+  // Resolve da micro-entrevista N2 → reporta o fato + verificação ao motor de XP
+  const handleVerifyResolve = useCallback(async (result) => {
+    const v = verify;
+    setVerify(null);
+    if (!v) return;
+    const { item } = v;
+    const res = await reportXpEvent({
+      source_type: item.kind,
+      source_id: String(item.source_id),
+      title: item.title || '',
+      difficulty: result?.difficulty,
+      verification: { level: result?.level ?? 1, answers: result?.answers ?? {} },
+    });
+    const gained = res?.xp ?? 0;
+    if (gained > 0) {
+      const id = `${item.kind}-${item.source_id}-${Date.now()}`;
+      setFlying((prev) => [...prev, { id, xp: gained }]);
+      setTimeout(() => setFlying((prev) => prev.filter((f) => f.id !== id)), 1100);
+    }
+  }, [verify]);
+
   const pending = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
 
   return (
     <section className="w-full relative">
+      <VerifySheet open={!!verify} title={verify?.item?.title} onResolve={handleVerifyResolve} />
       {/* XP fly animations */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {flying.map((f) => (

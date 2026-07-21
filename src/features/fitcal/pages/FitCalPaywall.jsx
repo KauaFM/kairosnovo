@@ -24,7 +24,7 @@ const FitCalPaywall = ({ theme, toggleTheme, onUpgrade }) => {
     try {
       // Rastreador = plano Completo (R$39,99). Se já tem Essencial, a
       // Edge Function faz o upgrade da assinatura automaticamente.
-      await startCheckout('completo');
+      await startCheckout('completo_mensal');
     } catch (e) {
       setErr(e?.message || t('fitcalPaywall.startError'));
       setBusy(false);

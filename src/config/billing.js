@@ -3,24 +3,22 @@
 //
 // Gate global do app: quando ligado, exige assinatura ativa
 // (profiles.is_subscribed). Admins (role='admin') sempre passam.
+// O acesso ao Rastreador Nutricional (FitCal) usa profiles.is_premium,
+// que o webhook marca = true para qualquer variante do tier "completo".
 // ============================================================
 
 // Liga/desliga o paywall do app inteiro. Ative só quando o Stripe
 // estiver configurado (chaves + deploy das Edge Functions + webhook).
 export const SUBSCRIPTION_GATE_ENABLED = true;
 
-// Dados estruturais dos planos. Preço é o mesmo nos dois idiomas (BR).
-// Nome/tagline/features vêm do i18n (t('plans.<id>.*')).
-//
-// `family` decide o acesso: 'completo' libera o Rastreador Nutricional
-// (is_premium). `period` = 'month' | 'quarter'. `badge` = null | 'save'
-// | 'popular'. As chaves 'essencial'/'completo' seguem sendo os MENSAIS
-// (compat com os price IDs já configurados no Stripe).
+// 4 planos = 2 tiers (essencial | completo) × 2 intervalos (mensal | trimestral).
+// Preço é o mesmo nos dois idiomas (BR). Nome/tagline/features/período vêm do
+// i18n (t('plans.<id>.*')). `tier` decide o acesso; `interval` só muda a cobrança.
 export const PLANS = {
-  essencial:     { id: 'essencial',     family: 'essencial', price: 'R$ 29,99', period: 'month',   highlight: false, badge: null },
-  essencial_tri: { id: 'essencial_tri', family: 'essencial', price: 'R$ 59,90', period: 'quarter', highlight: false, badge: 'save' },
-  completo:      { id: 'completo',      family: 'completo',  price: 'R$ 39,99', period: 'month',   highlight: false, badge: null },
-  completo_tri:  { id: 'completo_tri',  family: 'completo',  price: 'R$ 79,90', period: 'quarter', highlight: true,  badge: 'popular' },
+  essencial_mensal:     { id: 'essencial_mensal',     tier: 'essencial', interval: 'mensal',     price: 'R$ 29,99', highlight: false },
+  essencial_trimestral: { id: 'essencial_trimestral', tier: 'essencial', interval: 'trimestral', price: 'R$ 59,90', highlight: false, badge: 'save' },
+  completo_mensal:      { id: 'completo_mensal',      tier: 'completo',  interval: 'mensal',     price: 'R$ 39,99', highlight: false },
+  completo_trimestral:  { id: 'completo_trimestral',  tier: 'completo',  interval: 'trimestral', price: 'R$ 79,90', highlight: true,  badge: 'popular' },
 };
 
-export const PLAN_ORDER = ['essencial', 'essencial_tri', 'completo', 'completo_tri'];
+export const PLAN_ORDER = ['essencial_mensal', 'essencial_trimestral', 'completo_mensal', 'completo_trimestral'];

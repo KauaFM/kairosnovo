@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, Check, Lock, Sparkles, Crown, LogOut } from 'lucide-react';
+import { Loader2, Check, Minus, Lock, Sparkles, Crown, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getSubscription, startCheckout } from '../services/billing';
 import { SUBSCRIPTION_GATE_ENABLED, PLANS, PLAN_ORDER } from '../config/billing';
@@ -42,6 +42,12 @@ const PlansScreen = ({ processing }) => {
           {t('paywall.subtitle')}
         </p>
 
+        {/* Banner de preços de lançamento (beta) */}
+        <div className="mt-4 w-full p-2.5 rounded-xl border text-[9px] font-mono font-bold uppercase tracking-wider text-center leading-relaxed"
+          style={{ borderColor: `${ACCENT}44`, backgroundColor: `${ACCENT}0D`, color: ACCENT }}>
+          ⚠ {t('paywall.betaBanner')}
+        </div>
+
         {processing && (
           <div className="mt-5 w-full p-3 rounded-xl border text-[11px] font-mono opacity-80 flex items-center gap-2 justify-center"
             style={{ borderColor: `${ACCENT}44`, backgroundColor: `${ACCENT}0D` }}>
@@ -50,42 +56,49 @@ const PlansScreen = ({ processing }) => {
           </div>
         )}
 
-        {/* Cards de plano */}
-        <div className="w-full mt-7 space-y-3.5">
+        {/* Cards de plano (4: 2 tiers × mensal/trimestral) */}
+        <div className="w-full mt-6 space-y-3.5">
           {PLAN_ORDER.map((id) => {
             const p = PLANS[id];
             const isBusy = busy === id;
+            const badgeLabel = p.badge === 'save' ? t('paywall.save') : p.badge === 'popular' ? t('paywall.mostChosen') : null;
+            const equiv = t(`plans.${id}.equiv`);
+            const tagline = t(`plans.${id}.tagline`);
+            const excludes = t(`plans.${id}.excludes`);
             return (
               <div key={id} className="w-full rounded-[24px] border p-5 text-left relative overflow-hidden"
                 style={{
                   borderColor: p.highlight ? `${ACCENT}66` : 'var(--border-color)',
-                  backgroundColor: 'var(--glass-bg)',
+                  backgroundColor: p.highlight ? `${ACCENT}0A` : 'var(--glass-bg)',
                   boxShadow: p.highlight ? `0 0 30px ${ACCENT}22` : 'none',
                 }}>
-                {p.badge === 'popular' && (
+                {badgeLabel && (
                   <span className="absolute top-4 right-4 text-[8px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1"
                     style={{ color: '#000', backgroundColor: ACCENT }}>
-                    <Crown size={9} /> {t('paywall.popular')}
+                    <Crown size={9} /> {badgeLabel}
                   </span>
                 )}
-                {p.badge === 'save' && (
-                  <span className="absolute top-4 right-4 text-[8px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded-full border"
-                    style={{ color: ACCENT, borderColor: `${ACCENT}66`, backgroundColor: `${ACCENT}12` }}>
-                    {t('plans.saveBadge')}
-                  </span>
-                )}
-                <h3 className="text-[15px] font-outfit font-black uppercase tracking-wide">{t(`plans.${id}.name`)}</h3>
-                <div className="flex items-baseline gap-1 mt-1 mb-1">
+                <span className="text-[9px] font-mono font-bold uppercase tracking-[0.25em] opacity-40">
+                  {t(`plans.${id}.name`)} · {t(`plans.${id}.badge`)}
+                </span>
+                <div className="flex items-baseline gap-1 mt-1.5 mb-0.5">
                   <span className="text-[30px] font-outfit font-black tracking-tight">{p.price}</span>
-                  <span className="text-[11px] font-mono opacity-40">{t(p.period === 'quarter' ? 'plans.periodQuarter' : 'plans.periodMonth')}</span>
+                  <span className="text-[11px] font-mono opacity-40">{t(`plans.${id}.period`)}</span>
                 </div>
-                <p className="text-[10px] font-mono opacity-45 leading-snug mb-4">{t(`plans.${id}.tagline`)}</p>
+                {equiv && <p className="text-[9px] font-mono opacity-45 leading-snug mb-2">{equiv}</p>}
+                {tagline && <p className="text-[10px] font-mono opacity-45 leading-snug mb-3">{tagline}</p>}
 
                 <div className="space-y-1.5 mb-5">
                   {t(`plans.${id}.features`).map((f) => (
                     <div key={f} className="flex items-center gap-2">
                       <Check size={13} strokeWidth={2.5} style={{ color: ACCENT }} className="shrink-0" />
                       <span className="text-[11px] opacity-70">{f}</span>
+                    </div>
+                  ))}
+                  {Array.isArray(excludes) && excludes.map((f) => (
+                    <div key={f} className="flex items-center gap-2">
+                      <Minus size={13} strokeWidth={2.5} className="shrink-0 opacity-30" />
+                      <span className="text-[11px] opacity-30 line-through">{f}</span>
                     </div>
                   ))}
                 </div>
@@ -131,7 +144,7 @@ const PlansScreen = ({ processing }) => {
 };
 
 // ─── Gate ───────────────────────────────────────────────────────
-const SubscriptionGate = ({ children, userRole }) => {
+const SubscriptionGate = ({ children, userRole, onUnlocked }) => {
   const [state, setState] = useState('loading'); // loading | locked | unlocked
   const [processing, setProcessing] = useState(false);
   const bypass = useRef(false);
@@ -155,6 +168,12 @@ const SubscriptionGate = ({ children, userRole }) => {
   }, [userRole]);
 
   useEffect(() => { evaluate(); }, [evaluate]);
+
+  // Avisa o App quando o acesso é liberado (assinou ou admin) — é o gatilho
+  // do vídeo de boas-vindas no 1º acesso, garantindo que ele só toca pós-pagamento.
+  useEffect(() => {
+    if (state === 'unlocked') onUnlocked?.();
+  }, [state, onUnlocked]);
 
   // Volta do Stripe: mostra "confirmando pagamento" enquanto o webhook processa.
   useEffect(() => {

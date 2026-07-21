@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Menu, User, Sun, Moon, Loader2, X } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Nexus from './components/Nexus';
@@ -79,6 +79,7 @@ export default function App() {
     // Welcome flow states controlled by Supabase
     const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
     const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
+    const welcomeHandledRef = useRef(false);
 
     const [activeTab, setActiveTab] = useState('nexus');
     const [userRole, setUserRole] = useState('user');
@@ -215,13 +216,10 @@ export default function App() {
 
             setUserRole(profile?.role || 'user');
 
-            if (profile?.is_first_login) {
-                setShowWelcomeVideo(true);
-                setHasSeenWelcome(false);
-                await supabase.from('profiles').update({ is_first_login: false }).eq('id', user.id);
-            } else {
-                setHasSeenWelcome(true);
-            }
+            // O vídeo de boas-vindas NÃO toca aqui — seria antes de pagar.
+            // Quem dispara é handleAccessGranted, quando o gate libera o acesso
+            // (assinou ou admin), lendo is_first_login fresco naquele momento.
+            setHasSeenWelcome(true);
 
             // Puxar Configurações controladas pelo Agente
             const { data: settings } = await supabase
@@ -258,6 +256,26 @@ export default function App() {
         localStorage.setItem('hasSeenWelcome', 'true');
         setHasSeenWelcome(true);
     };
+
+    // Chamado pelo SubscriptionGate quando o acesso é liberado (assinou ou admin).
+    // Só então, se for o 1º acesso do usuário, tocamos o vídeo de boas-vindas.
+    // Lê is_first_login fresco pra não depender do timing do login.
+    const handleAccessGranted = useCallback(async () => {
+        if (welcomeHandledRef.current) return;
+        welcomeHandledRef.current = true;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { welcomeHandledRef.current = false; return; }
+            const { data: prof } = await supabase
+                .from('profiles').select('is_first_login').eq('id', session.user.id).maybeSingle();
+            if (prof?.is_first_login) {
+                setShowWelcomeVideo(true);
+                await supabase.from('profiles').update({ is_first_login: false }).eq('id', session.user.id);
+            }
+        } catch (e) {
+            console.error('handleAccessGranted:', e);
+        }
+    }, []);
 
     if (isLoadingInit) {
         return (
@@ -332,7 +350,7 @@ export default function App() {
                 <div className="w-full max-w-[428px] h-screen relative flex flex-col z-20 bg-transparent overflow-hidden border-x border-[var(--border-color)]">
 
                   {/* Gate de assinatura: sem plano ativo → tela de planos (admins passam) */}
-                  <SubscriptionGate userRole={userRole}>
+                  <SubscriptionGate userRole={userRole} onUnlocked={handleAccessGranted}>
                     <div className="flex-1 relative">
                         <Suspense fallback={<TabLoader />}>
                         <TabWrapper active={activeTab === 'nexus'}>

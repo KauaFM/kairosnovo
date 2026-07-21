@@ -9,6 +9,21 @@
 
 export const translations = {
   pt: {
+    trust: {
+      title: 'Índice de Integridade',
+      band0: 'Em observação', band40: 'Padrão', band70: 'Confiável', band90: 'Alta Integridade',
+      explain: 'Sobe com execução verificada e respostas específicas; cai com respostas genéricas ou rajadas. Ele multiplica seu XP.',
+      reason: { n2_especifica: 'Resposta específica', n2_generica: 'Resposta genérica', rajada: 'Conclusões em rajada' },
+    },
+    verify: {
+      badge: 'VERIFICAÇÃO', title: 'Registrar conclusão',
+      howHard: 'Quão difícil foi?',
+      d1: 'Fácil', d2: 'Leve', d3: 'Médio', d4: 'Difícil', d5: 'Brutal',
+      question: 'Conta rápido: como foi?',
+      placeholder: 'o que você fez, o que travou…',
+      hint: 'Detalhe específico = mais XP. Genérico ou vazio = XP básico.',
+      skip: 'Pular', confirm: 'Confirmar',
+    },
       lo: {
         aiNotConfig: 'ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.',
         neuralErr: 'ERRO DE CONEXÃO NEURAL. Sistema instável.',
@@ -318,29 +333,38 @@ export const translations = {
       processing: 'Confirmando seu pagamento… liberamos em instantes.',
       subscribeTo: 'Assinar {name}',
       popular: 'Popular',
+      save: 'Economize 33%',
+      mostChosen: 'Mais escolhido',
+      betaBanner: 'PREÇOS DE LANÇAMENTO BETA — QUEM ENTRAR AGORA PAGARÁ MAIS BARATO NO FUTURO.',
       footer: 'Cobrança recorrente · cancele quando quiser',
       signOut: 'Sair da conta',
       startError: 'Não foi possível iniciar o pagamento.',
     },
     plans: {
       period: '/mês',
-      periodMonth: '/mês',
-      periodQuarter: '/trimestre',
-      saveBadge: 'Economize 33%',
-      essencial: {
-        name: 'Essencial',
+      essencial_mensal: {
+        name: 'Essencial', badge: 'Mensal', period: '/mês', equiv: '',
         tagline: 'Acesso completo ao sistema ORVAX',
         features: ['Cofre, Agenda e Capital', 'Telemetria e Dimensões da vida', 'Mentor de IA e Dossiê', 'Arena e ranking', 'Agente ORVAX dentro do app'],
+        excludes: ['Rastreador Nutricional'],
       },
-      essencial_tri: {
-        name: 'Essencial · Trimestral',
-        tagline: 'Equivale a R$ 19,97/mês · 3 meses pelo preço de 2',
+      essencial_trimestral: {
+        name: 'Essencial', badge: 'Trimestral', period: '/trimestre', equiv: 'Equivale a R$ 19,97/mês · 3 meses pelo preço de 2',
+        tagline: '',
         features: ['Tudo do Essencial Mensal', 'Preço travado por 3 meses', 'Grupo WhatsApp VIP', 'Grupo Telegram VIP'],
+        excludes: ['Rastreador Nutricional'],
       },
-      completo: {
-        name: 'Completo',
+      completo_mensal: {
+        name: 'Completo', badge: 'Mensal', period: '/mês', equiv: '',
         tagline: 'Tudo do Essencial + Rastreador Nutricional',
         features: ['Tudo do plano Essencial', 'Scanner IA de refeições', 'Diário alimentar e macros', 'Hidratação, peso e progresso'],
+        excludes: [],
+      },
+      completo_trimestral: {
+        name: 'Completo', badge: 'Trimestral', period: '/trimestre', equiv: 'Equivale a R$ 26,63/mês · Economize 33%',
+        tagline: '',
+        features: ['Tudo do plano Completo', 'Preço travado por 3 meses', 'Grupos VIP (WhatsApp + Telegram)', 'Prioridade em novos recursos'],
+        excludes: [],
       },
       completo_tri: {
         name: 'Completo · Trimestral',
@@ -586,6 +610,21 @@ export const translations = {
   },
 
   en: {
+    trust: {
+      title: 'Integrity Score',
+      band0: 'Under review', band40: 'Standard', band70: 'Trusted', band90: 'High Integrity',
+      explain: 'Rises with verified execution and specific answers; falls with generic answers or bursts. It multiplies your XP.',
+      reason: { n2_especifica: 'Specific answer', n2_generica: 'Generic answer', rajada: 'Burst of completions' },
+    },
+    verify: {
+      badge: 'VERIFICATION', title: 'Log completion',
+      howHard: 'How hard was it?',
+      d1: 'Easy', d2: 'Light', d3: 'Medium', d4: 'Hard', d5: 'Brutal',
+      question: 'Quick — how did it go?',
+      placeholder: 'what you did, what got in the way…',
+      hint: 'Specific detail = more XP. Generic or empty = basic XP.',
+      skip: 'Skip', confirm: 'Confirm',
+    },
       lo: {
         aiNotConfig: 'ERROR: AI not configured. Get a free Gemini key at aistudio.google.com and set VITE_GEMINI_API_KEY in .env.',
         neuralErr: 'NEURAL CONNECTION ERROR. System unstable.',
@@ -895,29 +934,38 @@ export const translations = {
       processing: 'Confirming your payment… unlocking shortly.',
       subscribeTo: 'Subscribe to {name}',
       popular: 'Popular',
+      save: 'Save 33%',
+      mostChosen: 'Most chosen',
+      betaBanner: 'BETA LAUNCH PRICING — SIGN UP NOW AND PAY LESS IN THE FUTURE.',
       footer: 'Recurring billing · cancel anytime',
       signOut: 'Sign out',
       startError: 'Could not start the payment.',
     },
     plans: {
       period: '/mo',
-      periodMonth: '/mo',
-      periodQuarter: '/quarter',
-      saveBadge: 'Save 33%',
-      essencial: {
-        name: 'Essential',
+      essencial_mensal: {
+        name: 'Essential', badge: 'Monthly', period: '/mo', equiv: '',
         tagline: 'Full access to the ORVAX system',
         features: ['Vault, Agenda and Capital', 'Telemetry and Life Dimensions', 'AI Mentor and Dossier', 'Arena and ranking', 'ORVAX Agent inside the app'],
+        excludes: ['Nutrition Tracker'],
       },
-      essencial_tri: {
-        name: 'Essential · Quarterly',
-        tagline: 'Equals R$ 19.97/mo · 3 months for the price of 2',
+      essencial_trimestral: {
+        name: 'Essential', badge: 'Quarterly', period: '/quarter', equiv: 'Equals R$ 19.97/mo · 3 months for the price of 2',
+        tagline: '',
         features: ['Everything in Essential Monthly', 'Price locked for 3 months', 'VIP WhatsApp group', 'VIP Telegram group'],
+        excludes: ['Nutrition Tracker'],
       },
-      completo: {
-        name: 'Complete',
+      completo_mensal: {
+        name: 'Complete', badge: 'Monthly', period: '/mo', equiv: '',
         tagline: 'Everything in Essential + Nutrition Tracker',
         features: ['Everything in the Essential plan', 'AI meal Scanner', 'Food diary and macros', 'Hydration, weight and progress'],
+        excludes: [],
+      },
+      completo_trimestral: {
+        name: 'Complete', badge: 'Quarterly', period: '/quarter', equiv: 'Equals R$ 26.63/mo · Save 33%',
+        tagline: '',
+        features: ['Everything in the Complete plan', 'Price locked for 3 months', 'VIP groups (WhatsApp + Telegram)', 'Priority on new features'],
+        excludes: [],
       },
       completo_tri: {
         name: 'Complete · Quarterly',

@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 // Conquistas · badges reais
 import { AchievementBadges as OrvaxAchievementBadges } from '../features/achievements';
+import TrustCard from './lifeOs/TrustCard';
 import { useLang } from '../i18n/LanguageContext';
 import { locRankTitle, locRankStatus } from '../i18n/rankMetaEn';
 
@@ -244,6 +245,9 @@ const Dossier = ({ theme, toggleTheme }) => {
                                 {activeProfileTab === 'achievements' && <div className="absolute bottom-[-1px] left-0 w-full h-[2px] rounded-full" style={{ backgroundColor: userStats.rankColor || '#ef4444' }} />}
                             </button>
                         </ScrollReveal>
+
+                        {/* VERITAS · Índice de Integridade */}
+                        <TrustCard />
 
                         {/* Content */}
                         <div className="relative w-full px-4">

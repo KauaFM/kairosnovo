@@ -19,7 +19,6 @@ import { createTransaction, createGoal as createFinancialGoal } from '../../serv
 import { createHabit as createHabitSvc } from '../../../../services/habits';
 import { ASPECT_TO_PILLAR } from '../../../../services/lifeOs';
 import { todayLocalStr } from '../../../../utils/dateUtils';
-import { useXpAward } from '../../hooks/useXpAward';
 
 const IconOf = (n: string) => (Icons as any)[n] || Icons.Circle;
 
@@ -103,7 +102,6 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const awardXp = useXpAward();
 
   // Reset quando abre
   useEffect(() => {
@@ -233,7 +231,8 @@ export function CreationHub({ open, onClose, onCreated, defaultPillar, defaultKi
         }
       }
 
-      await awardXp({ amount: currentKind.xp, reason: `create:${kind}`, pillar });
+      // VERITAS F1: criar NÃO gera XP (planejar é grátis; executar paga).
+      // O XP virá da conclusão, via xp-engine.
 
       onCreated?.({
         kind, pillar, title, description, amount: amount ? parseNum(amount) : undefined,
