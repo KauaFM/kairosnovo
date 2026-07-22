@@ -91,6 +91,15 @@ export const translations = {
       a6done: 'Selado. Até amanhã.',
       a6skip: 'Encerrar sem intenção',
     },
+    council: {
+      title: 'CONSELHO DE IAs',
+      sub: 'Análise semanal · baseada nos seus dados reais',
+      loading: 'O Conselho está analisando…',
+      kind: {
+        insight: 'Insight', challenge: 'Desafio', risk: 'Risco',
+        plan: 'Plano', correction: 'Correção',
+      },
+    },
       lo: {
         aiNotConfig: 'ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.',
         neuralErr: 'ERRO DE CONEXÃO NEURAL. Sistema instável.',
@@ -747,6 +756,15 @@ export const translations = {
       a6ph: 'tomorrow, when…, then I…',
       a6done: 'Sealed. See you tomorrow.',
       a6skip: 'Close without intention',
+    },
+    council: {
+      title: 'AI COUNCIL',
+      sub: 'Weekly analysis · based on your real data',
+      loading: 'The Council is analyzing…',
+      kind: {
+        insight: 'Insight', challenge: 'Challenge', risk: 'Risk',
+        plan: 'Plan', correction: 'Correction',
+      },
     },
       lo: {
         aiNotConfig: 'ERROR: AI not configured. Get a free Gemini key at aistudio.google.com and set VITE_GEMINI_API_KEY in .env.',

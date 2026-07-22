@@ -5,6 +5,7 @@ import { RadarGlobal } from '../viz/RadarGlobal';
 import { Sparkline } from '../viz/Sparkline';
 import { COMPASS_PILLARS, type CompassPillarSlug } from '../pillars';
 import { buildPillarData } from '../adapters/pillarDataAdapter';
+import { CouncilCard } from './CouncilCard';
 import type { PillarData } from '../types';
 import { useLang } from '../../../../i18n/LanguageContext';
 
@@ -200,6 +201,9 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
             <RadarGlobal axes={m.balance} size={500} />
           </div>
         </Card>
+
+        {/* CONSELHO DE IAs (VERITAS F5) */}
+        <CouncilCard />
 
         {/* PILLARS GRID */}
         <div className="pt-2">
