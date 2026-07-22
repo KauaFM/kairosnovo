@@ -100,6 +100,13 @@ export const translations = {
         plan: 'Plano', correction: 'Correção',
       },
     },
+    season: {
+      title: 'TEMPORADA',
+      daysLeft: '{n}d restantes',
+      xp: 'XP sazonal',
+      position: 'posição',
+      explain: 'Zera a cada trimestre. Seu XP vitalício (rank) nunca some — a competição é que recomeça justa.',
+    },
       lo: {
         aiNotConfig: 'ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.',
         neuralErr: 'ERRO DE CONEXÃO NEURAL. Sistema instável.',
@@ -765,6 +772,13 @@ export const translations = {
         insight: 'Insight', challenge: 'Challenge', risk: 'Risk',
         plan: 'Plan', correction: 'Correction',
       },
+    },
+    season: {
+      title: 'SEASON',
+      daysLeft: '{n}d left',
+      xp: 'season XP',
+      position: 'position',
+      explain: 'Resets every quarter. Your lifetime XP (rank) never fades — only the competition restarts fresh.',
     },
       lo: {
         aiNotConfig: 'ERROR: AI not configured. Get a free Gemini key at aistudio.google.com and set VITE_GEMINI_API_KEY in .env.',

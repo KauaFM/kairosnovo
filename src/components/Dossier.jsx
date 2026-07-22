@@ -11,6 +11,7 @@ import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 // Conquistas · badges reais
 import { AchievementBadges as OrvaxAchievementBadges } from '../features/achievements';
 import TrustCard from './lifeOs/TrustCard';
+import SeasonCard from './lifeOs/SeasonCard';
 import { useLang } from '../i18n/LanguageContext';
 import { locRankTitle, locRankStatus } from '../i18n/rankMetaEn';
 
@@ -246,7 +247,8 @@ const Dossier = ({ theme, toggleTheme }) => {
                             </button>
                         </ScrollReveal>
 
-                        {/* VERITAS · Índice de Integridade */}
+                        {/* VERITAS · Temporada (XP sazonal) + Índice de Integridade */}
+                        <SeasonCard />
                         <TrustCard />
 
                         {/* Content */}
