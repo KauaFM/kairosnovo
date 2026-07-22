@@ -71,9 +71,11 @@ BEGIN
 END; $$;
 
 -- ▸ Ranking sazonal (gate de Trust >= 30 — GDD §7)
+-- VOLATILE (não STABLE): chama veritas_current_season(), que INSERE a
+-- temporada sob demanda — PostgREST roda STABLE em transação read-only.
 CREATE OR REPLACE FUNCTION public.veritas_season_ranking(p_limit int DEFAULT 20)
 RETURNS TABLE (user_id uuid, full_name text, avatar_url text, season_xp int, pos bigint)
-LANGUAGE plpgsql SECURITY DEFINER STABLE AS $$
+LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE s public.seasons;
 BEGIN
     IF auth.uid() IS NULL THEN RAISE EXCEPTION 'nao autenticado'; END IF;
@@ -90,8 +92,9 @@ BEGIN
 END; $$;
 
 -- ▸ Resumo da temporada pro Dossiê (meu XP sazonal + posição + dias restantes)
+-- VOLATILE pelo mesmo motivo acima.
 CREATE OR REPLACE FUNCTION public.veritas_season_info()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER STABLE AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     v_uid uuid; s public.seasons;
     my_xp int; my_pos bigint;

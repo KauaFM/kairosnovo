@@ -200,6 +200,7 @@ const Heatmap = ({ data }) => {
 
 // ─── WATER CARD ─────────────────────────────────────────────────────────────────
 const WaterCard = ({ totalMl, goalMl = 2000, onAdd, onRemove, onGoalChange }) => {
+  const { t } = useLang();
   const [editGoal, setEditGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(goalMl));
   const [customMl, setCustomMl] = useState('');
