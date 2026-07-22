@@ -13,7 +13,7 @@ export const translations = {
       title: 'Índice de Integridade',
       band0: 'Em observação', band40: 'Padrão', band70: 'Confiável', band90: 'Alta Integridade',
       explain: 'Sobe com execução verificada e respostas específicas; cai com respostas genéricas ou rajadas. Ele multiplica seu XP.',
-      reason: { n2_especifica: 'Resposta específica', n2_generica: 'Resposta genérica', rajada: 'Conclusões em rajada' },
+      reason: { n2_especifica: 'Resposta específica', n2_generica: 'Resposta genérica', rajada: 'Conclusões em rajada', n3_prova: 'Prova de foco', auditoria_ok: 'Auditoria aprovada', auditoria_falha: 'Auditoria reprovada' },
     },
     verify: {
       badge: 'VERIFICAÇÃO', title: 'Registrar conclusão',
@@ -615,7 +615,7 @@ export const translations = {
       title: 'Integrity Score',
       band0: 'Under review', band40: 'Standard', band70: 'Trusted', band90: 'High Integrity',
       explain: 'Rises with verified execution and specific answers; falls with generic answers or bursts. It multiplies your XP.',
-      reason: { n2_especifica: 'Specific answer', n2_generica: 'Generic answer', rajada: 'Burst of completions' },
+      reason: { n2_especifica: 'Specific answer', n2_generica: 'Generic answer', rajada: 'Burst of completions', n3_prova: 'Focus proof', auditoria_ok: 'Audit passed', auditoria_falha: 'Audit failed' },
     },
     verify: {
       badge: 'VERIFICATION', title: 'Log completion',

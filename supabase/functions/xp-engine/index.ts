@@ -14,7 +14,33 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? ""
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+// N4 — Tribunal de IA: audita a resposta da micro-entrevista (coerência/
+// especificidade/plausibilidade) e devolve confiança 0..1. gpt-4o-mini.
+async function auditAnswer(title: string, answer: string): Promise<{ confidence: number; reason: string }> {
+  if (!OPENAI_API_KEY) return { confidence: 0.5, reason: "sem chave" }
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Você audita se um usuário realmente executou uma tarefa, avaliando a resposta dele sobre como foi. Julgue especificidade, coerência e plausibilidade. Responda SOMENTE JSON: {\"confidence\": number 0..1, \"reason\": string curta em pt-BR}. 1 = claramente específico/genuíno; 0 = genérico/evasivo/implausível." },
+        { role: "user", content: `Tarefa: "${title}"\nResposta do usuário: "${answer}"` },
+      ],
+    }),
+  })
+  if (!res.ok) return { confidence: 0.5, reason: "erro llm" }
+  const data = await res.json()
+  try {
+    const parsed = JSON.parse(data.choices?.[0]?.message?.content ?? "{}")
+    return { confidence: clamp(0, 1, Number(parsed.confidence) || 0.5), reason: String(parsed.reason || "") }
+  } catch { return { confidence: 0.5, reason: "parse" } }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -215,6 +241,34 @@ Deno.serve(async (req: Request) => {
     if (verifiedProof) await bump(2, "n3_prova", { source_id: sourceId })
     if (interviewSpecific) await bump(1.5, "n2_especifica", { source_id: sourceId })
     else if (interviewGeneric) await bump(-3, "n2_generica", { source_id: sourceId })
+
+    // ── N4: tribunal de IA (amostral, assíncrono) → ajusta o Trust FUTURO ──
+    if (level === 2 && answersText.length >= 20) {
+      const auditProb = clamp(0.03, 0.5, 0.55 - trustScore / 200)
+      if (Math.random() < auditProb) {
+        const rawAnswer = Object.values(answersObj).map((x: any) => String(x || "")).join(" ").slice(0, 500)
+        try {
+          // @ts-ignore EdgeRuntime existe no runtime da Supabase
+          EdgeRuntime.waitUntil((async () => {
+            try {
+              const a = await auditAnswer(title, rawAnswer)
+              await admin.from("verifications").insert({
+                user_id: user.id, source_type: sourceType, source_id: sourceId,
+                level: 4, kind: "ai", ai_confidence: a.confidence,
+                status: a.confidence < 0.35 ? "rejected" : "valid",
+                answers: { audit_reason: a.reason },
+              })
+              const delta = a.confidence >= 0.6 ? 5 : a.confidence < 0.35 ? -10 : 0
+              if (delta !== 0) await admin.rpc("veritas_bump_trust", {
+                p_user: user.id, p_delta: delta,
+                p_reason: delta > 0 ? "auditoria_ok" : "auditoria_falha",
+                p_ref: { source_id: sourceId, conf: a.confidence },
+              })
+            } catch (e) { console.error("audit bg:", e) }
+          })())
+        } catch (_) { /* runtime sem waitUntil: ignora a auditoria */ }
+      }
+    }
 
     return json({
       xp, total: applied?.new_xp ?? null, streak, crit, trust: newTrust, level,
