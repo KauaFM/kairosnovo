@@ -14,6 +14,7 @@ import {
   getUserGoals
 } from '../../../../services/db';
 import { listHabits, getRecentHabitLogs } from '../../../../services/habits';
+import { getDimensionMetrics } from '../../../../services/dimensions';
 import { toLocalDateStr } from '../../../../utils/dateUtils';
 import { isIncomeTx, isExpenseTx } from '../../../../lib/txType';
 
@@ -22,6 +23,93 @@ const DAYS_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 function mean(arr: number[]): number {
   if (arr.length === 0) return 0;
   return arr.reduce((s, v) => s + v, 0) / arr.length;
+}
+
+/* ── VERITAS F4: métricas REAIS dos módulos → eixos por pilar ──
+   Agregados 30d (RPC server-side). Cada pilar com fonte real ganha
+   eixos verificáveis; o score do eixo é % de um alvo saudável fixo.
+   GDD §5 — "métricas com fonte, unidade, janela e direção". */
+const pctOf = (v: number, target: number) =>
+  Math.max(0, Math.min(100, Math.round((Number(v) || 0) / target * 100)));
+
+function veritasAxesFor(slug: CompassPillarSlug, m: any):
+  { axes: AxisValue[]; score: number; truth: string } | null {
+  if (!m) return null;
+
+  if (slug === 'health') {
+    const n = Number(m.workouts_30d || 0), min = Number(m.workout_min_30d || 0);
+    if (n <= 0) return null;
+    return {
+      axes: [
+        { key: 'vx_workouts', label: 'Treinos (30d)', value: pctOf(n, 12), raw: `${n} treino(s)` },
+        { key: 'vx_wmin', label: 'Volume de treino', value: pctOf(min, 600), raw: `${min} min` },
+      ],
+      score: Math.round(0.6 * pctOf(n, 12) + 0.4 * pctOf(min, 600)),
+      truth: `${n} treino(s) reais na Arena em 30 dias.`,
+    };
+  }
+
+  if (slug === 'nutrition') {
+    const days = Number(m.nutrition_days_30d || 0);
+    const water = Number(m.water_days_30d || 0);
+    const weigh = Number(m.weight_logs_30d || 0);
+    if (days <= 0 && water <= 0 && weigh <= 0) return null;
+    return {
+      axes: [
+        { key: 'vx_nutri', label: 'Dias rastreados', value: pctOf(days, 30), raw: `${days}/30 dias` },
+        { key: 'vx_water', label: 'Hidratação', value: pctOf(water, 30), raw: `${water}/30 dias` },
+        { key: 'vx_weight', label: 'Pesagens', value: pctOf(weigh, 4), raw: `${weigh} registro(s)` },
+      ],
+      score: Math.round(0.6 * pctOf(days, 30) + 0.25 * pctOf(water, 30) + 0.15 * pctOf(weigh, 4)),
+      truth: `${days} dia(s) de diário alimentar real no FitCal em 30 dias.`,
+    };
+  }
+
+  if (slug === 'mind') {
+    const fmin = Number(m.focus_min_30d || 0), fses = Number(m.focus_sessions_30d || 0);
+    if (fmin <= 0) return null;
+    return {
+      axes: [
+        { key: 'vx_focusmin', label: 'Foco provado', value: pctOf(fmin, 600), raw: `${fmin} min` },
+        { key: 'vx_focusses', label: 'Sessões 5min+', value: pctOf(fses, 20), raw: `${fses} sessão(ões)` },
+      ],
+      score: Math.round(0.7 * pctOf(fmin, 600) + 0.3 * pctOf(fses, 20)),
+      truth: `${fmin} min de foco PROVADO por timer em 30 dias.`,
+    };
+  }
+
+  if (slug === 'internal') {
+    const energy = m.avg_energy_30d != null ? Number(m.avg_energy_30d) : null;
+    const sleepH = m.avg_sleep_h_30d != null ? Number(m.avg_sleep_h_30d) : null;
+    const grat = Number(m.gratitude_days_30d || 0);
+    if (energy == null && sleepH == null && grat <= 0) return null;
+    const axes: AxisValue[] = [];
+    let sum = 0, w = 0;
+    if (energy != null) { const v = pctOf(energy, 5); axes.push({ key: 'vx_energy', label: 'Energia média', value: v, raw: `${energy}/5` }); sum += v * 0.4; w += 0.4; }
+    if (sleepH != null) { const v = pctOf(Math.min(sleepH, 8), 8); axes.push({ key: 'vx_sleep', label: 'Sono médio', value: v, raw: `${sleepH}h` }); sum += v * 0.35; w += 0.35; }
+    if (grat > 0) { const v = pctOf(grat, 30); axes.push({ key: 'vx_grat', label: 'Gratidão', value: v, raw: `${grat} dia(s)` }); sum += v * 0.25; w += 0.25; }
+    return {
+      axes,
+      score: w > 0 ? Math.round(sum / w) : 0,
+      truth: `Escaneamentos do ritual: energia, sono e gratidão dos últimos 30 dias.`,
+    };
+  }
+
+  if (slug === 'identity') {
+    const streak = Number(m.ritual_streak || 0), rituals = Number(m.rituals_30d || 0), xp = Number(m.xp_30d || 0);
+    if (rituals <= 0 && xp <= 0) return null;
+    return {
+      axes: [
+        { key: 'vx_rstreak', label: 'Streak do ritual', value: pctOf(streak, 21), raw: `${streak} dia(s)` },
+        { key: 'vx_rituals', label: 'Rituais (30d)', value: pctOf(rituals, 30), raw: `${rituals}/30` },
+        { key: 'vx_xp', label: 'XP verificado', value: pctOf(xp, 1500), raw: `${xp} XP` },
+      ],
+      score: Math.round(0.4 * pctOf(streak, 21) + 0.35 * pctOf(rituals, 30) + 0.25 * pctOf(xp, 1500)),
+      truth: `${rituals} ritual(is) de encerramento e ${xp} XP verificado em 30 dias.`,
+    };
+  }
+
+  return null;
 }
 
 /** Habit.pillar (ex: 'saude', 'health', 'foco') → CompassPillarSlug. */
@@ -43,6 +131,9 @@ export async function buildPillarData(slug: CompassPillarSlug, context?: any): P
     const telemetry = context?.telemetry ?? await getTelemetryHistory(30).catch(() => []);
     const transactions = context?.transactions ?? await getTransactions('ANO').catch(() => []);
     const goals = context?.goals ?? await getGoals().catch(() => []);
+    // VERITAS F4: agregados reais 30d (cache de 1 min no service)
+    const vm = context?.veritas ?? await getDimensionMetrics().catch(() => null);
+    const veritasEnr = veritasAxesFor(slug, vm);
 
     // 2. Pillar Specific Logic: FINANCE (Strictly synced with Vault)
     if (slug === 'finance') {
@@ -201,7 +292,11 @@ export async function buildPillarData(slug: CompassPillarSlug, context?: any): P
         const actual = perHabit30.get(h.id) || 0;
         return expected > 0 ? Math.min(1, actual / expected) : 0;
       });
-      const scoreNormalized = Math.round((ratios.reduce((a, b) => a + b, 0) / (ratios.length || 1)) * 100);
+      const habitScore = Math.round((ratios.reduce((a, b) => a + b, 0) / (ratios.length || 1)) * 100);
+      // VERITAS F4: com fonte real do módulo, o score vira blend 60/40
+      const scoreNormalized = veritasEnr
+        ? Math.round(0.6 * habitScore + 0.4 * veritasEnr.score)
+        : habitScore;
 
       // "Eixos do Pilar" = os HÁBITOS REAIS do usuário + contagem real de check-ins
       // (30d). NÃO inventar métricas (sono/hidratação/etc.) que o app nunca coletou.
@@ -215,6 +310,8 @@ export async function buildPillarData(slug: CompassPillarSlug, context?: any): P
           raw: `${c} check-in${c === 1 ? '' : 's'}`,
         };
       });
+      // VERITAS F4: eixos com dados reais dos módulos entram junto dos hábitos
+      if (veritasEnr) axesNow.push(...veritasEnr.axes);
 
       // Longo prazo: 12 meses (Ciclo de Vida) e densidade 365 dias (estilo GitHub)
       const evolutionYear: DayPoint[] = [];
@@ -257,7 +354,34 @@ export async function buildPillarData(slug: CompassPillarSlug, context?: any): P
         evolution30,
         evolutionYear,
         yearDensity,
-        truth: `${logs.length} check-in(s) registrado(s) em ${config.name} · ${pillarHabits.length} hábito(s) ativo(s).`,
+        truth: `${logs.length} check-in(s) registrado(s) em ${config.name} · ${pillarHabits.length} hábito(s) ativo(s).`
+          + (veritasEnr ? ` ${veritasEnr.truth}` : ''),
+        hasRealData: true,
+        isEmpty: false,
+      } as unknown as PillarData;
+    }
+
+    // 2.7. VERITAS F4 — pilar SEM hábitos mas COM dados reais de módulo
+    // (ex: usuário treina na Arena sem ter hábito "academia"): mostra os
+    // dados reais em vez do EmptyState.
+    if (veritasEnr) {
+      const base = createEmptyPillarData(config);
+      return {
+        ...base,
+        score: veritasEnr.score,
+        scoreNormalized: veritasEnr.score,
+        status: veritasEnr.score >= 50 ? 'saudavel' : 'atencao',
+        axesNow: veritasEnr.axes,
+        axesPast: veritasEnr.axes.map(a => ({ ...a, value: 0 })),
+        todayInsight: veritasEnr.truth,
+        weekInsight: veritasEnr.truth,
+        problem: null,
+        actions: [{
+          title: `Criar hábito de ${config.name}`,
+          why: 'Hábitos + dados de módulo = leitura completa da dimensão.',
+          when: 'Hoje',
+        }],
+        truth: veritasEnr.truth,
         hasRealData: true,
         isEmpty: false,
       } as unknown as PillarData;
