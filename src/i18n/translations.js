@@ -24,6 +24,12 @@ export const translations = {
       hint: 'Detalhe específico = mais XP. Genérico ou vazio = XP básico.',
       skip: 'Pular', confirm: 'Confirmar',
     },
+    focus: {
+      running: 'FOCO EM ANDAMENTO', session: 'Sessão de foco',
+      finish: 'Concluir', cancel: 'Cancelar',
+      min1: 'Mínimo de 1 min pra valer como prova',
+      start: 'Focar nesta tarefa',
+    },
       lo: {
         aiNotConfig: 'ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.',
         neuralErr: 'ERRO DE CONEXÃO NEURAL. Sistema instável.',
@@ -619,6 +625,12 @@ export const translations = {
       placeholder: 'what you did, what got in the way…',
       hint: 'Specific detail = more XP. Generic or empty = basic XP.',
       skip: 'Skip', confirm: 'Confirm',
+    },
+    focus: {
+      running: 'FOCUS IN PROGRESS', session: 'Focus session',
+      finish: 'Finish', cancel: 'Cancel',
+      min1: 'At least 1 min to count as proof',
+      start: 'Focus on this task',
     },
       lo: {
         aiNotConfig: 'ERROR: AI not configured. Get a free Gemini key at aistudio.google.com and set VITE_GEMINI_API_KEY in .env.',

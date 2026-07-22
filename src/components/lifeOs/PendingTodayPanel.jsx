@@ -6,12 +6,16 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLang } from '../../i18n/LanguageContext';
 import {
-  CheckSquare, Square, Repeat, Calendar, Bell, CreditCard, Clock, RefreshCw, Sparkles,
+  CheckSquare, Square, Repeat, Calendar, Bell, CreditCard, Clock, RefreshCw, Sparkles, Timer,
 } from 'lucide-react';
 import { getTodayPending } from '../../services/lifeOs';
 import { supabase } from '../../lib/supabase';
 import { reportXpEvent } from '../../services/xp';
+import { startFocus, endFocus } from '../../services/focus';
 import VerifySheet from './VerifySheet';
+import FocusBar from './FocusBar';
+
+const FOCUS_KEY = 'orvax_focus';
 import { toLocalDateStr } from '../../utils/dateUtils';
 
 // MONO: toda a paleta colapsa em tinta única. Os tipos se distinguem
@@ -45,6 +49,14 @@ export default function PendingTodayPanel({ date }) {
   const [loading, setLoading] = useState(true);
   const [flying, setFlying] = useState([]); // animação +XP
   const [verify, setVerify] = useState(null); // { item } quando o sheet N2 está aberto
+  const [focus, setFocus] = useState(() => {  // sessão de foco ativa (persiste em localStorage)
+    try { const raw = localStorage.getItem(FOCUS_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  });
+
+  useEffect(() => {
+    if (focus) localStorage.setItem(FOCUS_KEY, JSON.stringify(focus));
+    else localStorage.removeItem(FOCUS_KEY);
+  }, [focus]);
   const lastClickRef = useRef({});
 
   const load = useCallback(async () => {
@@ -133,12 +145,59 @@ export default function PendingTodayPanel({ date }) {
     }
   }, [verify]);
 
+  // ── Foco (prova N3) ──
+  const handleStartFocus = useCallback(async (item) => {
+    try {
+      const sid = await startFocus(item.kind, String(item.source_id), item.title || '');
+      setFocus({ sessionId: sid, startedAt: Date.now(), item: { kind: item.kind, source_id: item.source_id, title: item.title } });
+    } catch (e) { console.error('startFocus:', e); }
+  }, []);
+
+  const handleFocusComplete = useCallback(async () => {
+    const f = focus;
+    if (!f) return;
+    try {
+      await endFocus(f.sessionId);
+      // marca concluído no banco (mesma lógica de conclusão)
+      if (f.item.kind === 'task') {
+        await supabase.from('tasks').update({ state: 'done' }).eq('id', f.item.source_id);
+      } else if (f.item.kind === 'habit') {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: f.item.source_id, logged_at: new Date().toISOString() });
+      } else {
+        await supabase.from('universal_events').update({ status: 'done' }).eq('id', f.item.source_id);
+      }
+      setItems((prev) => prev.map((i) =>
+        i.source_id === f.item.source_id && i.kind === f.item.kind ? { ...i, done: true } : i));
+      // reporta N3 (prova por timer) — o servidor usa a duração real
+      const res = await reportXpEvent({
+        source_type: f.item.kind, source_id: String(f.item.source_id), title: f.item.title || '',
+        difficulty: 3,
+        verification: { level: 3, kind: 'timer', session_id: f.sessionId },
+      });
+      const gained = res?.xp ?? 0;
+      if (gained > 0) {
+        const id = `focus-${f.item.source_id}-${Date.now()}`;
+        setFlying((prev) => [...prev, { id, xp: gained }]);
+        setTimeout(() => setFlying((prev) => prev.filter((x) => x.id !== id)), 1100);
+      }
+    } catch (e) { console.error('handleFocusComplete:', e); }
+    finally { setFocus(null); }
+  }, [focus]);
+
+  const handleFocusCancel = useCallback(async () => {
+    const f = focus;
+    setFocus(null);
+    if (f) { try { await endFocus(f.sessionId); } catch { /* abandona sem XP */ } }
+  }, [focus]);
+
   const pending = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
 
   return (
     <section className="w-full relative">
       <VerifySheet open={!!verify} title={verify?.item?.title} onResolve={handleVerifyResolve} />
+      <FocusBar focus={focus} onComplete={handleFocusComplete} onCancel={handleFocusCancel} />
       {/* XP fly animations */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {flying.map((f) => (
@@ -230,9 +289,16 @@ export default function PendingTodayPanel({ date }) {
                         </span>
                       </>
                     )}
-                    {!it.done && <span className="ml-auto text-zinc-400">+{meta.xp}XP</span>}
                   </div>
                 </div>
+                {!it.done && (it.kind === 'task' || it.kind === 'habit')
+                  && !(focus && focus.item?.source_id === it.source_id && focus.item?.kind === it.kind) && (
+                  <button onClick={() => handleStartFocus(it)} title={t('focus.start')}
+                    className="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center opacity-40 hover:opacity-100 transition-all"
+                    style={{ borderColor: 'var(--border-color)' }}>
+                    <Timer size={13} />
+                  </button>
+                )}
               </article>
             );
           })}

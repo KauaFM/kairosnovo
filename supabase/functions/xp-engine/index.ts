@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
   const titleNorm = normTitle(title) || sourceType
   const dimension = String(body.dimension || DIM_DEFAULT[sourceType] || "general").slice(0, 32)
   const difficulty = clamp(1, 5, Number(body.difficulty) || 2)
-  const minutes = clamp(1, 480, Number(body.minutes) || 15)
+  let minutes = clamp(1, 480, Number(body.minutes) || 15)
   const priority = [1, 2, 3].includes(Number(body.priority)) ? Number(body.priority) : 3
   const sourceId = body.source_id ? String(body.source_id).slice(0, 64) : null
 
@@ -89,6 +89,7 @@ Deno.serve(async (req: Request) => {
   let level = [1, 2, 3, 4].includes(Number(v.level)) ? Number(v.level) : 1
   const answersObj = (v.answers && typeof v.answers === "object") ? v.answers : {}
   const answersText = normText(Object.values(answersObj).map((x: any) => String(x || "")).join(" "))
+  const focusSessionId = v.session_id ? Number(v.session_id) : null
 
   try {
     const dayStart = spDayStartISO()
@@ -132,6 +133,23 @@ Deno.serve(async (req: Request) => {
       if (answersText.length >= 20 && !onlyGeneric && !nearDup) interviewSpecific = true
       else interviewGeneric = true
       if (!answersText) level = 1 // sem resposta → cai pra autodeclaração
+    }
+
+    // ── N3: valida a prova por timer de foco (duração é do servidor) ──
+    let verifiedProof = false
+    if (level === 3 && v.kind === "timer" && focusSessionId) {
+      const { data: fs } = await admin.from("veritas_focus")
+        .select("id, seconds, status, consumed")
+        .eq("id", focusSessionId).eq("user_id", user.id).maybeSingle()
+      if (fs && fs.status === "ended" && !fs.consumed && (fs.seconds ?? 0) >= 60) {
+        minutes = clamp(1, 480, Math.round((fs.seconds ?? 0) / 60)) // duração REAL substitui a declarada
+        verifiedProof = true
+        await admin.from("veritas_focus").update({ consumed: true }).eq("id", fs.id)
+      } else {
+        level = 1 // sem prova válida (sessão curta/reusada/inexistente) → autodeclaração
+      }
+    } else if (level === 3) {
+      level = 1 // F2.2 só suporta prova por timer; outros kinds caem pra N1
     }
 
     // ── Fatores ──
@@ -194,6 +212,7 @@ Deno.serve(async (req: Request) => {
       if (typeof data === "number") newTrust = data
     }
     if (nBurst > 5) await bump(-5, "rajada", { count: nBurst })
+    if (verifiedProof) await bump(2, "n3_prova", { source_id: sourceId })
     if (interviewSpecific) await bump(1.5, "n2_especifica", { source_id: sourceId })
     else if (interviewGeneric) await bump(-3, "n2_generica", { source_id: sourceId })
 
