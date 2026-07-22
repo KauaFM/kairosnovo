@@ -1,12 +1,13 @@
 // ============================================================
-// ORVAX — xp-engine (Protocolo VERITAS · F2.1)
+// ORVAX — xp-engine (Protocolo VERITAS · F3)
 // Única entidade que emite XP. O cliente envia FATOS + verificação.
 //
 // XP = round(B×D×Q×C×T×S×K) × capFactor × crit
 //   Q: nível de verificação (N1=0.6, N2=0.85/0.7, N3=1.1, N4=ai)
 //   T: Índice de Integridade (trust_scores.score) → 0.30..1.20
 //   + emite trust_events (rajada, N2 boa/genérica) e registra verifications.
-// Docs: docs/GDD_SISTEMA_EVOLUCAO.md §2–§3.
+// F3: source_type='ritual' → valida daily_reviews de hoje (1×/dia),
+//   usa a nota calculada e o streak PRÓPRIO do ritual. Docs: GDD §2–§4.
 // ============================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
@@ -85,6 +86,8 @@ function spDayStartISO(): string {
   return new Date(Date.UTC(sp.getUTCFullYear(), sp.getUTCMonth(), sp.getUTCDate(), 3, 0, 0)).toISOString()
 }
 const spHour = () => new Date(Date.now() - 3 * 3600_000).getUTCHours()
+// Dia VERITAS (igual à SQL veritas_today): vira às 03:00 de SP → UTC-6
+const spDayStr = () => new Date(Date.now() - 6 * 3600_000).toISOString().slice(0, 10)
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
@@ -109,6 +112,65 @@ Deno.serve(async (req: Request) => {
   let minutes = clamp(1, 480, Number(body.minutes) || 15)
   const priority = [1, 2, 3].includes(Number(body.priority)) ? Number(body.priority) : 3
   const sourceId = body.source_id ? String(body.source_id).slice(0, 64) : null
+
+  // ── F3 · RITUAL: caminho próprio — a prova é a daily_review de HOJE ──
+  // Nada vem do cliente: nota, atos e streak são lidos da linha que a RPC
+  // veritas_submit_review calculou. xp_awarded garante 1×/dia (update condicional).
+  if (sourceType === "ritual") {
+    try {
+      const day = spDayStr()
+      const [{ data: rev }, { data: trust }, todayQ] = await Promise.all([
+        admin.from("daily_reviews")
+          .select("id, computed_score, acts, ritual_streak, xp_awarded, completed")
+          .eq("user_id", user.id).eq("day", day).maybeSingle(),
+        admin.from("trust_scores").select("score").eq("user_id", user.id).maybeSingle(),
+        admin.from("xp_events").select("xp_final").eq("user_id", user.id).gte("created_at", spDayStartISO()),
+      ])
+      if (!rev || !rev.completed) return json({ error: "Ritual não registrado hoje." }, 400)
+      if (rev.xp_awarded) return json({ xp: 0, already: true })
+
+      // trava anti-corrida: só quem virar xp_awarded=false→true emite
+      const { data: locked } = await admin.from("daily_reviews")
+        .update({ xp_awarded: true }).eq("id", rev.id).eq("xp_awarded", false).select("id")
+      if (!locked || !locked.length) return json({ xp: 0, already: true })
+
+      const score = clamp(0, 10, Number(rev.computed_score) || 0)
+      const acts = clamp(0, 6, Number(rev.acts) || 0)
+      const rStreak = Math.max(1, Number(rev.ritual_streak) || 1)
+      const trustScore = trust?.score ?? 50
+      const xpToday = (todayQ.data ?? []).reduce((s: number, e: any) => s + (e.xp_final || 0), 0)
+
+      const D = 0.8 + 0.05 * score                                  // dia melhor rende mais (0.8..1.3)
+      const Q = acts >= 6 ? 1.0 : acts >= 4 ? 0.85 : 0.7            // ritual completo > exausto
+      const C = 1 + 0.5 * (1 - Math.exp(-rStreak / 21))             // streak PRÓPRIO do ritual
+      const T = clamp(0.30, 1.20, 0.30 + 0.009 * trustScore)
+      const h = spHour()
+      const K = (h >= 2 && h < 5) ? 0.9 : 1.0
+      let capFactor = 1.0
+      if (xpToday > 250) capFactor = 0.25
+      else if (xpToday > 150) capFactor = 0.5
+
+      const xp = Math.max(1, Math.round(BASE.ritual * D * Q * C * T * K * capFactor))
+
+      const { error: insErr } = await admin.from("xp_events").insert({
+        user_id: user.id, source_type: "ritual", source_id: String(rev.id),
+        dimension: "evolution", title_norm: "ritual",
+        base: BASE.ritual, d: D, q: Q, c: C, t: T, s: 1, k: K, crit: false, xp_final: xp,
+        meta: { day, score, acts, ritual_streak: rStreak, trustScore, capFactor },
+      })
+      if (insErr) throw new Error(`ledger: ${insErr.message}`)
+      const { data: applied, error: applyErr } = await admin.rpc("veritas_apply_xp", { p_user_id: user.id, p_xp: xp })
+      if (applyErr) throw new Error(`apply: ${applyErr.message}`)
+
+      return json({
+        xp, total: applied?.new_xp ?? null, ritual_streak: rStreak, score,
+        factors: { B: BASE.ritual, D: +D.toFixed(2), Q, C: +C.toFixed(2), T: +T.toFixed(2), K, capFactor },
+      })
+    } catch (err: any) {
+      console.error("xp-engine ritual:", err)
+      return json({ error: err?.message || "Falha no XP do ritual." }, 500)
+    }
+  }
 
   // Verificação declarada pelo cliente (o nível é ACEITO, o Q é decidido aqui)
   const v = body.verification || {}

@@ -1,10 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { DomainKey } from '../types/metrics.types';
-import { QuickLogEntry } from '../components/QuickLogEntry';
+import { RitualRegistrarDia } from '../components/RitualRegistrarDia';
 import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import { OrvaxHeader, ScrollContainer } from '../../../components/BaseLayout';
-import { saveTelemetrySnapshot } from '../../../services/db';
 import { useLang } from '../../../i18n/LanguageContext';
 
 // ── Compass v1 — new metrics system ──
@@ -29,18 +27,6 @@ const pageVariants = {
   exit: { opacity: 0, x: -40 },
 };
 
-/* ── Domain key → Telemetry metric key mapping ── */
-const DOMAIN_TO_METRIC: Record<DomainKey, string> = {
-  mind: 'Cognitivo',
-  body: 'BioFisico',
-  relationships: 'Social',
-  productivity: 'Digital',
-  wellbeing: 'Emocional',
-  growth: 'Crescimento',
-  career: 'Profissional',
-  spirituality: 'Espiritual',
-};
-
 export default function MetricsPage({ theme, toggleTheme, onModalChange }: MetricsPageProps) {
   const { t } = useLang();
   const [logModal, setLogModal] = useState(false);
@@ -59,15 +45,6 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
   const updateLogModal = useCallback((open: boolean) => setLogModal(open), []);
   const openPillar = useCallback((slug: CompassPillarSlug) => setActivePillar(slug), []);
   const closePillar = useCallback(() => setActivePillar(null), []);
-
-  /* ── Persist daily log to Supabase ── */
-  const handleLogSubmit = useCallback(async (scores: Record<DomainKey, number>) => {
-    const mapped: Record<string, number> = {};
-    (Object.entries(scores) as [DomainKey, number][]).forEach(([key, score]) => {
-      mapped[DOMAIN_TO_METRIC[key]] = score * 10;
-    });
-    await saveTelemetrySnapshot(mapped);
-  }, []);
 
   return (
     <ErrorBoundary fallbackTitle={t('lo.metricsErr')}>
@@ -102,11 +79,10 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
         </AnimatePresence>
       </ScrollContainer>
 
-      {/* ── Daily log modal ── */}
-      <QuickLogEntry
+      {/* ── Ritual "Registrar Dia" (VERITAS F3 — substitui o QuickLogEntry) ── */}
+      <RitualRegistrarDia
         isOpen={logModal}
         onClose={() => updateLogModal(false)}
-        onSubmit={handleLogSubmit}
       />
 
       {/* ── Pillar Deep Dive Overlay (Compass PillarLayered) ── */}
