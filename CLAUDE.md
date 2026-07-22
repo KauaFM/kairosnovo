@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ORVAX** — anti-procrastination personal control system ("Sistema de Controle Pessoal") built in Portuguese BR for Brazilian users. Mobile-first React app (428px max-width). Futuristic black-and-white theme throughout — no colors outside that palette.
 
-**Full stack:** React + Vite + Tailwind · Supabase (auth, DB, storage, Edge Functions) · n8n (WhatsApp agent orchestration) · WhatsApp Business API (Meta) · GPT-4o-mini (agent LLM) · Stripe (payments)
+**Full stack:** React + Vite + Tailwind · Supabase (auth, DB, storage, Edge Functions) · GPT-4o-mini via Edge Functions (mentor-chat, analyze-food, xp-engine, dimension-coach) · Capacitor 7 (Android) · Stripe (payments — web; Play Billing pendente para Android)
+
+> n8n/WhatsApp foram DESCONTINUADOS (2026-07-22). Não existe mais agente WhatsApp; o mentor é 100% in-app via Edge Function `mentor-chat`.
 
 ## Commands
 
@@ -38,7 +40,7 @@ supabase functions serve # Serve Edge Functions locally (Deno 2)
 | `dossier` | Dossier | Perfil, XP, ranking |
 | `focus` | Blog | Timeline de notícias |
 
-The AI mentor system (Atlas/Aurora personas) lives in `MentorModal.jsx` in-app and mirrors into the WhatsApp agent.
+The AI mentor system (Atlas/Aurora personas) lives in-app: `MentorAssistant.jsx` (aba central) e `MentorModal.jsx` (overlay do Nexus) — ambos falam com a Edge Function `mentor-chat`.
 
 ### Layers
 
@@ -47,13 +49,13 @@ The AI mentor system (Atlas/Aurora personas) lives in `MentorModal.jsx` in-app a
   - `fitcal/` — Nutrition and weight tracking
   - `gymrats/` — Social fitness challenges
 - **`src/services/db.js`** — All Supabase queries. Every query filters by `user_id` for RLS compliance.
-- **`src/services/gemini.js`** — Google Gemini API wrapper for the in-app mentor.
+- **`src/services/mentorAgent.js`** — mentor client → Edge Function `mentor-chat` (chaves de IA vivem SÓ no servidor; nunca criar `VITE_*_API_KEY` de LLM).
 - **`src/lib/supabase.js`** — Supabase client init (reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).
 - **`src/utils/dateUtils.js`** — Local date helpers that fix UTC offset issues for Brazil timezone (critical — don't use raw `new Date()` for date comparisons).
 
 ### Supabase Backend
 
-- **Edge Function** at `supabase/functions/whatsapp-agent/` — Deno 2, TypeScript. Implements two AI mentor personas (ATLAS and AURORA) via OpenAI. Handles WhatsApp Business API webhooks.
+- **Edge Functions** (Deno 2, TypeScript): `mentor-chat` (personas Atlas/Aurora), `analyze-food` (scanner nutricional por foto), `xp-engine` (VERITAS — única fonte de XP), `dimension-coach` (Conselho de IAs), `create-checkout`/`create-portal`/`stripe-webhook` (billing web).
 - **Migrations** in `supabase/migrations/` — PostgreSQL 17 schema files. New features require a dated migration file.
 - All tables use RLS. The `profiles` table row must exist for a user before any FK-constrained writes work.
 

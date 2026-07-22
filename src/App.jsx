@@ -20,9 +20,7 @@ const GymRatsHome = lazy(() => import('./features/gymrats/pages/GymRatsHome'));
 const FitCalGate = lazy(() => import('./features/fitcal/pages/FitCalGate'));
 import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
-import { callMentor, clearMentorCache } from './services/mentor';
-import { llmAvailable } from './services/llm';
-import { getSelectedMentor } from './services/db';
+import { sendMentorMessage } from './services/mentorAgent';
 import { supabase } from './lib/supabase';
 import { appEvents } from './lib/events';
 
@@ -173,35 +171,16 @@ export default function App() {
     };
 
     // --- DATA STATES ---
-    const [cfiScore, setCfiScore] = useState(0);
-    const [vaultHabits, setVaultHabits] = useState([]);
+    const [vaultHabits] = useState([]);
 
-    // Handle Mentor Process (IA: Gemini/OpenAI)
+    // Mentor rápido (overlay do Nexus) → mesma Edge Function mentor-chat
+    // do assistente central. A chave da IA vive SÓ no servidor.
     const handleProcess = async () => {
-        if (!llmAvailable()) {
-            setMentorReply(t('lo.aiNotConfig'));
-            return;
-        }
-
         setIsLoading(true);
         setMentorReply('');
-
         try {
-            const mentorId = await getSelectedMentor();
-            const data = await callMentor(userInput, { mentorId });
-            if (data) {
-                setMentorReply(data.mentor_reply);
-                if (data.cognitive_friction !== undefined) {
-                    setCfiScore(data.cognitive_friction);
-                }
-                if (data.extracted_goals && data.extracted_goals.length > 0) {
-                    const newHabits = data.extracted_goals.map(g => ({
-                        ...g,
-                        progress: Math.floor(Math.random() * 30)
-                    }));
-                    setVaultHabits(prev => [...newHabits, ...prev].slice(0, 4));
-                }
-            }
+            const res = await sendMentorMessage(userInput);
+            setMentorReply(res?.reply || t('lo.neuralErr'));
         } catch (error) {
             setMentorReply(t('lo.neuralErr'));
         } finally {
