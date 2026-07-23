@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Crosshair, Fingerprint, ChevronRight, Activity, Clock, Wifi, Zap, Hexagon, Medal, Award, Camera, Settings } from 'lucide-react';
 import AccountScreen from './AccountScreen';
+import { alertDialog } from '../lib/dialog';
 import RankSystem from './RankSystem';
 import MentorConfig, { MENTORS } from './MentorConfig';
 import GlobalRanking from './GlobalRanking';
@@ -108,7 +109,7 @@ const Dossier = ({ theme, toggleTheme }) => {
 
         // Validação de tamanho (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            alert(t('dossier.imageTooLarge'));
+            alertDialog({ title: 'Imagem grande', message: t('dossier.imageTooLarge'), danger: true });
             return;
         }
 
@@ -123,7 +124,7 @@ const Dossier = ({ theme, toggleTheme }) => {
 
         if (uploadError) {
             console.error('[Avatar] Upload error:', uploadError);
-            alert(t('dossier.uploadFail', { msg: uploadError.message }));
+            alertDialog({ title: 'Falha no upload', message: t('dossier.uploadFail', { msg: uploadError.message }), danger: true });
             return;
         }
 

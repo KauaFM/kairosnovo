@@ -12,6 +12,7 @@ import {
   CreditCard, Scale, Dumbbell, BookOpen, Briefcase, Heart, Home
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { alertDialog } from '../../lib/dialog';
 
 const TEMPLATE_ICON = {
   savings_trip: Plane, emergency_fund: PiggyBank, invest: TrendingUp,
@@ -210,7 +211,7 @@ export default function GoalDashboard({ goalId, color = '#f97316', onBack }) {
       await load();
     } catch (e) {
       console.error('logCheckpoint:', e);
-      alert(e.message);
+      alertDialog({ title: 'Erro', message: e.message, danger: true });
     } finally { setSaving(false); }
   };
 

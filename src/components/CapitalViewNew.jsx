@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getTransactions, getGoals, createTransaction, createFinancialGoal, getMonthlyFinancialSummary, deleteTransaction, deleteFinancialGoal, updateFinancialGoalProgress } from '../services/db';
 import { supabase } from '../lib/supabase';
 import { isIncomeTx, isExpenseTx } from '../lib/txType';
+import { alertDialog } from '../lib/dialog';
 
 import { toLocalDateStr } from '../utils/dateUtils';
 import { useLang } from '../i18n/LanguageContext';
@@ -413,7 +414,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             })));
         } catch (err) {
             console.error('createGoal Error:', err);
-            alert(tr('lo.dbErrGoal', { msg: err.message }));
+            alertDialog({ message: tr('lo.dbErrGoal', { msg: err.message }), danger: true });
             // Local Presentation Fallback so the UI updates and feels responsive to the user
             setShowGoalForm(false);
             setGoals(prev => [...prev, {
@@ -461,7 +462,7 @@ export default function CapitalViewNew({ onBack, theme }) {
         const amountStr = window.prompt(tr('capital.depositPrompt'));
         if (!amountStr) return;
         const amount = parseFloat(amountStr.replace(',', '.'));
-        if (isNaN(amount) || amount <= 0) return alert(tr('capital.invalidAmount'));
+        if (isNaN(amount) || amount <= 0) return alertDialog({ message: tr('capital.invalidAmount'), danger: true });
 
         try {
             await updateFinancialGoalProgress(id, amount);
@@ -479,7 +480,7 @@ export default function CapitalViewNew({ onBack, theme }) {
             }));
         } catch (err) {
             console.error('Add funds error:', err);
-            alert(tr('lo.dbErrFunds', { msg: err.message }));
+            alertDialog({ message: tr('lo.dbErrFunds', { msg: err.message }), danger: true });
             // Local fallback
             setGoals(prev => prev.map(g => {
                 if (g.id === id) {

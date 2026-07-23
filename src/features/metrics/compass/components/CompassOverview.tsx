@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCompassGlobal } from '../hooks/useCompassData';
-import { Loader2, TrendingUp, TrendingDown, Activity, Heart, Brain, Wallet, Briefcase, Users, Zap, Compass, Crosshair, Coffee, Sunrise, UtensilsCrossed, User, Trash2 } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Activity, Heart, Brain, Wallet, Briefcase, Users, Zap, Compass, Crosshair, Coffee, Sunrise, UtensilsCrossed, User } from 'lucide-react';
 import { RadarGlobal } from '../viz/RadarGlobal';
 import { Sparkline } from '../viz/Sparkline';
 import { COMPASS_PILLARS, type CompassPillarSlug } from '../pillars';
@@ -111,20 +111,8 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
     fetchCards();
   }, []);
 
-  const handleWipe = async () => {
-    if (confirm(t('compass.resetConfirm'))) {
-      const { wipeEntireSystem } = await import('../../../../services/seedVisualization');
-      const res = await wipeEntireSystem();
-      if (res.success) {
-        localStorage.clear();
-        sessionStorage.clear();
-        alert(t('compass.resetDone'));
-        window.location.reload();
-      } else {
-        alert(t('compass.resetError') + res.error);
-      }
-    }
-  };
+  // handleWipe (RESET TOTAL) foi movido para Dossiê → Conta → Zona de
+  // perigo (audit P13). Não mais exposto na tela principal do Compass.
 
   if (loading || !m || pillarCards.length === 0) {
     return (
@@ -271,24 +259,10 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
         </div>
 
         {/* FOOTER & SYSTEM COMMANDS */}
+        {/* RESET TOTAL removido daqui (audit P13: bomba de 1 toque na tela
+            principal). Agora vive em Dossiê → Conta → Zona de perigo, com
+            confirmação forte. */}
         <div className="pt-20 pb-32 flex flex-col items-center gap-8">
-          
-          {/* HIGH-VISIBILITY RESET CARD - Smaller & Urgent */}
-          <div className="w-full max-w-[240px] p-1 rounded-[24px] bg-gradient-to-b from-zinc-100 dark:from-zinc-800/40 to-transparent">
-            <button
-              onClick={handleWipe}
-              className="w-full bg-white dark:bg-zinc-900 rounded-[20px] py-4 px-4 flex flex-col items-center gap-2 border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all hover:shadow-lg hover:border-red-200 dark:hover:border-red-900/60 active:scale-[0.98] group"
-            >
-              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-red-500 shadow-sm">
-                <Trash2 size={16} />
-              </div>
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 tracking-[0.1em] uppercase">{t('compass.resetTotal')}</span>
-                <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase opacity-60">{t('compass.resetSub')}</span>
-              </div>
-            </button>
-          </div>
-
           <div className="flex flex-col items-center gap-2 pt-8">
             <div className="h-[1px] w-8 bg-zinc-200 dark:bg-zinc-800 mb-2" />
             <span className="text-[9px] font-bold tracking-[0.4em] text-zinc-300 dark:text-zinc-600 uppercase">

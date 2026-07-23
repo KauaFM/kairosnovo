@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Target, Plus, Trash2, ChevronUp, ChevronDown, Calendar, Flame, CheckCircle2, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
 // @ts-expect-error — db.js não é TS
 import { getUserGoals, createGoal, updateGoalCurrentValue, deleteGoal } from '../../../services/db';
+import { confirmDialog, alertDialog } from '../../../lib/dialog';
 import { QuickCreateMeta } from './QuickCreateMeta';
 import type { GoalPayload } from './QuickCreateMeta';
 import { supabase } from '../../../lib/supabase';
@@ -213,16 +214,15 @@ export function GoalsHubCard({ isDark }: Props) {
       // Log para debug — aparece no console do navegador
       if (result?.error) {
         console.error('❌ Erro ao criar meta:', result.error);
-        alert(`Erro ao criar meta: ${result.error.message}`);
+        alertDialog({ title: 'Erro', message: `Não foi possível criar a meta: ${result.error.message}`, danger: true });
         return;
       }
 
-      console.log('✅ Meta criada:', result?.data);
       setCreateOpen(false);
       await loadGoals();
     } catch (e) {
       console.error('❌ Exceção ao criar meta:', e);
-      alert('Erro inesperado ao criar meta. Veja o console.');
+      alertDialog({ title: 'Erro', message: 'Erro inesperado ao criar a meta.', danger: true });
     }
   };
 
@@ -240,7 +240,12 @@ export function GoalsHubCard({ isDark }: Props) {
 
   /* ── Delete goal ── */
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Remover esta meta permanentemente?')) return;
+    const ok = await confirmDialog({
+      title: 'Excluir meta',
+      message: 'Remover esta meta permanentemente?',
+      danger: true, confirmLabel: 'Excluir', cancelLabel: 'Cancelar',
+    });
+    if (!ok) return;
     setGoals(prev => prev.filter(g => g.id !== id));
     await deleteGoal(id);
   };

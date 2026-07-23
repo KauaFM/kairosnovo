@@ -8,6 +8,7 @@ import { ASPECT_TO_PILLAR } from '../../../services/lifeOs';
 import { PILLARS } from '../../lifeOs/pillars';
 import { toLocalDateStr } from '../../../utils/dateUtils';
 import { appEvents } from '../../../lib/events';
+import { confirmDialog } from '../../../lib/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Vetores = os mesmos 10 pilares da vida do resto do sistema
@@ -177,11 +178,11 @@ export function ExecutionBoard() {
 
   const handleDelete = async (e: React.MouseEvent, item: ExecutionItem) => {
     e.stopPropagation();
-    const msg = item.type === 'T' 
-      ? t('exec.confirmDelete') 
+    const msg = item.type === 'T'
+      ? t('exec.confirmDelete')
       : t('lo.confirmDeleteHabit');
-      
-    if (window.confirm(msg)) {
+
+    if (await confirmDialog({ message: msg, danger: true, confirmLabel: t('common.delete'), cancelLabel: t('common.cancel') })) {
       // Optimistic Update
       setItems(prev => prev.filter(i => i.id !== item.id));
       if (item.type === 'T') {

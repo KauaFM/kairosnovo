@@ -8,6 +8,7 @@ import {
   PILLARS,
 } from '../../../services/habits';
 import { useRealtimeSync } from '../../../hooks/useRealtimeSync';
+import { confirmDialog, alertDialog } from '../../../lib/dialog';
 
 interface Habit {
   id: string;
@@ -69,7 +70,7 @@ export function HabitsHubCard({ isDark: _isDark }: Props) {
     const { error } = await checkInHabit(habit.id);
     if (error) {
       console.error('❌ check-in falhou:', error);
-      alert('Não foi possível registrar o hábito. Tenta de novo.');
+      alertDialog({ title: 'Ops', message: 'Não foi possível registrar o hábito. Tente de novo.', danger: true });
       setHabits((prev) => prev.map((h) => (h.id === habit.id ? { ...h, done_today: false } : h)));
     } else if ((navigator as any)?.vibrate) {
       (navigator as any).vibrate(20);
@@ -78,7 +79,12 @@ export function HabitsHubCard({ isDark: _isDark }: Props) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apagar este hábito? Os registros anteriores são preservados.')) return;
+    const ok = await confirmDialog({
+      title: 'Apagar hábito',
+      message: 'Apagar este hábito? Os registros anteriores são preservados.',
+      danger: true, confirmLabel: 'Apagar', cancelLabel: 'Cancelar',
+    });
+    if (!ok) return;
     await deleteHabit(id);
     await load();
   };
@@ -227,7 +233,7 @@ function CreateHabitModal({
   const submit = async () => {
     if (!title.trim()) return;
     setSaving(true);
-    // XP é definido pelo agente n8n — não pelo usuário
+    // Criar hábito NÃO dá XP (VERITAS: XP só vem de execução verificada)
     const { error } = (await createHabit({
       title: title.trim(),
       pillar,
@@ -237,7 +243,7 @@ function CreateHabitModal({
     })) as any;
     setSaving(false);
     if (error) {
-      alert(`Erro: ${error.message}`);
+      alertDialog({ title: 'Erro', message: `Não foi possível criar o hábito: ${error.message}`, danger: true });
       return;
     }
     onCreated();

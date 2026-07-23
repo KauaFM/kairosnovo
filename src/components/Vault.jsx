@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { alertDialog } from '../lib/dialog';
 import { getTasks, getAgendaItems, setEventStatus, deleteEvent, createTask, updateTaskState, deleteTask, getMedia, addMedia, deleteMedia, getProfile, getDailyStats, getTotalFocusToday, getUserNotes, createNote, deleteNote } from '../services/db';
 import { appEvents } from '../lib/events';
 import FullCalendar from './FullCalendar';
@@ -73,7 +74,7 @@ const Vault = ({ habits = [], theme, toggleTheme }) => {
             setNewMedia({ ...newMedia, file_url: result.base64 });
         } catch(err) {
             console.error("Compression Error:", err);
-            alert(t('vault.compressFail'));
+            alertDialog({ message: t('vault.compressFail'), danger: true });
         } finally {
             setIsCompressing(false);
         }

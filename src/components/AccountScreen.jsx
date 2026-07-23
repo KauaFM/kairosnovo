@@ -7,10 +7,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   ChevronLeft, LogOut, KeyRound, CreditCard, Trash2, Globe, Sun, Moon,
-  ShieldCheck, Loader2, Check, AlertTriangle, FileText,
+  ShieldCheck, Loader2, Check, AlertTriangle, FileText, RotateCcw,
 } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
 import { useBackHandler } from '../lib/backHandler';
+import { confirmDialog } from '../lib/dialog';
 import LanguageToggle from './LanguageToggle';
 import {
   logout, changePassword, deleteAccount, openBillingPortal, getAccountEmail,
@@ -58,6 +59,29 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
     setPortalBusy(true); setPortalErr('');
     try { await openBillingPortal(); }
     catch (e) { setPortalBusy(false); setPortalErr(e?.message || t('account.portalError')); }
+  };
+
+  // Reset de dados (mantém a conta) — antes vivia como um card com
+  // 1 toque no Compass (audit P13). Agora exige confirmação forte aqui.
+  const [resetBusy, setResetBusy] = useState(false);
+  const handleReset = async () => {
+    const ok = await confirmDialog({
+      title: t('account.resetTitle'),
+      message: t('account.resetWarn'),
+      danger: true, confirmLabel: t('account.resetConfirm'), cancelLabel: t('account.cancel'),
+    });
+    if (!ok) return;
+    setResetBusy(true);
+    try {
+      const { wipeEntireSystem } = await import('../services/seedVisualization');
+      const res = await wipeEntireSystem();
+      if (res?.success) {
+        try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignora */ }
+        window.location.reload();
+      } else {
+        setResetBusy(false);
+      }
+    } catch { setResetBusy(false); }
   };
 
   const handleDelete = async () => {
@@ -178,6 +202,10 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
 
         {/* Zona de perigo */}
         {sectionLabel(t('account.dangerZone'))}
+        <div className="mb-2">
+          <Row icon={resetBusy ? Loader2 : RotateCcw} label={t('account.resetData')} sub={t('account.resetSub')}
+            danger onClick={resetBusy ? undefined : handleReset} />
+        </div>
         <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(239,68,68,0.4)' }}>
           {!delOpen ? (
             <Row icon={Trash2} label={t('account.deleteAccount')} sub={t('account.deleteSub')}

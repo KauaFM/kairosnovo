@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useLang } from '../i18n/LanguageContext';
+import { confirmDialog } from '../lib/dialog';
 import { X, Search, UserPlus, Check, Clock, Trash2, Users, Inbox } from 'lucide-react';
 import {
     listFriends,
@@ -71,7 +72,8 @@ const FriendsManager = ({ onClose, onChange }) => {
     };
 
     const handleRemove = async (friendshipId) => {
-        if (!confirm(t('common.friends.removeConfirm'))) return;
+        const ok = await confirmDialog({ message: t('common.friends.removeConfirm'), danger: true, confirmLabel: t('common.delete'), cancelLabel: t('common.cancel') });
+        if (!ok) return;
         setBusy(true);
         await removeFriend(friendshipId);
         await refresh();
