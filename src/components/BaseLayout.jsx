@@ -3,27 +3,15 @@ import { Sun, Moon } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
 import LanguageToggle from './LanguageToggle';
 
-// Coordenadas do header são decorativas — pede geolocalização UMA vez
-// por sessão e memoriza (antes: cada montagem do header re-pedia
-// permissão e logava warning em loop a cada troca de aba).
-let cachedCoords = null;
-let geoAsked = false;
+// Coordenadas do header são puramente DECORATIVAS (estética terminal).
+// Antes pedíamos geolocalização real só pra isso — removido: pedir uma
+// permissão sensível para enfeite é liability no Data Safety do Play e
+// disparava o prompt de localização sem contexto. Valores fixos.
+const DECOR_COORDS = { lat: '23.5505°S', lng: '46.6333°W' };
 
 export const OrvaxHeader = ({ theme, toggleTheme, minimal = false }) => {
     const { t } = useLang();
-    const [coords, setCoords] = React.useState(cachedCoords || { lat: '00.00.00', lng: '00.00.00' });
-
-    React.useEffect(() => {
-        if (minimal || cachedCoords || geoAsked || !("geolocation" in navigator)) return;
-        geoAsked = true;
-        navigator.geolocation.getCurrentPosition((position) => {
-            cachedCoords = {
-                lat: position.coords.latitude.toFixed(6),
-                lng: position.coords.longitude.toFixed(6)
-            };
-            setCoords(cachedCoords);
-        }, () => { /* negado/indisponível — mantém o placeholder decorativo */ });
-    }, [minimal]);
+    const coords = DECOR_COORDS;
 
     return (
         <div className={`w-full flex ${minimal ? 'justify-end mb-0' : 'justify-between items-end mb-14'} relative z-10 pt-2`}>

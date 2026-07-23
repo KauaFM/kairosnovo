@@ -258,6 +258,16 @@ async function scheduleNativeAhead(items) {
 let _interval = null;
 let _running = false;
 
+// Pede permissão EM CONTEXTO: só na 1ª vez que existe um lembrete real
+// pra disparar (antes pedíamos no cold launch, sem contexto — negação
+// altíssima e permissão perdida pra sempre no Android 13+). audit P9.
+let _permAskedThisSession = false;
+async function ensurePermissionInContext() {
+    if (_permAskedThisSession) return;
+    _permAskedThisSession = true;
+    try { await requestNotificationPermission(); } catch { /* silencioso */ }
+}
+
 async function tick() {
     if (_running) return;
     _running = true;
@@ -266,6 +276,13 @@ async function tick() {
         if (!session) return;
 
         const items = await collectTimedItems(session.user.id);
+        const now = new Date();
+        const hasSomethingToNotify =
+            items.some((i) => (i.at - now) / 60000 <= Math.max(...TIERS)) ||
+            now.getHours() >= HABIT_DIGEST_HOUR;
+        // só incomoda com o prompt quando há de fato algo pra avisar
+        if (hasSomethingToNotify) await ensurePermissionInContext();
+
         for (const item of items) await processItem(item);
         await processHabitDigest();
         await scheduleNativeAhead(items);
@@ -276,11 +293,11 @@ async function tick() {
     }
 }
 
-/** Inicia o sistema (idempotente). Chamar após o login. */
+/** Inicia o sistema (idempotente). Chamar após o login.
+ *  NÃO pede permissão aqui — isso acontece em contexto no tick. */
 export async function startNotifications() {
     if (_interval) return;
     cleanOldKeys();
-    await requestNotificationPermission();
     await tick();
     _interval = setInterval(tick, POLL_MS);
 }

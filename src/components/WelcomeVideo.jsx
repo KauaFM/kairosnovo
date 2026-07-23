@@ -59,6 +59,15 @@ const textPhases = [
 const WelcomeVideo = ({ onComplete }) => {
     const { lang } = useLang();
     const [step, setStep] = useState(0);
+    const [showSkip, setShowSkip] = useState(false);
+
+    // Botão "Pular" aparece após 4s — a pessoa acabou de pagar, não pode
+    // ser obrigada a ~1m45 de cinemática sem saída (audit P4).
+    useEffect(() => {
+        const id = setTimeout(() => setShowSkip(true), 4000);
+        return () => clearTimeout(id);
+    }, []);
+    const handleSkip = () => { document.body.style.overflow = ''; onComplete(); };
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -187,6 +196,16 @@ const WelcomeVideo = ({ onComplete }) => {
 
     return (
         <div className={`fixed inset-0 z-[10000] bg-white flex items-center justify-center overflow-hidden transition-all duration-[300ms] ease-out pointer-events-none ${step === 32 ? 'opacity-0' : 'opacity-100'}`}>
+            {showSkip && step !== 32 && (
+                <button
+                    onClick={handleSkip}
+                    className="fixed z-[10001] pointer-events-auto text-[10px] font-mono font-bold uppercase tracking-[0.3em] text-black/40 hover:text-black transition-colors px-4 py-2 rounded-full border border-black/15"
+                    style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1.25rem)', right: '1.25rem' }}
+                    aria-label={lang === 'en' ? 'Skip intro' : 'Pular introdução'}
+                >
+                    {lang === 'en' ? 'Skip ✕' : 'Pular ✕'}
+                </button>
+            )}
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes slow-rotate {

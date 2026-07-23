@@ -10,6 +10,7 @@ import {
   ShieldCheck, Loader2, Check, AlertTriangle, FileText,
 } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
+import { useBackHandler } from '../lib/backHandler';
 import LanguageToggle from './LanguageToggle';
 import {
   logout, changePassword, deleteAccount, openBillingPortal, getAccountEmail,
@@ -38,6 +39,7 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
   const [portalErr, setPortalErr] = useState('');
 
   useEffect(() => { getAccountEmail().then(setEmail).catch(() => {}); }, []);
+  useBackHandler(true, onClose); // botão voltar fecha a tela de Conta
 
   const CONFIRM_WORD = t('account.deleteWord'); // "EXCLUIR" / "DELETE"
 

@@ -4,6 +4,7 @@ import {
   MessageCircle, Gavel, Sunrise, Zap, Timer, Flame, ListChecks, Moon,
 } from 'lucide-react';
 import { useLang } from '../../../i18n/LanguageContext';
+import { useBackHandler } from '../../../lib/backHandler';
 import { getTodayPending } from '../../../services/lifeOs';
 import { getTodayReview, getRetroData, submitReview, setTomorrowIntent } from '../../../services/ritual';
 import { reportXpEvent } from '../../../services/xp';
@@ -81,6 +82,8 @@ export function RitualRegistrarDia({ isOpen, onClose }: RitualProps) {
   const [tomorrowFirst, setTomorrowFirst] = useState('');
   const [intent, setIntent] = useState('');
   const [sealing, setSealing] = useState(false);
+
+  useBackHandler(isOpen, onClose); // voltar fecha o ritual (não minimiza o app)
 
   const markAct = useCallback((a: string) => {
     setActsDone((prev) => new Set(prev).add(a));

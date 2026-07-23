@@ -20,9 +20,11 @@ const GymRatsHome = lazy(() => import('./features/gymrats/pages/GymRatsHome'));
 const FitCalGate = lazy(() => import('./features/fitcal/pages/FitCalGate'));
 import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
+import OfflineBanner from './components/OfflineBanner';
 import { sendMentorMessage } from './services/mentorAgent';
 import { supabase } from './lib/supabase';
 import { appEvents } from './lib/events';
+import { popBack, useBackHandler } from './lib/backHandler';
 
 import { OrvaxHeader, ScrollContainer } from './components/BaseLayout';
 
@@ -136,6 +138,34 @@ export default function App() {
         };
     }, []);
 
+    // Botão VOLTAR do Android: fecha overlay do topo → volta pra Home →
+    // duplo-toque sai. Sem isso, "voltar" minimizava o app de dentro de
+    // qualquer modal/ritual/checkout (viola padrão Android).
+    const activeTabRef = useRef('nexus');
+    useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+    const lastBackRef = useRef(0);
+    useEffect(() => {
+        if (!window.Capacitor?.isNativePlatform?.()) return;
+        let sub;
+        (async () => {
+            try {
+                const { App: CapApp } = await import('@capacitor/app');
+                sub = await CapApp.addListener('backButton', () => {
+                    if (popBack()) return;                       // 1) fecha overlay aberto
+                    if (activeTabRef.current !== 'nexus') {       // 2) volta pra Home
+                        setActiveTab('nexus'); return;
+                    }
+                    if (Date.now() - lastBackRef.current < 1500) {// 3) duplo-toque → sai
+                        CapApp.exitApp();
+                    } else {
+                        lastBackRef.current = Date.now();
+                    }
+                });
+            } catch (e) { console.warn('[back] plugin indisponível:', e?.message); }
+        })();
+        return () => { sub?.remove?.(); };
+    }, []);
+
     // Ponte realtime → barramento interno de eventos.
     // Mudanças feitas FORA desta aba (agente WhatsApp/n8n, outro
     // dispositivo, outra aba) chegam via Supabase Realtime e são
@@ -162,6 +192,10 @@ export default function App() {
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [mentorReply, setMentorReply] = useState('');
+
+    // Overlays de nível-App entram na pilha do botão VOLTAR
+    useBackHandler(showBlog, useCallback(() => setShowBlog(false), []));
+    useBackHandler(isModalOpen, useCallback(() => setIsModalOpen(false), []));
 
     // Toggle Theme
     const toggleTheme = () => {
@@ -276,6 +310,9 @@ export default function App() {
         <React.Fragment>
             {/* Life OS · global XP toast */}
             <XpToastLayer />
+
+            {/* Banner global de conexão */}
+            <OfflineBanner />
 
 
             {/* Show Authenticaton Page First */}
