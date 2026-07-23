@@ -81,7 +81,10 @@ export default function App() {
 
     const [activeTab, setActiveTab] = useState('nexus');
     const [userRole, setUserRole] = useState('user');
-    const [theme, setTheme] = useState('light'); // LIGHT MODE AS DEFAULT
+    // Tema persiste entre sessões (default light). Antes voltava sempre pra light.
+    const [theme, setTheme] = useState(() => {
+        try { return localStorage.getItem('orvax_theme') || 'light'; } catch { return 'light'; }
+    });
     const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
     const [showBlog, setShowBlog] = useState(false); // timeline de notícias (realocada da aba central)
 
@@ -95,6 +98,7 @@ export default function App() {
             document.documentElement.classList.remove('light');
             document.documentElement.classList.add('dark');
         }
+        try { localStorage.setItem('orvax_theme', theme); } catch { /* modo privado */ }
     }, [theme]);
 
     // Efeito 2: sessão inicial + listener de mudanças de auth (login em outra aba,

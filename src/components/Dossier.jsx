@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Crosshair, Fingerprint, ChevronRight, Activity, Clock, Wifi, Zap, Hexagon, Medal, Award, Camera } from 'lucide-react';
+import { User, Crosshair, Fingerprint, ChevronRight, Activity, Clock, Wifi, Zap, Hexagon, Medal, Award, Camera, Settings } from 'lucide-react';
+import AccountScreen from './AccountScreen';
 import RankSystem from './RankSystem';
 import MentorConfig, { MENTORS } from './MentorConfig';
 import GlobalRanking from './GlobalRanking';
@@ -20,6 +21,7 @@ const Dossier = ({ theme, toggleTheme }) => {
     const [isViewingRanks, setIsViewingRanks] = useState(false);
     const [isViewingMentors, setIsViewingMentors] = useState(false);
     const [isViewingGlobalRanking, setIsViewingGlobalRanking] = useState(false);
+    const [isViewingAccount, setIsViewingAccount] = useState(false);
     const [selectedMentorId, setSelectedMentorId] = useState('atlas');
     const [activeProfileTab, setActiveProfileTab] = useState('stats'); // 'stats' | 'achievements'
     const [userName, setUserName] = useState('');
@@ -139,7 +141,7 @@ const Dossier = ({ theme, toggleTheme }) => {
         await supabase.from('profiles').update({ full_name: userName.trim() }).eq('id', session.user.id);
     };
 
-    const isAnySubViewOpen = isViewingRanks || isViewingMentors || isViewingGlobalRanking;
+    const isAnySubViewOpen = isViewingRanks || isViewingMentors || isViewingGlobalRanking || isViewingAccount;
     const activeMentor = MENTORS.find(m => m.id === selectedMentorId) || MENTORS[1];
 
     return (
@@ -152,9 +154,17 @@ const Dossier = ({ theme, toggleTheme }) => {
                     <div className="animate-in slide-in-from-left-4 duration-700 delay-100 pb-20 w-full overflow-hidden">
                         
                         {/* Header */}
-                        <div className="mb-6 px-4 pt-2">
-                            <h2 className="text-[8px] font-mono opacity-30 tracking-[0.3em] uppercase mb-1">{t('dossier.centralRegistry')}</h2>
-                            <h1 className="text-2xl font-outfit font-black tracking-wide uppercase">Dossier</h1>
+                        <div className="mb-6 px-4 pt-2 flex items-end justify-between">
+                            <div>
+                                <h2 className="text-[8px] font-mono opacity-30 tracking-[0.3em] uppercase mb-1">{t('dossier.centralRegistry')}</h2>
+                                <h1 className="text-2xl font-outfit font-black tracking-wide uppercase">Dossier</h1>
+                            </div>
+                            <button onClick={() => setIsViewingAccount(true)}
+                                className="w-10 h-10 rounded-full flex items-center justify-center border transition-all active:scale-95 hover:opacity-100 opacity-60"
+                                style={{ borderColor: 'var(--border-color)' }}
+                                aria-label={t('account.title')}>
+                                <Settings size={16} />
+                            </button>
                         </div>
 
                         {/* Identity Area */}
@@ -387,6 +397,10 @@ const Dossier = ({ theme, toggleTheme }) => {
                 <div className="fixed inset-0 z-50 bg-[var(--bg-color)] overflow-y-auto px-8 pt-12 pb-32">
                     <MentorConfig selectedMentorId={selectedMentorId} onSelectMentor={(id) => setSelectedMentorId(id)} onClose={() => setIsViewingMentors(false)} />
                 </div>
+            )}
+
+            {isViewingAccount && (
+                <AccountScreen theme={theme} toggleTheme={toggleTheme} onClose={() => setIsViewingAccount(false)} />
             )}
         </div>
     );
