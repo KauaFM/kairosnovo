@@ -17,9 +17,11 @@ O ORVAX é uma **plataforma de acesso**: quem compra, compra na Landing Page.
 Google Play Billing, RevenueCat, botão "Assinar/Comprar", ou link que abra uma
 página de venda (isso é *anti-steering* e reprova na Play Store).
 
+- **Não existe plano gratuito**: só `essencial` e `completo` (ambos pagos).
+  `none` = conta sem plano ativo → `AccessGate` (tela informativa, não vende).
 - Acesso por plano: `src/services/entitlements.js` (única fonte) — tiers
-  `gratuito | essencial | completo`, mapa `FEATURE_MIN_TIER`, `hasFeature()`.
-  Admin (`profiles.role='admin'`) vê tudo.
+  `none | essencial | completo`, mapa `FEATURE_MIN_TIER`, `hasFeature()`,
+  `hasActivePlan()`. Admin (`profiles.role='admin'`) vê tudo.
 - Recurso fora do plano → `<FeatureLocked>`: mostra o VALOR do recurso e o CTA
   chama `requestUpgrade()` → Edge Function `request-upgrade` **envia um e-mail**
   com o link da LP. O link de compra nunca aparece no app.
