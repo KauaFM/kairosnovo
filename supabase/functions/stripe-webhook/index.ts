@@ -4,6 +4,9 @@
 // Fluxo NOVO (app = só acesso; venda na Landing Page):
 //   LP → Stripe → ESTE webhook → Supabase → app libera por plano.
 //
+// NÃO existe plano gratuito: 2 planos pagos (essencial|completo).
+// Sem assinatura ativa → plan='none' e o app mostra o AccessGate.
+//
 // Quem compra na LP normalmente NÃO tem conta ainda. Então aqui:
 //   1. acha o usuário (metadata.user_id → stripe_customer_id → e-mail)
 //   2. se não existir, CRIA no Auth (e-mail já confirmado) + profile
@@ -159,7 +162,7 @@ async function syncSubscription(sub: any, sessionEmail?: string | null) {
   const { error } = await admin.from("profiles").update({
     subscription_id: sub.id,
     subscription_status: sub.status,
-    plan: active ? tier : "gratuito",   // app lê isso (nunca 'none')
+    plan: active ? tier : "none",   // não existe plano gratuito: none = sem acesso
     is_subscribed: isSubscribed,
     is_premium: isPremium,
     current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,

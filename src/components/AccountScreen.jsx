@@ -40,7 +40,7 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
   const [plan, setPlan] = useState(null); // tier atual (read-only)
 
   useEffect(() => { getAccountEmail().then(setEmail).catch(() => {}); }, []);
-  useEffect(() => { getEntitlement().then((e) => setPlan(e.tier)).catch(() => setPlan('gratuito')); }, []);
+  useEffect(() => { getEntitlement().then((e) => setPlan(e.tier)).catch(() => setPlan('none')); }, []);
   useBackHandler(true, onClose); // botão voltar fecha a tela de Conta
 
   const CONFIRM_WORD = t('account.deleteWord'); // "EXCLUIR" / "DELETE"
@@ -143,7 +143,9 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[9px] font-mono uppercase tracking-widest opacity-40">{t('account.currentPlan')}</p>
-            <p className="text-[14px] font-outfit font-black mt-0.5">{plan ? tierLabel(plan) : '—'}</p>
+            <p className="text-[14px] font-outfit font-black mt-0.5">
+              {!plan ? '—' : plan === 'none' ? t('account.noPlan') : tierLabel(plan)}
+            </p>
           </div>
         </div>
 

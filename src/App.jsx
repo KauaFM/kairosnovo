@@ -6,6 +6,8 @@ import Navigation from './components/Navigation';
 import MentorModal from './components/MentorModal';
 import { XpToastLayer } from './features/lifeOs/components/XpToastLayer';
 import Login from './components/Login/Login';
+import AccessGate from './components/AccessGate';
+import { getEntitlement, hasActivePlan } from './services/entitlements';
 import { useLang } from './i18n/LanguageContext';
 
 // Abas pesadas · carregadas sob demanda (code-splitting) para o app abrir rápido
@@ -187,6 +189,42 @@ export default function App() {
         return () => { supabase.removeChannel(ch); };
     }, [isAuthenticated]);
 
+    // --- ACESSO POR PLANO (não há plano gratuito) ---
+    // O app é plataforma de acesso: só quem contratou (Essencial/Completo)
+    // usa. Sem plano → tela informativa (não vende nada).
+    const [access, setAccess] = useState('checking'); // checking | ok | none
+    const checkAccess = useCallback(async () => {
+        if (!isAuthenticated) return;
+        try {
+            const { tier } = await getEntitlement();
+            setAccess(hasActivePlan(tier) ? 'ok' : 'none');
+        } catch (e) {
+            console.error('[access]', e);
+            setAccess('none');
+        }
+    }, [isAuthenticated]);
+    useEffect(() => { if (isAuthenticated) checkAccess(); else setAccess('checking'); }, [isAuthenticated, checkAccess]);
+
+    // Acesso confirmado → 1º acesso toca o vídeo de boas-vindas
+    useEffect(() => { if (access === 'ok') handleAccessGranted(); }, [access]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Realtime: assim que o webhook grava o plano (pós-compra na LP),
+    // o app libera sozinho — sem precisar reabrir.
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        let ch; let alive = true;
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !alive) return;
+            ch = supabase.channel(`app-access-${session.user.id}`)
+                .on('postgres_changes',
+                    { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` },
+                    () => checkAccess())
+                .subscribe();
+        })();
+        return () => { alive = false; if (ch) supabase.removeChannel(ch); };
+    }, [isAuthenticated, checkAccess]);
+
     // --- MENTOR STATES ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [userInput, setUserInput] = useState('');
@@ -233,10 +271,9 @@ export default function App() {
 
             setUserRole(profile?.role || 'user');
 
-            // Sem paywall: o vídeo de boas-vindas toca no 1º login (não há
-            // mais "unlock" de pagamento). handleAccessGranted lê is_first_login.
+            // O vídeo de boas-vindas toca quando o acesso é confirmado
+            // (efeito abaixo, em access === 'ok') — nunca antes do plano.
             setHasSeenWelcome(true);
-            handleAccessGranted();
 
             // Puxar Configurações controladas pelo Agente
             const { data: settings } = await supabase
@@ -371,9 +408,16 @@ export default function App() {
                 {/* Mobile Device Container */}
                 <div className="w-full max-w-[428px] h-screen relative flex flex-col z-20 bg-transparent overflow-hidden border-x border-[var(--border-color)]">
 
-                  {/* App = plataforma de ACESSO. Sem paywall: todo usuário logado
-                      entra; recursos premium são gateados por plano (FitCalGate etc.).
-                      A venda acontece fora do app (Landing Page → Stripe → webhook). */}
+                  {/* App = plataforma de ACESSO ao plano contratado na Landing Page.
+                      Sem plano ativo → AccessGate (informativo, NÃO vende).
+                      Recursos por tier são gateados adiante (FitCalGate etc.). */}
+                  {access === 'checking' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                      <Loader2 size={22} className="animate-spin opacity-30" />
+                    </div>
+                  ) : access === 'none' ? (
+                    <AccessGate onRecheck={checkAccess} />
+                  ) : (
                   <>
                     <div className="flex-1 relative">
                         <Suspense fallback={<TabLoader />}>
@@ -414,6 +458,7 @@ export default function App() {
                         userRole={userRole}
                     />
                   </>
+                  )}
                 </div>
             </div>
         </React.Fragment>
