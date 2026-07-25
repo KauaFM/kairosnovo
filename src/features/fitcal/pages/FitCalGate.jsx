@@ -1,24 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Camera, Utensils, Droplets, TrendingUp } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { getEntitlement, tierHasFeature } from '../../../services/entitlements';
+import { useLang } from '../../../i18n/LanguageContext';
 import FitCalHome from './FitCalHome';
-import FitCalPaywall from './FitCalPaywall';
+import FeatureLocked from '../../../components/FeatureLocked';
 
-// Gate de acesso ao módulo Rastreador Nutricional (recurso premium).
-// Libera só quando profiles.is_premium = true. Caso contrário, mostra o paywall.
+// Gate do Rastreador Nutricional (recurso do plano Completo).
+// O app NÃO vende: se o plano não inclui, mostra o FeatureLocked
+// (preview + "te enviamos o link por e-mail"). Fonte: profiles.plan.
 const FitCalGate = (props) => {
+  const { t } = useLang();
   const [status, setStatus] = useState('loading'); // loading | locked | unlocked
 
   const check = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setStatus('locked'); return; }
-      const { data } = await supabase
-        .from('profiles')
-        .select('is_premium')
-        .eq('id', session.user.id)
-        .maybeSingle();
-      setStatus(data?.is_premium ? 'unlocked' : 'locked');
+      const { tier } = await getEntitlement();
+      setStatus(tierHasFeature(tier, 'fitcal') ? 'unlocked' : 'locked');
     } catch (err) {
       console.error('[FitCalGate] falha ao checar acesso:', err);
       setStatus('locked');
@@ -27,7 +25,8 @@ const FitCalGate = (props) => {
 
   useEffect(() => { check(); }, [check]);
 
-  // Realtime: se o acesso for concedido (pagamento/admin), libera na hora.
+  // Realtime: quando o webhook (pós-compra na LP) atualiza plan/is_premium,
+  // libera na hora, sem precisar reabrir o app.
   useEffect(() => {
     let channel;
     let alive = true;
@@ -38,12 +37,12 @@ const FitCalGate = (props) => {
         .channel(`fitcal-access-${session.user.id}`)
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` },
-          (payload) => { setStatus(payload.new?.is_premium ? 'unlocked' : 'locked'); }
+          () => { check(); }
         )
         .subscribe();
     })();
     return () => { alive = false; if (channel) channel.unsubscribe(); };
-  }, []);
+  }, [check]);
 
   if (status === 'loading') {
     return (
@@ -55,7 +54,23 @@ const FitCalGate = (props) => {
   }
 
   if (status === 'locked') {
-    return <FitCalPaywall theme={props.theme} toggleTheme={props.toggleTheme} />;
+    return (
+      <FeatureLocked
+        feature="fitcal"
+        tier="completo"
+        theme={props.theme}
+        toggleTheme={props.toggleTheme}
+        badge={t('fitcalPaywall.badge')}
+        title={t('fitcalPaywall.title')}
+        subtitle={t('fitcalPaywall.subtitle')}
+        features={[
+          { icon: Camera, title: t('fitcalPaywall.features.scanner.title'), desc: t('fitcalPaywall.features.scanner.desc') },
+          { icon: Utensils, title: t('fitcalPaywall.features.diary.title'), desc: t('fitcalPaywall.features.diary.desc') },
+          { icon: TrendingUp, title: t('fitcalPaywall.features.macros.title'), desc: t('fitcalPaywall.features.macros.desc') },
+          { icon: Droplets, title: t('fitcalPaywall.features.hydration.title'), desc: t('fitcalPaywall.features.hydration.desc') },
+        ]}
+      />
+    );
   }
 
   return <FitCalHome {...props} />;

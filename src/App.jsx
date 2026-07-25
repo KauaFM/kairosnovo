@@ -6,7 +6,6 @@ import Navigation from './components/Navigation';
 import MentorModal from './components/MentorModal';
 import { XpToastLayer } from './features/lifeOs/components/XpToastLayer';
 import Login from './components/Login/Login';
-import SubscriptionGate from './components/SubscriptionGate';
 import { useLang } from './i18n/LanguageContext';
 
 // Abas pesadas · carregadas sob demanda (code-splitting) para o app abrir rápido
@@ -234,10 +233,10 @@ export default function App() {
 
             setUserRole(profile?.role || 'user');
 
-            // O vídeo de boas-vindas NÃO toca aqui — seria antes de pagar.
-            // Quem dispara é handleAccessGranted, quando o gate libera o acesso
-            // (assinou ou admin), lendo is_first_login fresco naquele momento.
+            // Sem paywall: o vídeo de boas-vindas toca no 1º login (não há
+            // mais "unlock" de pagamento). handleAccessGranted lê is_first_login.
             setHasSeenWelcome(true);
+            handleAccessGranted();
 
             // Puxar Configurações controladas pelo Agente
             const { data: settings } = await supabase
@@ -275,9 +274,8 @@ export default function App() {
         setHasSeenWelcome(true);
     };
 
-    // Chamado pelo SubscriptionGate quando o acesso é liberado (assinou ou admin).
-    // Só então, se for o 1º acesso do usuário, tocamos o vídeo de boas-vindas.
-    // Lê is_first_login fresco pra não depender do timing do login.
+    // Toca o vídeo de boas-vindas no 1º login do usuário (lê is_first_login
+    // fresco). Chamado por handleSupabaseLogin — não há mais gate de pagamento.
     const handleAccessGranted = useCallback(async () => {
         if (welcomeHandledRef.current) return;
         welcomeHandledRef.current = true;
@@ -373,8 +371,10 @@ export default function App() {
                 {/* Mobile Device Container */}
                 <div className="w-full max-w-[428px] h-screen relative flex flex-col z-20 bg-transparent overflow-hidden border-x border-[var(--border-color)]">
 
-                  {/* Gate de assinatura: sem plano ativo → tela de planos (admins passam) */}
-                  <SubscriptionGate userRole={userRole} onUnlocked={handleAccessGranted}>
+                  {/* App = plataforma de ACESSO. Sem paywall: todo usuário logado
+                      entra; recursos premium são gateados por plano (FitCalGate etc.).
+                      A venda acontece fora do app (Landing Page → Stripe → webhook). */}
+                  <>
                     <div className="flex-1 relative">
                         <Suspense fallback={<TabLoader />}>
                         <TabWrapper active={activeTab === 'nexus'}>
@@ -413,7 +413,7 @@ export default function App() {
                         isAnyModalOpen={isAnyModalOpen}
                         userRole={userRole}
                     />
-                  </SubscriptionGate>
+                  </>
                 </div>
             </div>
         </React.Fragment>

@@ -31,16 +31,8 @@ export async function deleteAccount() {
   return true;
 }
 
-/** Abre o portal de gerenciamento de assinatura (Stripe — web). */
-export async function openBillingPortal() {
-  const { data, error } = await supabase.functions.invoke('create-portal', {
-    body: { origin: window.location.origin },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  if (data?.url) { window.location.href = data.url; return true; }
-  throw new Error('Portal indisponível.');
-}
+// Portal de assinatura REMOVIDO do app: gerenciamento/cancelamento é
+// feito fora (site/Stripe) — o app não abre billing (conformidade Play).
 
 /** E-mail do usuário logado (exibição). */
 export async function getAccountEmail() {

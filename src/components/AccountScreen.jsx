@@ -6,7 +6,7 @@
 // ============================================================
 import React, { useEffect, useState } from 'react';
 import {
-  ChevronLeft, LogOut, KeyRound, CreditCard, Trash2, Globe, Sun, Moon,
+  ChevronLeft, LogOut, KeyRound, Crown, Trash2, Globe, Sun, Moon,
   ShieldCheck, Loader2, Check, AlertTriangle, FileText, RotateCcw,
 } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
@@ -14,8 +14,9 @@ import { useBackHandler } from '../lib/backHandler';
 import { confirmDialog } from '../lib/dialog';
 import LanguageToggle from './LanguageToggle';
 import {
-  logout, changePassword, deleteAccount, openBillingPortal, getAccountEmail,
+  logout, changePassword, deleteAccount, getAccountEmail,
 } from '../services/account';
+import { getEntitlement, tierLabel } from '../services/entitlements';
 
 const PRIVACY_URL = 'https://orvax.com.br/privacidade';
 const TERMS_URL = 'https://orvax.com.br/termos';
@@ -36,10 +37,10 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
   const [delBusy, setDelBusy] = useState(false);
   const [delErr, setDelErr] = useState('');
 
-  const [portalBusy, setPortalBusy] = useState(false);
-  const [portalErr, setPortalErr] = useState('');
+  const [plan, setPlan] = useState(null); // tier atual (read-only)
 
   useEffect(() => { getAccountEmail().then(setEmail).catch(() => {}); }, []);
+  useEffect(() => { getEntitlement().then((e) => setPlan(e.tier)).catch(() => setPlan('gratuito')); }, []);
   useBackHandler(true, onClose); // botão voltar fecha a tela de Conta
 
   const CONFIRM_WORD = t('account.deleteWord'); // "EXCLUIR" / "DELETE"
@@ -53,12 +54,6 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
     } catch (e) {
       setPwMsg({ ok: false, text: e?.message || t('account.pwError') });
     } finally { setPwBusy(false); }
-  };
-
-  const handlePortal = async () => {
-    setPortalBusy(true); setPortalErr('');
-    try { await openBillingPortal(); }
-    catch (e) { setPortalBusy(false); setPortalErr(e?.message || t('account.portalError')); }
   };
 
   // Reset de dados (mantém a conta) — antes vivia como um card com
@@ -138,12 +133,19 @@ export default function AccountScreen({ theme, toggleTheme, onClose }) {
           <p className="text-[13px] font-mono font-bold truncate">{email || '—'}</p>
         </div>
 
-        {/* Assinatura */}
-        {sectionLabel(t('account.subscription'))}
-        <Row icon={CreditCard} label={t('account.manageSub')} sub={t('account.manageSubSub')}
-          onClick={handlePortal}
-          right={portalBusy ? <Loader2 size={14} className="animate-spin opacity-40" /> : null} />
-        {portalErr && <p className="text-[10px] font-mono text-red-500 px-1 mt-1">{portalErr}</p>}
+        {/* Seu Plano (read-only — a contratação é feita fora do app) */}
+        {sectionLabel(t('account.yourPlan'))}
+        <div className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl border"
+          style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+            <Crown size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-mono uppercase tracking-widest opacity-40">{t('account.currentPlan')}</p>
+            <p className="text-[14px] font-outfit font-black mt-0.5">{plan ? tierLabel(plan) : '—'}</p>
+          </div>
+        </div>
 
         {/* Segurança */}
         {sectionLabel(t('account.security'))}
