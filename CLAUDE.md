@@ -6,7 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ORVAX** — anti-procrastination personal control system ("Sistema de Controle Pessoal") built in Portuguese BR for Brazilian users. Mobile-first React app (428px max-width). Futuristic black-and-white theme throughout — no colors outside that palette.
 
-**Full stack:** React + Vite + Tailwind · Supabase (auth, DB, storage, Edge Functions) · GPT-4o-mini via Edge Functions (mentor-chat, analyze-food, xp-engine, dimension-coach) · Capacitor 7 (Android) · Stripe (payments — web; Play Billing pendente para Android)
+**Full stack:** React + Vite + Tailwind · Supabase (auth, DB, storage, Edge Functions) · GPT-4o-mini via Edge Functions (mentor-chat, analyze-food, xp-engine, dimension-coach) · Capacitor 7 (Android) · Stripe **somente na Landing Page** (fora do app)
+
+## ⚠️ ARQUITETURA COMERCIAL — o app NÃO vende (2026-07-24)
+
+O ORVAX é uma **plataforma de acesso**: quem compra, compra na Landing Page.
+`LP → Stripe → stripe-webhook → profiles.plan/is_premium → app LÊ e libera`
+
+**NUNCA adicionar ao app:** preço, tela de planos, checkout, Stripe Checkout,
+Google Play Billing, RevenueCat, botão "Assinar/Comprar", ou link que abra uma
+página de venda (isso é *anti-steering* e reprova na Play Store).
+
+- Acesso por plano: `src/services/entitlements.js` (única fonte) — tiers
+  `gratuito | essencial | completo`, mapa `FEATURE_MIN_TIER`, `hasFeature()`.
+  Admin (`profiles.role='admin'`) vê tudo.
+- Recurso fora do plano → `<FeatureLocked>`: mostra o VALOR do recurso e o CTA
+  chama `requestUpgrade()` → Edge Function `request-upgrade` **envia um e-mail**
+  com o link da LP. O link de compra nunca aparece no app.
+- Conta → seção "Seu Plano" é **read-only**. Cancelamento/gerenciamento é fora.
 
 > n8n/WhatsApp foram DESCONTINUADOS (2026-07-22). Não existe mais agente WhatsApp; o mentor é 100% in-app via Edge Function `mentor-chat`.
 
@@ -55,7 +72,7 @@ The AI mentor system (Atlas/Aurora personas) lives in-app: `MentorAssistant.jsx`
 
 ### Supabase Backend
 
-- **Edge Functions** (Deno 2, TypeScript): `mentor-chat` (personas Atlas/Aurora), `analyze-food` (scanner nutricional por foto), `xp-engine` (VERITAS — única fonte de XP), `dimension-coach` (Conselho de IAs), `create-checkout`/`create-portal`/`stripe-webhook` (billing web).
+- **Edge Functions** (Deno 2, TypeScript): `mentor-chat` (personas Atlas/Aurora), `analyze-food` (scanner nutricional por foto), `xp-engine` (VERITAS — única fonte de XP), `dimension-coach` (Conselho de IAs), `stripe-webhook` (fonte de verdade do acesso: cria a conta na compra da LP + e-mail com link de senha e da Play Store), `request-upgrade` (e-mail com o link da LP), `delete-account` (exclusão de conta — requisito Play). `create-checkout`/`create-portal` existem mas **não são chamadas pelo app** (só a LP pode usar).
 - **Migrations** in `supabase/migrations/` — PostgreSQL 17 schema files. New features require a dated migration file.
 - All tables use RLS. The `profiles` table row must exist for a user before any FK-constrained writes work.
 
