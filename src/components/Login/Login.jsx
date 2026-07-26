@@ -4,6 +4,16 @@ import { supabase } from '../../lib/supabase';
 import { useLang } from '../../i18n/LanguageContext';
 import LanguageToggle from '../LanguageToggle';
 
+// ── Destino dos links de e-mail (confirmação / recuperação de senha) ──
+// No APK, window.location.origin é "https://localhost" — o link do
+// e-mail abriria uma página morta no navegador do celular. Em nativo
+// mandamos para o site; na web, o origin real (dev e produção).
+const WEB_BASE = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://orvax.com.br';
+const isNative = () =>
+    typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
+const authRedirect = (path = '/') =>
+    isNative() ? `${WEB_BASE}${path}` : `${window.location.origin}${path}`;
+
 const Login = ({ onLoginSuccess }) => {
     const { t } = useLang();
     const [email, setEmail] = useState('');
@@ -65,7 +75,7 @@ const Login = ({ onLoginSuccess }) => {
             // MODO: esqueci senha → envia email de recovery
             if (mode === 'forgot') {
                 if (!email) throw new Error(t('login.errEmailRequired'));
-                const redirectTo = `${window.location.origin}/`;
+                const redirectTo = authRedirect('/definir-senha');
                 const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
                 if (error) throw error;
                 setInfoMessage(t('login.errResetSent'));
@@ -100,10 +110,9 @@ const Login = ({ onLoginSuccess }) => {
                     password,
                     options: {
                         data: { full_name: email.split('@')[0] },
-                        // Link de confirmação volta pro domínio onde o usuário
-                        // se cadastrou (produção) — não pra Site URL default
-                        // do Supabase (que pode apontar pra localhost).
-                        emailRedirectTo: `${window.location.origin}/`,
+                        // No APK o origin é https://localhost (link morto):
+                        // authRedirect manda para o site em nativo.
+                        emailRedirectTo: authRedirect('/'),
                     }
                 });
                 if (error) throw error;
