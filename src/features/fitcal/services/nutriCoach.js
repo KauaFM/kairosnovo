@@ -73,3 +73,82 @@ export function guessMealType(date = new Date()) {
   if (h < 18) return 'snack';
   return 'dinner';
 }
+
+/* ── N3 · Biblioteca de refeições que funcionam ───────────── */
+
+/** Salva uma refeição para reusar depois (do VITALIS ou manual). */
+export async function saveFavorite(opt, source = 'vitalis') {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Sessão expirada.');
+  const { error } = await supabase.from('favorite_meals').insert({
+    user_id: session.user.id,
+    name: opt.name,
+    portion: opt.portion || null,
+    kcal: opt.kcal || 0,
+    protein_g: opt.protein_g || 0,
+    carbs_g: opt.carbs_g || 0,
+    fat_g: opt.fat_g || 0,
+    meal_type: opt.meal_type || guessMealType(),
+    source,
+  });
+  if (error) throw error;
+}
+
+/** As refeições mais usadas primeiro (é o que a pessoa repete). */
+export async function listFavorites(limit = 12) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return [];
+  const { data } = await supabase
+    .from('favorite_meals')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('times_used', { ascending: false })
+    .order('last_used_at', { ascending: false, nullsFirst: false })
+    .limit(limit);
+  return data || [];
+}
+
+/** Registra uma favorita no diário (1 toque) e conta o uso. */
+export async function logFavorite(fav, mealType = null) {
+  await logFromAI({
+    name: fav.name,
+    mealType: mealType || fav.meal_type || guessMealType(),
+    grams: 0,
+    calories: fav.kcal,
+    protein_g: fav.protein_g,
+    carbs_g: fav.carbs_g,
+    fat_g: fav.fat_g,
+    confidence: 0.8,
+  });
+  await supabase.from('favorite_meals')
+    .update({ times_used: (fav.times_used || 0) + 1, last_used_at: new Date().toISOString() })
+    .eq('id', fav.id);
+}
+
+export async function deleteFavorite(id) {
+  await supabase.from('favorite_meals').delete().eq('id', id);
+}
+
+/* ── N4 · Fechar o dia (XP validado no servidor) ──────────── */
+
+/**
+ * Fecha o dia nutricional. O SERVIDOR recalcula tudo de food_logs vs
+ * metas — o cliente não envia números. 1×/dia.
+ * @returns { xp, onTarget, proteinHit, kcal, protein, meals, goal, already }
+ */
+export async function closeNutritionDay() {
+  const { data, error } = await supabase.functions.invoke('xp-engine', {
+    body: { source_type: 'nutrition_day' },
+  });
+  if (error) {
+    const msg = error?.context?.body?.error || error.message || 'Falha ao fechar o dia.';
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  if (data?.xp > 0) {
+    window.dispatchEvent(new CustomEvent('orvax:xp-gain', {
+      detail: { amount: data.xp, reason: 'nutrition_day', total: data.total },
+    }));
+  }
+  return data;
+}

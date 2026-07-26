@@ -54,11 +54,13 @@ const json = (b: unknown, s = 200) =>
 const BASE: Record<string, number> = {
   task: 10, habit: 8, event: 4, meeting: 4, reminder: 2, payment: 3,
   goal_progress: 25, goal_complete: 50, ritual: 15, challenge: 30, arena: 12, finance: 2,
+  nutrition_day: 12,
 }
 const DIM_DEFAULT: Record<string, string> = {
   task: "execution", habit: "evolution", event: "execution", meeting: "social",
   reminder: "execution", payment: "capital", goal_progress: "evolution",
   goal_complete: "evolution", ritual: "evolution", challenge: "evolution", arena: "body", finance: "capital",
+  nutrition_day: "body",
 }
 const clamp = (lo: number, hi: number, v: number) => Math.max(lo, Math.min(hi, v))
 
@@ -112,6 +114,73 @@ Deno.serve(async (req: Request) => {
   let minutes = clamp(1, 480, Number(body.minutes) || 15)
   const priority = [1, 2, 3].includes(Number(body.priority)) ? Number(body.priority) : 3
   const sourceId = body.source_id ? String(body.source_id).slice(0, 64) : null
+
+  // ── VITALIS N4 · FECHAR O DIA: XP por META BATIDA, não por registrar ──
+  // Recompensa RESULTADO verificável (o servidor recalcula de food_logs vs
+  // nutrition_plans), nunca a auto-declaração. 1×/dia. Zero input do cliente.
+  if (sourceType === "nutrition_day") {
+    try {
+      const day = spDayStr()
+      const dayStart = spDayStartISO()
+
+      // já fechou hoje?
+      const { data: dup } = await admin.from("xp_events")
+        .select("id").eq("user_id", user.id).eq("source_type", "nutrition_day")
+        .gte("created_at", dayStart).limit(1)
+      if (dup && dup.length) return json({ xp: 0, already: true })
+
+      const [{ data: plan }, { data: logs }, { data: trust }] = await Promise.all([
+        admin.from("nutrition_plans").select("daily_calories, protein_g")
+          .eq("user_id", user.id).eq("is_active", true).maybeSingle(),
+        admin.from("food_logs").select("calories, protein_g")
+          .eq("user_id", user.id).eq("log_date", day),
+        admin.from("trust_scores").select("score").eq("user_id", user.id).maybeSingle(),
+      ])
+      if (!plan?.daily_calories) return json({ error: "Sem metas configuradas." }, 400)
+      if (!logs || logs.length < 2) {
+        return json({ error: "Registre pelo menos 2 refeições para fechar o dia." }, 400)
+      }
+
+      const kcal = logs.reduce((s: number, l: any) => s + (Number(l.calories) || 0), 0)
+      const prot = logs.reduce((s: number, l: any) => s + (Number(l.protein_g) || 0), 0)
+      const kcalRatio = kcal / plan.daily_calories
+      const protRatio = plan.protein_g ? prot / plan.protein_g : 1
+
+      // Dentro da meta = ±10% das calorias. Proteína >= 90% dá bônus.
+      const onTarget = kcalRatio >= 0.90 && kcalRatio <= 1.10
+      const proteinHit = protRatio >= 0.90
+      // Q recompensa a precisão; fora da faixa ainda ganha algo (registrar importa)
+      const Q = onTarget ? (proteinHit ? 1.15 : 0.95) : 0.5
+
+      const trustScore = trust?.score ?? 50
+      const T = clamp(0.30, 1.20, 0.30 + 0.009 * trustScore)
+      const D = 1 + Math.min(0.3, (logs.length - 2) * 0.06) // constância no registro
+      const h = spHour()
+      const K = (h >= 2 && h < 5) ? 0.9 : 1.0
+
+      const xp = Math.max(1, Math.round(BASE.nutrition_day * D * Q * T * K))
+
+      const { error: insErr } = await admin.from("xp_events").insert({
+        user_id: user.id, source_type: "nutrition_day", source_id: day,
+        dimension: "body", title_norm: "nutrition day",
+        base: BASE.nutrition_day, d: D, q: Q, c: 1, t: T, s: 1, k: K, crit: false, xp_final: xp,
+        meta: { day, kcal: Math.round(kcal), protein: Math.round(prot), meals: logs.length,
+                kcalRatio: +kcalRatio.toFixed(2), protRatio: +protRatio.toFixed(2), onTarget, proteinHit },
+      })
+      if (insErr) throw new Error(`ledger: ${insErr.message}`)
+      const { data: applied, error: applyErr } = await admin.rpc("veritas_apply_xp", { p_user_id: user.id, p_xp: xp })
+      if (applyErr) throw new Error(`apply: ${applyErr.message}`)
+
+      return json({
+        xp, total: applied?.new_xp ?? null, onTarget, proteinHit,
+        kcal: Math.round(kcal), protein: Math.round(prot), meals: logs.length,
+        goal: plan.daily_calories, protein_goal: plan.protein_g,
+      })
+    } catch (err: any) {
+      console.error("xp-engine nutrition_day:", err)
+      return json({ error: err?.message || "Falha ao fechar o dia." }, 500)
+    }
+  }
 
   // ── F3 · RITUAL: caminho próprio — a prova é a daily_review de HOJE ──
   // Nada vem do cliente: nota, atos e streak são lidos da linha que a RPC

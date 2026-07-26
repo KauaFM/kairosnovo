@@ -8,13 +8,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Send, Loader2, ChevronLeft, Sparkles, Plus, Check, AlertTriangle,
-  Stethoscope, Utensils,
+  Stethoscope, Utensils, Star,
 } from 'lucide-react';
 import { ScrollContainer, OrvaxHeader } from '../../../components/BaseLayout';
 import { useLang } from '../../../i18n/LanguageContext';
 import { useBackHandler } from '../../../lib/backHandler';
 import {
-  askVitalis, getVitalisHistory, acceptSuggestion, guessMealType, QUICK_PROMPTS,
+  askVitalis, getVitalisHistory, acceptSuggestion, guessMealType, saveFavorite, QUICK_PROMPTS,
 } from '../services/nutriCoach';
 
 const ACCENT = '#22c55e';
@@ -24,6 +24,7 @@ const TAG_LABEL = { melhor: 'Melhor escolha', boa: 'Boa', alternativa: 'Alternat
 /* ── Card de sugestão (registrável) ───────────────────────── */
 function OptionCard({ opt, suggestionId, onLogged }) {
   const [state, setState] = useState('idle'); // idle | saving | done
+  const [faved, setFaved] = useState(false);
   const isBest = opt.tag === 'melhor';
 
   const register = async () => {
@@ -36,6 +37,13 @@ function OptionCard({ opt, suggestionId, onLogged }) {
       console.error('[vitalis] registrar:', e);
       setState('idle');
     }
+  };
+
+  // Salva na biblioteca: o que funciona vira reuso de 1 toque depois
+  const favorite = async () => {
+    if (faved) return;
+    try { await saveFavorite(opt); setFaved(true); }
+    catch (e) { console.error('[vitalis] favoritar:', e); }
   };
 
   return (
@@ -52,19 +60,31 @@ function OptionCard({ opt, suggestionId, onLogged }) {
           <p className="text-[12px] font-bold leading-snug mt-0.5">{opt.name}</p>
           {opt.portion && <p className="text-[9px] font-mono opacity-45 mt-0.5">{opt.portion}</p>}
         </div>
-        <button
-          onClick={register}
-          disabled={state !== 'idle'}
-          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-60"
-          style={state === 'done'
-            ? { backgroundColor: ACCENT, color: '#000' }
-            : { border: '1px solid var(--border-color)' }}
-          aria-label="Registrar no diário"
-        >
-          {state === 'saving' ? <Loader2 size={14} className="animate-spin" />
-            : state === 'done' ? <Check size={15} strokeWidth={3} />
-            : <Plus size={15} />}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={favorite}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+            style={faved
+              ? { border: `1px solid ${ACCENT}55`, color: ACCENT }
+              : { border: '1px solid var(--border-color)', opacity: 0.5 }}
+            aria-label="Salvar nas minhas refeições"
+          >
+            <Star size={14} fill={faved ? ACCENT : 'none'} />
+          </button>
+          <button
+            onClick={register}
+            disabled={state !== 'idle'}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-60"
+            style={state === 'done'
+              ? { backgroundColor: ACCENT, color: '#000' }
+              : { border: '1px solid var(--border-color)' }}
+            aria-label="Registrar no diário"
+          >
+            {state === 'saving' ? <Loader2 size={14} className="animate-spin" />
+              : state === 'done' ? <Check size={15} strokeWidth={3} />
+              : <Plus size={15} />}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5 mt-2">

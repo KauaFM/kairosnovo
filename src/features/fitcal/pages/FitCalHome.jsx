@@ -25,6 +25,8 @@ import { useNutritionSetup } from '../hooks/useNutritionSetup';
 import AddMealModal from '../components/AddMealModal';
 import FoodScanner from '../components/FoodScanner';
 import NutritionOnboarding from '../components/NutritionOnboarding';
+import FavoriteMeals from '../components/FavoriteMeals';
+import DayCloseCard from '../components/DayCloseCard';
 import ProgressPage from './ProgressPage';
 import VitalisChat from './VitalisChat';
 import { MEAL_TYPES } from '../utils/macroCalc';
@@ -1019,6 +1021,9 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                 <ChevronRight size={14} className="opacity-15" />
               </button>
 
+              {/* ═══ MINHAS REFEIÇÕES (reuso 1-toque) ═══ */}
+              <FavoriteMeals onLogged={() => { refreshDiary(); refreshStreak(); }} />
+
               {/* ═══ FOOD DIARY ═══ */}
               <div>
                 <div className="flex items-center gap-2 mb-3 px-1">
@@ -1026,6 +1031,17 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                 </div>
                 <DiarySection entries={entries} onAddMeal={handleAddMeal} onDeleteEntry={handleDeleteEntry} />
               </div>
+
+              {/* ═══ FECHAR O DIA (XP por meta batida) ═══ */}
+              {plan?.daily_calories && (
+                <DayCloseCard
+                  consumed={totals.calories}
+                  goal={plan.daily_calories}
+                  protein={totals.protein_g}
+                  proteinGoal={plan.protein_g}
+                  mealsCount={Object.values(entries || {}).flat().length}
+                />
+              )}
 
             </div>
           )}
