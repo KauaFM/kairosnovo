@@ -3,7 +3,7 @@ import {
   Camera, Search, Plus, Loader2, Minus, Droplets, Pencil, Check,
   Flame, Star, Trash2, Activity, Moon, Zap, ChevronRight, TrendingUp,
   Dumbbell, Heart, ArrowUpRight, ArrowDownRight, CalendarDays,
-  ChevronLeft, X, Target
+  ChevronLeft, X, Target, Sparkles
 } from 'lucide-react';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
@@ -26,6 +26,7 @@ import AddMealModal from '../components/AddMealModal';
 import FoodScanner from '../components/FoodScanner';
 import NutritionOnboarding from '../components/NutritionOnboarding';
 import ProgressPage from './ProgressPage';
+import VitalisChat from './VitalisChat';
 import { MEAL_TYPES } from '../utils/macroCalc';
 
 // ─── CHART TOOLTIP ──────────────────────────────────────────────────────────────
@@ -695,6 +696,18 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
     );
   }
 
+  // VITALIS — copiloto nutricional (aba interativa)
+  if (view === 'vitalis') {
+    return (
+      <VitalisChat
+        theme={theme}
+        toggleTheme={toggleTheme}
+        onBack={() => setView('home')}
+        onLogged={() => { refreshDiary(); refreshStreak(); }}
+      />
+    );
+  }
+
   const isLoading = diaryLoading || planLoading;
   const isLight = theme === 'light';
 
@@ -753,6 +766,23 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                 <ChevronRight size={14} className="opacity-40 shrink-0" />
               </button>
             )}
+
+            {/* ═══ VITALIS — copiloto nutricional ═══ */}
+            <button
+              onClick={() => setView('vitalis')}
+              className="w-full flex items-center gap-3 p-3.5 rounded-2xl border mb-3 text-left transition-all active:scale-[0.99]"
+              style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ border: '1px solid #22c55e33', backgroundColor: '#22c55e14' }}>
+                <Sparkles size={15} style={{ color: '#22c55e' }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold leading-tight">{t('vitalis.cardTitle')}</p>
+                <p className="text-[9px] font-mono opacity-45 leading-snug mt-0.5">{t('vitalis.cardSub')}</p>
+              </div>
+              <ChevronRight size={14} className="opacity-40 shrink-0" />
+            </button>
 
             {/* ═══ WEEK CALENDAR ═══ */}
             <div>
