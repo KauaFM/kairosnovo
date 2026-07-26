@@ -3,7 +3,7 @@ import {
   Camera, Search, Plus, Loader2, Minus, Droplets, Pencil, Check,
   Flame, Star, Trash2, Activity, Moon, Zap, ChevronRight, TrendingUp,
   Dumbbell, Heart, ArrowUpRight, ArrowDownRight, CalendarDays,
-  ChevronLeft, X
+  ChevronLeft, X, Target
 } from 'lucide-react';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
@@ -21,8 +21,10 @@ import { addWater, deleteLastWater } from '../services/weightService';
 import { updateStreak } from '../services/streakService';
 import { updateCalorieGoal, updateWaterGoal } from '../services/foodService';
 import { logFromAI, deleteLog } from '../services/foodServiceV2';
+import { useNutritionSetup } from '../hooks/useNutritionSetup';
 import AddMealModal from '../components/AddMealModal';
 import FoodScanner from '../components/FoodScanner';
+import NutritionOnboarding from '../components/NutritionOnboarding';
 import ProgressPage from './ProgressPage';
 import { MEAL_TYPES } from '../utils/macroCalc';
 
@@ -514,6 +516,8 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const { entries, totals, loading: diaryLoading, refresh: refreshDiary } = useFoodDiary(selectedDate);
   const { plan, loading: planLoading, refresh: refreshPlan } = useNutritionPlan();
+  const { setup, needsOnboarding, refresh: refreshSetup } = useNutritionSetup();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const { streak, refresh: refreshStreak } = useStreak();
   const { totalMl, refresh: refreshWater } = useWater();
 
@@ -730,6 +734,25 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
                 </div>
               </div>
             </div>
+
+            {/* ═══ METAS NÃO CONFIGURADAS — abre o cálculo real (VITALIS N1) ═══ */}
+            {needsOnboarding && (
+              <button
+                onClick={() => setShowOnboarding(true)}
+                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border mb-3 text-left transition-all active:scale-[0.99]"
+                style={{ borderColor: '#22c55e44', backgroundColor: '#22c55e0D' }}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ border: '1px solid #22c55e33', backgroundColor: '#22c55e14' }}>
+                  <Target size={15} style={{ color: '#22c55e' }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold leading-tight">{t('fitcal.setupTitle')}</p>
+                  <p className="text-[9px] font-mono opacity-45 leading-snug mt-0.5">{t('fitcal.setupSub')}</p>
+                </div>
+                <ChevronRight size={14} className="opacity-40 shrink-0" />
+              </button>
+            )}
 
             {/* ═══ WEEK CALENDAR ═══ */}
             <div>
@@ -1036,6 +1059,19 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
           selectedDate={selectedDate}
           onSelect={handleDateSelect}
           onClose={() => setShowCalendar(false)}
+        />
+      )}
+
+      {/* ═══ ONBOARDING NUTRICIONAL (gera as metas reais) ═══ */}
+      {showOnboarding && (
+        <NutritionOnboarding
+          initial={setup || {}}
+          onClose={() => setShowOnboarding(false)}
+          onDone={() => {
+            setShowOnboarding(false);
+            refreshSetup();
+            refreshPlan();
+          }}
         />
       )}
     </div>
