@@ -194,7 +194,7 @@ export default function NutritionOnboarding({ initial = {}, onDone, onClose }) {
         {step === 2 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
-              <Label>Padrão alimentar</Label>
+              <Label>Como você come</Label>
               <div className="flex flex-wrap gap-2">
                 {DIET_TYPES.map((d) => (
                   <button key={d.value} onClick={() => set('diet_type', d.value)} className={chip(f.diet_type === d.value)}>
@@ -202,6 +202,10 @@ export default function NutritionOnboarding({ initial = {}, onDone, onClose }) {
                   </button>
                 ))}
               </div>
+              {/* explica em 1 linha o que a escolha significa */}
+              <p className="text-[9px] font-mono opacity-40 mt-2 leading-snug">
+                {DIET_TYPES.find((d) => d.value === f.diet_type)?.desc}
+              </p>
             </div>
             <div>
               <Label>Alergias / intolerâncias</Label>

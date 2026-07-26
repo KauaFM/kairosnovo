@@ -11,12 +11,15 @@ import { generatePlan } from '../utils/tdeeCalc';
 import { getLatestWeight } from './weightService';
 import { getActivePlan } from './foodService';
 
+// Rótulos em linguagem natural — "onívoro" é jargão e a maioria das
+// pessoas não sabe o que significa. O `value` continua o mesmo (não
+// quebra dados já salvos nem o contexto do VITALIS).
 export const DIET_TYPES = [
-  { value: 'onivoro', label: 'Onívoro' },
-  { value: 'vegetariano', label: 'Vegetariano' },
-  { value: 'vegano', label: 'Vegano' },
-  { value: 'low_carb', label: 'Low carb' },
-  { value: 'mediterranea', label: 'Mediterrânea' },
+  { value: 'onivoro',      label: 'Como de tudo',  desc: 'Carne, frango, peixe, ovos e laticínios' },
+  { value: 'vegetariano',  label: 'Vegetariano',   desc: 'Sem carne; com ovos e laticínios' },
+  { value: 'vegano',       label: 'Vegano',        desc: 'Nada de origem animal' },
+  { value: 'low_carb',     label: 'Low carb',      desc: 'Como de tudo, com menos carboidrato' },
+  { value: 'mediterranea', label: 'Mediterrânea',  desc: 'Peixe, azeite, grãos e vegetais' },
 ];
 
 export const COMMON_ALLERGIES = ['Lactose', 'Glúten', 'Amendoim', 'Frutos do mar', 'Ovo', 'Soja', 'Castanhas'];
@@ -88,11 +91,17 @@ export async function saveNutritionSetup(data) {
   if (profErr) throw profErr;
 
   // 2) peso vira um registro no histórico (alimenta o gráfico também)
+  // NOTA: o query builder do supabase-js é "thenable" mas NÃO tem .catch()
+  // — encadear .catch() nele quebra em runtime. Use try/catch.
   if (data.weight_kg) {
-    await supabase.from('weight_logs').upsert(
-      { user_id: uid, weight_kg: data.weight_kg, log_date: new Date().toISOString().slice(0, 10) },
-      { onConflict: 'user_id,log_date' },
-    ).catch(() => { /* histórico é best-effort */ });
+    try {
+      await supabase.from('weight_logs').upsert(
+        { user_id: uid, weight_kg: data.weight_kg, log_date: new Date().toISOString().slice(0, 10) },
+        { onConflict: 'user_id,log_date' },
+      );
+    } catch (e) {
+      console.warn('[nutrition] histórico de peso (best-effort):', e?.message);
+    }
   }
 
   // 3) preferências (contexto do VITALIS)

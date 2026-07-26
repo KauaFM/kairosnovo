@@ -57,11 +57,16 @@ export async function acceptSuggestion(option, mealType = 'snack', suggestionId 
     fat_g: option.fat_g,
     confidence: 0.7,             // estimativa da IA
   });
+  // NOTA: o query builder do supabase-js é "thenable" mas NÃO tem .catch()
+  // — encadear .catch() nele quebra em runtime. Use try/catch.
   if (suggestionId) {
-    await supabase.from('meal_suggestions')
-      .update({ accepted: true, accepted_at: new Date().toISOString() })
-      .eq('id', suggestionId)
-      .catch(() => { /* métrica é best-effort */ });
+    try {
+      await supabase.from('meal_suggestions')
+        .update({ accepted: true, accepted_at: new Date().toISOString() })
+        .eq('id', suggestionId);
+    } catch (e) {
+      console.warn('[vitalis] marcar aderência (best-effort):', e?.message);
+    }
   }
 }
 
