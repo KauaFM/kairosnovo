@@ -1,25 +1,32 @@
 // ============================================================
-// ORVAX FitCal — VITALIS client (copiloto nutricional · N2)
-// O front nunca fala com o LLM: tudo pela Edge Function nutri-coach.
+// ORVAX FitCal — VITALIS client (agente nutricional · v3)
+//
+// v2 era um chat: ele sugeria, você tocava pra registrar.
+// v3 é um agente com ferramentas: ele MONTA o plano, REGISTRA
+// o que você comeu, TROCA refeição e AJUSTA metas. O front só
+// manda o comando e redesenha o estado que o servidor devolve.
+// O front nunca fala com o LLM — tudo pela Edge Function.
 // ============================================================
 import { supabase } from '../../../lib/supabase';
 import { logFromAI } from './foodServiceV2';
 
-/** Atalhos sem digitação (o momento de decisão é sob pressão). */
-export const QUICK_PROMPTS = [
-  { key: 'hungry', icon: '🍽', label: 'Estou com fome', text: 'Estou com fome agora. O que eu como?', context: 'fome' },
-  { key: 'street', icon: '🚶', label: 'Estou na rua', text: 'Estou na rua e preciso comer algo. Quais as melhores opções perto (padaria, lanchonete, mercado)?', context: 'na_rua' },
-  { key: 'offplan', icon: '🍕', label: 'Comi fora do plano', text: 'Comi além do que planejei hoje. Como sigo o resto do dia?', context: 'fora_do_plano' },
-  { key: 'status', icon: '📊', label: 'Como tô hoje?', text: 'Como está meu dia até agora? O que ainda falta bater?', context: 'status' },
-  { key: 'dinner', icon: '🌙', label: 'O que jantar?', text: 'O que eu faço de janta que encaixe no que falta hoje?', context: 'jantar' },
-  { key: 'market', icon: '🛒', label: 'Lista de compras', text: 'Me dá uma lista curta de compras que facilite bater minhas metas nessa semana.', context: 'compras' },
+/** Ações de 1 toque (o momento de decisão é sob pressão, não se digita). */
+export const QUICK_ACTIONS = [
+  { key: 'plan',   icon: '📋', label: 'Montar meu dia', command: 'Monta meu plano alimentar de hoje.', tool: 'montar_plano_do_dia' },
+  { key: 'street', icon: '🚶', label: 'Tô na rua',      command: 'Estou na rua e preciso comer algo agora. Quais as melhores opções em padaria, lanchonete ou mercado?' },
+  { key: 'dinner', icon: '🌙', label: 'O que jantar?',  command: 'O que eu faço de janta que encaixe no que ainda falta hoje?' },
+  { key: 'market', icon: '🛒', label: 'Lista de compras', command: 'Monta minha lista de compras da semana.', tool: 'montar_lista_compras' },
 ];
 
-/** Pergunta ao VITALIS. @returns { reply, options[], avoid, suggestion_ids[], remaining } */
-export async function askVitalis(message, context = null) {
-  const { data, error } = await supabase.functions.invoke('nutri-coach', {
-    body: { message, context },
-  });
+export const SLOT_LABEL = {
+  breakfast: 'Café da manhã',
+  lunch: 'Almoço',
+  snack: 'Lanche',
+  dinner: 'Jantar',
+};
+export const SLOT_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
+
+function unwrap(error, data) {
   if (error) {
     // Erros de negócio vêm no corpo (ex.: 429 do rate limit)
     const msg = error?.context?.body?.error || error.message || 'Falha ao falar com o VITALIS.';
@@ -29,45 +36,53 @@ export async function askVitalis(message, context = null) {
   return data;
 }
 
-/** Histórico da conversa (últimas mensagens). */
-export async function getVitalisHistory(limit = 20) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return [];
-  const { data } = await supabase
-    .from('nutri_messages')
-    .select('role, content, payload, created_at')
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  return (data || []).reverse();
+/** Estado do painel: metas, consumo, plano de hoje e o que o agente fez. */
+export async function getVitalisState() {
+  const { data, error } = await supabase.functions.invoke('nutri-coach', { body: { mode: 'state' } });
+  return unwrap(error, data);
 }
 
 /**
- * Registra uma sugestão do VITALIS no diário (1 toque) e marca
- * a sugestão como aceita — é isso que mede a aderência real.
+ * Manda um comando pro VITALIS. Ele decide a ferramenta e o SERVIDOR executa.
+ * @param {string} command texto livre ("comi um x-tudo", "troca a janta")
+ * @param {string|null} forceTool força uma ferramenta (usado pelos botões)
+ * @returns {Promise<{reply:string, executed:Array, state:object}>}
  */
-export async function acceptSuggestion(option, mealType = 'snack', suggestionId = null) {
-  await logFromAI({
-    name: option.name,
-    mealType,
-    grams: 0,                    // sugestão vem em medida caseira, não em gramas
-    calories: option.kcal,
-    protein_g: option.protein_g,
-    carbs_g: option.carbs_g,
-    fat_g: option.fat_g,
-    confidence: 0.7,             // estimativa da IA
+export async function sendCommand(command, forceTool = null) {
+  const { data, error } = await supabase.functions.invoke('nutri-coach', {
+    body: { command, force_tool: forceTool || undefined },
   });
-  // NOTA: o query builder do supabase-js é "thenable" mas NÃO tem .catch()
-  // — encadear .catch() nele quebra em runtime. Use try/catch.
-  if (suggestionId) {
-    try {
-      await supabase.from('meal_suggestions')
-        .update({ accepted: true, accepted_at: new Date().toISOString() })
-        .eq('id', suggestionId);
-    } catch (e) {
-      console.warn('[vitalis] marcar aderência (best-effort):', e?.message);
-    }
-  }
+  return unwrap(error, data);
+}
+
+// A RPC log_food_from_ai rejeita grams <= 0 ("grams must be > 0"). O plano e
+// as favoritas guardam medida caseira, não peso — então entra um valor de
+// referência. Passar 0 aqui fazia o registro de 1 toque falhar silenciosamente.
+const FALLBACK_GRAMS = 100;
+
+/** Marca um item do plano como comido e joga no diário (1 toque). */
+export async function eatPlanItem(item) {
+  await logFromAI({
+    name: item.portion ? `${item.name} (${item.portion})` : item.name,
+    mealType: item.slot,
+    grams: FALLBACK_GRAMS,
+    calories: item.kcal,
+    protein_g: item.protein_g,
+    carbs_g: item.carbs_g,
+    fat_g: item.fat_g,
+    confidence: 0.8,
+  });
+  const { error } = await supabase.from('meal_plan_items')
+    .update({ status: 'eaten', eaten_at: new Date().toISOString() })
+    .eq('id', item.id);
+  if (error) throw error;
+}
+
+/** Descarta um item planejado (não vou comer isso). */
+export async function skipPlanItem(itemId) {
+  const { error } = await supabase.from('meal_plan_items')
+    .update({ status: 'skipped' }).eq('id', itemId);
+  if (error) throw error;
 }
 
 /** Refeição provável pelo horário (pré-seleciona ao registrar). */
@@ -93,7 +108,7 @@ export async function saveFavorite(opt, source = 'vitalis') {
     protein_g: opt.protein_g || 0,
     carbs_g: opt.carbs_g || 0,
     fat_g: opt.fat_g || 0,
-    meal_type: opt.meal_type || guessMealType(),
+    meal_type: opt.slot || opt.meal_type || guessMealType(),
     source,
   });
   if (error) throw error;
@@ -118,7 +133,7 @@ export async function logFavorite(fav, mealType = null) {
   await logFromAI({
     name: fav.name,
     mealType: mealType || fav.meal_type || guessMealType(),
-    grams: 0,
+    grams: FALLBACK_GRAMS,
     calories: fav.kcal,
     protein_g: fav.protein_g,
     carbs_g: fav.carbs_g,

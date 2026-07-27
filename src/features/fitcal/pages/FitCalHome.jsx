@@ -28,7 +28,7 @@ import NutritionOnboarding from '../components/NutritionOnboarding';
 import FavoriteMeals from '../components/FavoriteMeals';
 import DayCloseCard from '../components/DayCloseCard';
 import ProgressPage from './ProgressPage';
-import VitalisChat from './VitalisChat';
+import VitalisPanel from './VitalisPanel';
 import { MEAL_TYPES } from '../utils/macroCalc';
 
 // ─── CHART TOOLTIP ──────────────────────────────────────────────────────────────
@@ -698,14 +698,14 @@ const FitCalHome = ({ theme, toggleTheme, onModalChange }) => {
     );
   }
 
-  // VITALIS — copiloto nutricional (aba interativa)
+  // VITALIS — o nutricionista virtual (painel, não chat: ele executa)
   if (view === 'vitalis') {
     return (
-      <VitalisChat
+      <VitalisPanel
         theme={theme}
         toggleTheme={toggleTheme}
         onBack={() => setView('home')}
-        onLogged={() => { refreshDiary(); refreshStreak(); }}
+        onLogged={() => { refreshDiary(); refreshStreak(); refreshPlan(); }}
       />
     );
   }
