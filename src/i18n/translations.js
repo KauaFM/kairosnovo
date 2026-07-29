@@ -464,7 +464,8 @@ export const translations = {
       // erros
       errEmailRequired: 'Informe seu e-mail.',
       errResetSent: 'Enviamos um link de redefinição para seu e-mail. Verifique a caixa de entrada e spam.',
-      errPasswordShort: 'Senha deve ter 6+ caracteres.',
+      errPasswordShort: 'Senha deve ter 8+ caracteres.',
+      errPasswordLeaked: 'Essa senha já apareceu em vazamentos públicos. Escolha outra — é o primeiro palpite de quem tenta invadir contas.',
       errPasswordReset: 'Senha redefinida com sucesso. Faça login.',
       errInvalidCreds: 'E-mail ou senha incorretos.',
       errTooMany: 'Muitas tentativas. Tente novamente em 1 hora.',
@@ -1190,7 +1191,8 @@ export const translations = {
       // errors
       errEmailRequired: 'Enter your email.',
       errResetSent: 'We sent a reset link to your email. Check your inbox and spam folder.',
-      errPasswordShort: 'Password must be 6+ characters.',
+      errPasswordShort: 'Password must be 8+ characters.',
+      errPasswordLeaked: 'This password has appeared in public breaches. Pick another one — it is the first guess anyone trying to break into accounts will make.',
       errPasswordReset: 'Password reset successfully. Please sign in.',
       errInvalidCreds: 'Incorrect email or password.',
       errTooMany: 'Too many attempts. Try again in 1 hour.',

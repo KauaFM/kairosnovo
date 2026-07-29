@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Loader2, Check, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { assertPasswordSafe } from '../../lib/passwordSafety';
 import { useLang } from '../../i18n/LanguageContext';
 import LanguageToggle from '../LanguageToggle';
 
@@ -85,7 +86,10 @@ const Login = ({ onLoginSuccess }) => {
 
             // MODO: redefinir senha (usuário veio do link de recovery)
             if (mode === 'reset') {
-                if (!password || password.length < 6) throw new Error(t('login.errPasswordShort'));
+                await assertPasswordSafe(password, {
+                    tooShort: t('login.errPasswordShort'),
+                    leaked: t('login.errPasswordLeaked'),
+                });
                 const { error } = await supabase.auth.updateUser({ password });
                 if (error) throw error;
                 // Limpa o hash de recovery da URL
@@ -104,7 +108,12 @@ const Login = ({ onLoginSuccess }) => {
             }
 
             if (isSignUp) {
-                if (password.length < 6) throw new Error(t('login.errPasswordShort'));
+                // 8 caracteres (era 6) para bater com a troca de senha na
+                // tela de Conta — e recusa senha já vazada, de graça.
+                await assertPasswordSafe(password, {
+                    tooShort: t('login.errPasswordShort'),
+                    leaked: t('login.errPasswordLeaked'),
+                });
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,

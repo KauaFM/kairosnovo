@@ -2,17 +2,16 @@
 // ORVAX — Conta (logout, senha, exclusão, portal de assinatura)
 // ============================================================
 import { supabase } from '../lib/supabase';
+import { assertPasswordSafe } from '../lib/passwordSafety';
 
 /** Encerra a sessão (limpa tokens locais). */
 export async function logout() {
   await supabase.auth.signOut();
 }
 
-/** Troca a senha do usuário logado. */
+/** Troca a senha do usuário logado (recusa senha já vazada). */
 export async function changePassword(newPassword) {
-  if (!newPassword || newPassword.length < 8) {
-    throw new Error('A senha precisa de ao menos 8 caracteres.');
-  }
+  await assertPasswordSafe(newPassword);
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }
