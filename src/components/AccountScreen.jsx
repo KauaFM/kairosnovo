@@ -18,8 +18,8 @@ import {
 } from '../services/account';
 import { getEntitlement, tierLabel } from '../services/entitlements';
 
-const PRIVACY_URL = 'https://orvax.com.br/privacidade';
-const TERMS_URL = 'https://orvax.com.br/termos';
+const PRIVACY_URL = 'https://orvaxapp.com.br/privacidade';
+const TERMS_URL = 'https://orvaxapp.com.br/termos';
 
 export default function AccountScreen({ theme, toggleTheme, onClose }) {
   const { t } = useLang();

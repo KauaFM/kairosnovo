@@ -9,7 +9,7 @@ import LanguageToggle from '../LanguageToggle';
 // No APK, window.location.origin é "https://localhost" — o link do
 // e-mail abriria uma página morta no navegador do celular. Em nativo
 // mandamos para o site; na web, o origin real (dev e produção).
-const WEB_BASE = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://orvax.com.br';
+const WEB_BASE = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://orvaxapp.com.br';
 const isNative = () =>
     typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
 const authRedirect = (path = '/') =>

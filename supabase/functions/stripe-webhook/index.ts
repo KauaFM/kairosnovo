@@ -27,7 +27,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 // E-mail de boas-vindas (opcional: sem RESEND_API_KEY o acesso é criado
 // mesmo assim; o usuário pode usar "esqueci minha senha" no app)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? ""
-const FROM_EMAIL = Deno.env.get("UPGRADE_FROM_EMAIL") ?? "ORVAX <noreply@orvax.com.br>"
+const FROM_EMAIL = Deno.env.get("UPGRADE_FROM_EMAIL") ?? "ORVAX <noreply@orvaxapp.com.br>"
 const PLAY_STORE_URL = Deno.env.get("PLAY_STORE_URL") ?? "https://play.google.com/store/apps/details?id=com.orvax.app"
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
