@@ -25,6 +25,12 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 // Cliente com service role para escrever (bypassa RLS, igual ao WhatsApp agent).
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+// Mensagens/dia por usuário. Conversa longa com o mentor é ~15 mensagens;
+// 60 é 4x isso, então ninguém real esbarra — o limite é contra script.
+const DAILY_LIMIT = 60
+// Dia local de SP
+const spToday = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
+
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -344,6 +350,18 @@ Deno.serve(async (req: Request) => {
     try { body = await req.json() } catch { return json({ error: "JSON inválido." }, 400) }
     const text = (body.message || "").trim()
     if (!text) return json({ error: "Mensagem vazia." }, 400)
+
+    // Cota diária (admin passa livre) — teto de custo por usuário
+    const { data: quota } = await admin.rpc("ai_quota_take", {
+        p_user: userId, p_fn: "mentor-chat", p_day: spToday(), p_limit: DAILY_LIMIT,
+    })
+    const q = Array.isArray(quota) ? quota[0] : quota
+    if (q && q.allowed === false) {
+        return json({
+            error: `Conversamos bastante hoje (${q.quota} mensagens). Amanhã eu volto — aproveita pra executar o que combinamos.`,
+            code: "quota_exceeded",
+        }, 429)
+    }
 
     // 2. Persona do mentor selecionado
     let mentorId = "atlas"

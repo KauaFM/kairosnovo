@@ -22,6 +22,7 @@ import {
 import { getMentorPersona } from './mentor';
 import { llmChat, llmAvailable } from './llm';
 import { toDbTxType } from '../lib/txType';
+import { readFunctionError } from '../lib/fnError';
 import { toLocalDateStr } from '../utils/dateUtils';
 
 const APP_CHANNEL = 'app';
@@ -263,6 +264,13 @@ export async function sendMentorMessage(text, history = []) {
     if (data?.reply) return { reply: data.reply, mode: 'agent' };
     throw new Error('Resposta vazia da função.');
   } catch (edgeErr) {
+    // Cota diária estourada ou sessão expirada não é "função indisponível":
+    // é o servidor dizendo NÃO. Cair no modo client-side aqui esconderia o
+    // motivo e ainda burlaria o próprio limite.
+    const { status, message } = await readFunctionError(edgeErr);
+    if (status === 429 || status === 401 || status === 403) {
+      throw new Error(message || 'Sua sessão expirou. Entre de novo.');
+    }
     console.info('[mentorAgent] Edge mentor-chat indisponível, usando modo client-side:', edgeErr?.message || edgeErr);
   }
 

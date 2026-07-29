@@ -2,6 +2,7 @@ import { supabase } from '../../../lib/supabase';
 import { toLocalDateStr } from '../../../utils/dateUtils';
 import { compressImage } from '../../../utils/imageCompression';
 import { llmChat, llmAvailable, safeJsonParse } from '../../../services/llm';
+import { readFunctionError } from '../../../lib/fnError';
 
 const SYSTEM_PROMPT = `Você é uma API de análise nutricional de alta precisão.
 Analise a imagem e identifique TODOS os alimentos visíveis.
@@ -13,6 +14,19 @@ REGRAS ESTRITAS:
 4. Se a imagem não contém alimentos, retorne { "items": [] }.
 5. Seja conservador. NÃO invente alimentos que não estão na imagem.
 6. Arredonde macros para 1 casa decimal.`;
+
+/**
+ * Distingue "a função caiu" de "a função respondeu NÃO".
+ * Cota estourada (429) e sessão expirada (401/403) são respostas legítimas
+ * e precisam chegar ao usuário; qualquer outra falha pode tentar o fallback.
+ * @returns {Promise<string|null>} a mensagem a exibir, ou null
+ */
+async function readBusinessError(err) {
+  const { message, status } = await readFunctionError(err);
+  if (status !== 429 && status !== 401 && status !== 403) return null;
+  if (message) return message;
+  return 'Sua sessão expirou. Entre de novo para usar o scanner.';
+}
 
 // Valida e limita os números (a IA pode alucinar / o RPC rejeita kcal > 9·gramas)
 function toNum(v, fallback) {
@@ -114,12 +128,17 @@ export async function analyzeFoodPhoto(file, userId) {
     if (data?.error) throw new Error(data.error);
     return { items: sanitizeItems(data?.items), photoUrl: publicUrl || URL.createObjectURL(compressed.blob) };
   } catch (edgeErr) {
+    // Erro de NEGÓCIO (cota estourada, sessão expirada) tem que chegar na
+    // pessoa com o texto do servidor. Sem isso ela vê "publique a Edge
+    // Function..." — mensagem de dev — e não entende o que aconteceu.
+    const business = await readBusinessError(edgeErr);
+    if (business) throw new Error(business);
     console.info('[analyzeFoodPhoto] Edge Function indisponível, tentando fallback direto:', edgeErr?.message || edgeErr);
   }
 
   // 4. Fallback DEV (somente se houver IA configurada localmente)
   if (!llmAvailable()) {
-    throw new Error('Análise indisponível: publique a Edge Function "analyze-food" ou defina VITE_GEMINI_API_KEY.');
+    throw new Error('O scanner está indisponível agora. Adicione a refeição pela busca.');
   }
   const items = await analyzeViaLLMDirect(compressed.base64Raw, compressed.mimeType);
   return { items, photoUrl: publicUrl || URL.createObjectURL(compressed.blob) };

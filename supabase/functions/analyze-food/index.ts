@@ -11,9 +11,23 @@
 //   supabase secrets set OPENAI_API_KEY=sk-...
 // ============================================================
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
+
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? ""
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 const OPENAI_MODEL = "gpt-4o-mini"
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+// Fotos/dia por usuário. O scanner é a ação mais cara do app (~4x um
+// comando do VITALIS). 25 é ~5x o uso de quem registra TODAS as refeições,
+// então ninguém real esbarra — só um script.
+const DAILY_LIMIT = 25
+// Dia local de SP (o diário do FitCal usa data local)
+const spToday = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
 
 // ─── CORS (chamado do navegador via supabase.functions.invoke) ──
 const corsHeaders = {
@@ -103,6 +117,28 @@ Deno.serve(async (req: Request) => {
             { error: "OPENAI_API_KEY não configurada no servidor (supabase secrets set OPENAI_API_KEY=...)" },
             500,
         )
+    }
+
+    // Autenticação REAL. Antes daqui a função só tinha verify_jwt do gateway
+    // — e o gateway aceita a própria anon key, que viaja dentro do APK. Ou
+    // seja: o endpoint mais caro do app era chamável por qualquer um.
+    const authHeader = req.headers.get("Authorization") || ""
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authErr } = await userClient.auth.getUser()
+    if (authErr || !user) return json({ error: "Não autenticado." }, 401)
+
+    // Cota diária (admin passa livre)
+    const { data: quota } = await admin.rpc("ai_quota_take", {
+        p_user: user.id, p_fn: "analyze-food", p_day: spToday(), p_limit: DAILY_LIMIT,
+    })
+    const q = Array.isArray(quota) ? quota[0] : quota
+    if (q && q.allowed === false) {
+        return json({
+            error: `Você já analisou ${q.quota} fotos hoje. Adicione a refeição pela busca — amanhã o scanner volta.`,
+            code: "quota_exceeded",
+        }, 429)
     }
 
     let body: { imageUrl?: string; imageBase64?: string; mimeType?: string }

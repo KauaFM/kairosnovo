@@ -8,6 +8,7 @@
 // O front nunca fala com o LLM — tudo pela Edge Function.
 // ============================================================
 import { supabase } from '../../../lib/supabase';
+import { functionErrorMessage } from '../../../lib/fnError';
 import { logFromAI } from './foodServiceV2';
 
 /** Ações de 1 toque (o momento de decisão é sob pressão, não se digita). */
@@ -26,11 +27,11 @@ export const SLOT_LABEL = {
 };
 export const SLOT_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
 
-function unwrap(error, data) {
+async function unwrap(error, data) {
   if (error) {
-    // Erros de negócio vêm no corpo (ex.: 429 do rate limit)
-    const msg = error?.context?.body?.error || error.message || 'Falha ao falar com o VITALIS.';
-    throw new Error(msg);
+    // Erros de negócio (ex.: 429 do rate limit) vêm no CORPO da resposta —
+    // `error.message` é sempre o texto genérico do supabase-js.
+    throw new Error(await functionErrorMessage(error, 'Falha ao falar com o VITALIS.'));
   }
   if (data?.error) throw new Error(data.error);
   return data;
@@ -161,8 +162,7 @@ export async function closeNutritionDay() {
     body: { source_type: 'nutrition_day' },
   });
   if (error) {
-    const msg = error?.context?.body?.error || error.message || 'Falha ao fechar o dia.';
-    throw new Error(msg);
+    throw new Error(await functionErrorMessage(error, 'Falha ao fechar o dia.'));
   }
   if (data?.error) throw new Error(data.error);
   if (data?.xp > 0) {
