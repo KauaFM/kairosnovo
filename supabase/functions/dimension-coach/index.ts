@@ -140,6 +140,18 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json() } catch { /* corpo vazio ok */ }
   const force = body?.force === true
 
+  // Cota diária. A idempotência semanal protegia o custo, mas `force=true`
+  // vem do CLIENTE e a contorna — um autenticado poderia disparar o LLM em
+  // laço. 3/dia cobre a geração semanal e qualquer regeneração legítima.
+  const spDay = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
+  const { data: quota } = await admin.rpc("ai_quota_take", {
+    p_user: user.id, p_fn: "dimension-coach", p_day: spDay, p_limit: 3,
+  })
+  const q = Array.isArray(quota) ? quota[0] : quota
+  if (q && q.allowed === false) {
+    return json({ error: "O Conselho já se reuniu hoje. Volte amanhã.", code: "quota_exceeded" }, 429)
+  }
+
   try {
     const week = weekStartStr()
 

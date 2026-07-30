@@ -182,7 +182,7 @@ async function executeClientTool(name, args, userId) {
 // ─── FALLBACK: conversa + ações direto na IA (Gemini/OpenAI) ────
 async function chatClientSide(text, history, mentorId, userId) {
   if (!llmAvailable()) {
-    throw new Error('Assistente indisponível: defina VITE_GEMINI_API_KEY no .env (grátis em aistudio.google.com) ou publique a Edge Function "mentor-chat".');
+    throw new Error('O assistente está indisponível no momento. Tente de novo em instantes.');
   }
 
   const persona = await getMentorPersona(mentorId);

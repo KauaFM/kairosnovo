@@ -169,7 +169,7 @@ export const translations = {
       cancel: 'Cancelar',
     },
       lo: {
-        aiNotConfig: 'ERRO: IA não configurada. Gere uma chave grátis do Gemini em aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.',
+        aiNotConfig: 'A IA está indisponível no momento. Tente de novo em instantes.',
         neuralErr: 'ERRO DE CONEXÃO NEURAL. Sistema instável.',
         criticalError: 'Erro Crítico ORVAX',
         closeNews: 'Fechar notícias', refresh: 'Atualizar',
@@ -896,7 +896,7 @@ export const translations = {
       cancel: 'Cancel',
     },
       lo: {
-        aiNotConfig: 'ERROR: AI not configured. Get a free Gemini key at aistudio.google.com and set VITE_GEMINI_API_KEY in .env.',
+        aiNotConfig: 'AI is unavailable right now. Please try again shortly.',
         neuralErr: 'NEURAL CONNECTION ERROR. System unstable.',
         criticalError: 'ORVAX Critical Error',
         closeNews: 'Close news', refresh: 'Refresh',

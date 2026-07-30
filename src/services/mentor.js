@@ -54,7 +54,7 @@ Responda SEMPRE com JSON válido no formato exato:
 
 export const callMentor = async (userInput, { mentorId = 'atlas' } = {}) => {
     if (!userInput?.trim()) return null;
-    if (!llmAvailable()) throw new Error('IA não configurada. Defina VITE_GEMINI_API_KEY no .env (grátis em aistudio.google.com).');
+    if (!llmAvailable()) throw new Error('A IA está indisponível no momento. Tente de novo em instantes.');
 
     const persona = await getMentorPersona(mentorId);
     const systemPrompt = buildJsonContract(persona?.system_prompt || FALLBACK_PROMPT);

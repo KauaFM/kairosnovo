@@ -107,6 +107,21 @@ Deno.serve(async (req: Request) => {
   const B = BASE[sourceType]
   if (!B) return json({ error: `source_type inválido: "${sourceType}"` }, 400)
 
+  // Teto duro de eventos por dia. Antes só existia a penalidade de Trust por
+  // rajada (-5), que desestimula mas NÃO impede: um autenticado podia gravar
+  // xp_events em laço e, de quebra, disparar a auditoria de IA a cada chamada.
+  // 200/dia é ~5x o que um usuário intenso gera de verdade.
+  {
+    const spDay = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)
+    const { data: quota } = await admin.rpc("ai_quota_take", {
+      p_user: user.id, p_fn: "xp-engine", p_day: spDay, p_limit: 200,
+    })
+    const q = Array.isArray(quota) ? quota[0] : quota
+    if (q && q.allowed === false) {
+      return json({ xp: 0, error: "Limite diário de registros atingido.", code: "quota_exceeded" }, 429)
+    }
+  }
+
   const title = String(body.title || sourceType).slice(0, 200)
   const titleNorm = normTitle(title) || sourceType
   const dimension = String(body.dimension || DIM_DEFAULT[sourceType] || "general").slice(0, 32)

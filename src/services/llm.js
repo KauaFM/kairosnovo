@@ -18,8 +18,15 @@
 // `model` no body é ignorado de propósito).
 // ============================================================
 
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+// ⚠️ ESTE CAMINHO É SÓ DE DESENVOLVIMENTO.
+// Qualquer VITE_* entra no bundle — num build de release a chave viajaria
+// DENTRO do APK, e extrair string de APK é trivial. Em produção o caminho
+// válido é sempre a Edge Function, que guarda a chave no servidor.
+// O `import.meta.env.DEV` garante que, mesmo que alguém defina as variáveis
+// por engano, o build de produção não as lê.
+const DEV_ONLY = import.meta.env.DEV;
+const GEMINI_KEY = DEV_ONLY ? import.meta.env.VITE_GEMINI_API_KEY : undefined;
+const OPENAI_KEY = DEV_ONLY ? import.meta.env.VITE_OPENAI_API_KEY : undefined;
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
@@ -50,9 +57,9 @@ export function llmAvailable() {
   return activeProvider() !== null;
 }
 
-const MISSING_KEY_MSG =
-  'Nenhuma IA configurada. Gere uma chave gratuita do Gemini em ' +
-  'aistudio.google.com e defina VITE_GEMINI_API_KEY no .env.';
+// Texto voltado ao USUÁRIO: instrução de configuração não significa nada
+// para quem baixou o app na loja.
+const MISSING_KEY_MSG = 'A IA está indisponível no momento. Tente de novo em instantes.';
 
 // Uma requisição HTTP única. Retorna { ok, status, data }.
 async function requestOnce(url, key, payload) {
