@@ -37,7 +37,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22+: o CLI do Capacitor 7 recusa versões abaixo disso
+          node-version: '22'
           cache: npm
 
       - uses: actions/setup-java@v4
