@@ -41,7 +41,19 @@ supabase/.branches/
 supabase/.temp/
 
 # Capacitor / mobile builds
-android/
+# Projeto Android: VERSIONADO (o CI precisa dele para compilar o AAB).
+# Fora do git só o que é gerado ou secreto:
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+# ⚠️ NUNCA versionar: quem tiver o .jks + a senha publica no seu nome
+android/keystore.properties
+android/*.jks
+android/*.keystore
 ios/
 .gradle/
 *.keystore

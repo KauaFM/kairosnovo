@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ORVAX</string>
+    <string name="title_activity_main">ORVAX</string>
+    <string name="package_name">com.orvax.app</string>
+    <string name="custom_url_scheme">com.orvax.app</string>
+</resources>

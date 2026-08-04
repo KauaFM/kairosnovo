@@ -1,0 +1,116 @@
+# ============================================================
+# Gera o AAB assinado do ORVAX pronto para a Play Store.
+#
+# Existe para tirar o build da máquina de uma pessoa só: aqui o
+# JDK 17 e o SDK do Android já vêm prontos, e o resultado é o
+# mesmo toda vez, não importa de onde você dispare.
+#
+# O keystore NUNCA fica no repositório. Ele chega em base64 por
+# secret, é escrito em disco só durante a execução e apagado no
+# fim — inclusive se o build falhar.
+#
+# Secrets necessários (Settings → Secrets and variables → Actions):
+#   KEYSTORE_BASE64        o .jks convertido em base64
+#   KEYSTORE_PASSWORD      senha do keystore
+#   KEY_ALIAS              alias da chave (ex.: orvax)
+#   KEY_PASSWORD           senha da chave
+#   VITE_SUPABASE_URL      sem isso o app sobe sem conseguir logar
+#   VITE_SUPABASE_ANON_KEY
+#
+# Disparo: aba Actions → "AAB de release" → Run workflow.
+# ============================================================
+name: AAB de release
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionName:
+        description: 'Nome da versão exibido na loja (ex.: 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Instala as dependências
+        run: npm ci
+
+      - name: Build do app web
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # No APK o origin é https://localhost; os links de e-mail precisam do site
+          VITE_AUTH_REDIRECT_URL: https://orvaxapp.com.br
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Faltam os secrets VITE_SUPABASE_URL e/ou VITE_SUPABASE_ANON_KEY."
+            echo "::error::Sem eles o app compila mas nenhum login funciona."
+            exit 1
+          fi
+          npm run build
+
+      - name: Sincroniza com o projeto Android
+        run: npx cap sync android
+
+      - name: Restaura o keystore a partir do secret
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Falta o secret KEYSTORE_BASE64."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/orvax-release.jks
+          cat > android/keystore.properties <<EOF
+          storeFile=$GITHUB_WORKSPACE/android/orvax-release.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+
+      - name: Compila o AAB assinado
+        # versionCode = nº da execução: sempre maior que o anterior, então a
+        # Play Store nunca recusa por "esse versionCode já foi enviado".
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease \
+            -PversionCode=${{ github.run_number }} \
+            -PversionName=${{ inputs.versionName }}
+
+      - name: Confere que saiu ASSINADO
+        run: |
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          ls -lh "$AAB"
+          # Um AAB não assinado não tem o diretório META-INF com o bloco de assinatura
+          if unzip -l "$AAB" | grep -qiE "META-INF/.*\.(RSA|EC|DSA)"; then
+            echo "AAB assinado."
+          else
+            echo "::error::O AAB saiu SEM assinatura — a Play Store vai recusar."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orvax-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Apaga o keystore do runner
+        if: always()
+        run: rm -f android/orvax-release.jks android/keystore.properties
