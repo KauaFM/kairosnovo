@@ -44,7 +44,10 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          # 21: os módulos do Capacitor 8 compilam com source release 21.
+          # Com 17 o build morre em ":capacitor-android:compileReleaseJavaWithJavac
+          # error: invalid source release: 21".
+          java-version: '21'
 
       - uses: android-actions/setup-android@v3
 
