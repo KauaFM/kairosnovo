@@ -69,3 +69,5 @@ ios/
 # MCP config (pode conter chave do Stripe — nunca commitar)
 .mcp.json
 .claude/settings.local.json
+
+.vercel

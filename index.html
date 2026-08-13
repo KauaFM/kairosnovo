@@ -3,10 +3,21 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/icone.png" />
+  <link rel="icon" type="image/png" href="/icons/favicon-64.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="ORVAX — Sistema de Controle Pessoal. Anti-procrastinação, hábitos, nutrição e evolução pessoal." />
   <meta name="theme-color" content="#050507" />
+
+  <!-- Instalação: sem o manifesto o navegador não oferece "instalar app". -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- O iPhone ignora o manifesto: ícone e tela cheia saem daqui. -->
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="ORVAX" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
   <title>ORVAX</title>
 </head>
 

@@ -28,7 +28,9 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 // mesmo assim; o usuário pode usar "esqueci minha senha" no app)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? ""
 const FROM_EMAIL = Deno.env.get("UPGRADE_FROM_EMAIL") ?? "ORVAX <noreply@orvaxapp.com.br>"
-const PLAY_STORE_URL = Deno.env.get("PLAY_STORE_URL") ?? "https://play.google.com/store/apps/details?id=com.orvax.app"
+// O ORVAX é instalado pelo navegador (adicionar à tela inicial), não por loja.
+// Configurável por secret: supabase secrets set APP_URL=https://app.orvaxapp.com.br
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.orvaxapp.com.br"
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: "2025-01-27.acacia",
@@ -93,10 +95,16 @@ async function sendWelcomeEmail(to: string, tier: string, password: string | nul
         registrada neste e-mail.
       </p>` : `
       <p><strong>1.</strong> Sua conta já está criada com este e-mail (<strong>${to}</strong>).
-      Baixe o app e use "Esqueci minha senha" para definir seu acesso.</p>`}
-      <p><strong>2.</strong> Baixe o aplicativo:</p>
+      Abra o app e use "Esqueci minha senha" para definir seu acesso.</p>`}
+      <p><strong>2.</strong> Abra o ORVAX:</p>
       <p style="margin:18px 0">
-        <a href="${PLAY_STORE_URL}" style="${btn}">Baixar o ORVAX</a>
+        <a href="${APP_URL}" style="${btn}">Abrir o ORVAX</a>
+      </p>
+      <p style="font-size:13px;color:#52525b">
+        Não tem loja nem download: o ORVAX abre no navegador. Para ficar com
+        ícone próprio e abrir em tela cheia, adicione à tela inicial —
+        no <strong>Android</strong>, menu ⋮ → "Instalar app";
+        no <strong>iPhone</strong>, Compartilhar → "Adicionar à Tela de Início".
       </p>
       <p><strong>3.</strong> Faça login com os dados acima — seu plano ${label} já estará liberado.</p>
       <p style="font-size:12px;color:#666">Dúvidas? Responda este e-mail.</p>

@@ -12,8 +12,16 @@ import LanguageToggle from '../LanguageToggle';
 const WEB_BASE = import.meta.env.VITE_AUTH_REDIRECT_URL || 'https://orvaxapp.com.br';
 const isNative = () =>
     typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
+
+// A página que define a senha (/definir-senha) mora na Landing Page, não
+// aqui. Quando VITE_AUTH_REDIRECT_URL está configurada, o link do e-mail
+// aponta para lá — sem isso, o app instalado mandaria a pessoa para
+// app.orvaxapp.com.br/definir-senha, que só devolve a própria tela de login.
+// Sem a variável (dev), continua valendo o origin real: localhost funciona.
 const authRedirect = (path = '/') =>
-    isNative() ? `${WEB_BASE}${path}` : `${window.location.origin}${path}`;
+    (isNative() || import.meta.env.VITE_AUTH_REDIRECT_URL)
+        ? `${WEB_BASE}${path}`
+        : `${window.location.origin}${path}`;
 
 const Login = ({ onLoginSuccess }) => {
     const { t } = useLang();

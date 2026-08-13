@@ -104,6 +104,21 @@ function sanitizeItems(raw: unknown): FoodItem[] {
     return out
 }
 
+/**
+ * O scanner é FitCal, e FitCal é do plano COMPLETO.
+ *
+ * Mesma regra de src/services/entitlements.js (normalizeTier). O gate
+ * da tela não segura ninguém com o próprio JWT na mão — e este é o
+ * endpoint mais caro do app.
+ */
+async function hasCompleto(uid: string): Promise<boolean> {
+    const { data } = await admin
+        .from("profiles").select("plan, is_premium, role").eq("id", uid).maybeSingle()
+    if (!data) return false
+    if (data.role === "admin") return true
+    return String(data.plan ?? "").toLowerCase().includes("completo") || data.is_premium === true
+}
+
 // ─── HANDLER ────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
@@ -128,6 +143,15 @@ Deno.serve(async (req: Request) => {
     })
     const { data: { user }, error: authErr } = await userClient.auth.getUser()
     if (authErr || !user) return json({ error: "Não autenticado." }, 401)
+
+    // Plano: antes da cota, porque quem não tem Completo não deve nem
+    // consumir uma unidade da cota.
+    if (!(await hasCompleto(user.id))) {
+        return json({
+            error: "O Rastreador Nutricional faz parte do plano Completo.",
+            code: "plan_required",
+        }, 403)
+    }
 
     // Cota diária (admin passa livre)
     const { data: quota } = await admin.rpc("ai_quota_take", {

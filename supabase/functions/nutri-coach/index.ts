@@ -541,6 +541,26 @@ async function callOpenAI(payload: unknown) {
   return await res.json()
 }
 
+/**
+ * O FitCal é recurso do plano COMPLETO.
+ *
+ * O gate da tela (FitCalGate) decide o que aparece, não o que é
+ * permitido: o app roda no navegador do usuário, com o JWT dele, e
+ * chamar esta função direto é trivial. Quem tem plano Essencial só é
+ * barrado de verdade aqui.
+ *
+ * A regra é a MESMA de src/services/entitlements.js (normalizeTier) —
+ * se as duas divergirem, a tela libera e o servidor recusa, que é o
+ * pior dos dois mundos.
+ */
+async function hasCompleto(uid: string): Promise<boolean> {
+  const { data } = await admin
+    .from("profiles").select("plan, is_premium, role").eq("id", uid).maybeSingle()
+  if (!data) return false
+  if (data.role === "admin") return true
+  return String(data.plan ?? "").toLowerCase().includes("completo") || data.is_premium === true
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405)
@@ -549,10 +569,17 @@ Deno.serve(async (req: Request) => {
   const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } })
   const { data: { user }, error: authErr } = await userClient.auth.getUser()
   if (authErr || !user) return json({ error: "Não autenticado." }, 401)
+  const uid = user.id
+
+  if (!(await hasCompleto(uid))) {
+    return json({
+      error: "O Rastreador Nutricional faz parte do plano Completo.",
+      code: "plan_required",
+    }, 403)
+  }
 
   let body: any = {}
   try { body = await req.json() } catch { /* vazio */ }
-  const uid = user.id
 
   // mode=state: o painel só quer o estado atual (não gasta IA)
   if (body?.mode === "state") {
@@ -568,6 +595,20 @@ Deno.serve(async (req: Request) => {
   const command = str(body?.command, 500).trim()
   const forceTool = typeof body?.force_tool === "string" && EXECUTORS[body.force_tool] ? body.force_tool : null
   if (!command) return json({ error: "Comando vazio." }, 400)
+
+  // Cota diária. Só é cobrada aqui, no caminho que realmente chama a
+  // OpenAI — mode=state passa livre porque não custa nada. Admin não tem
+  // cota (precisa testar sem esbarrar em limite).
+  const { data: quota } = await admin.rpc("ai_quota_take", {
+    p_user: uid, p_fn: "nutri-coach", p_day: spToday(), p_limit: DAILY_LIMIT,
+  })
+  const q = Array.isArray(quota) ? quota[0] : quota
+  if (q && q.allowed === false) {
+    return json({
+      error: `Você já usou o VITALIS ${q.quota} vezes hoje. Amanhã ele volta — o plano de hoje continua aí.`,
+      code: "quota_exceeded",
+    }, 429)
+  }
 
   try {
     // Rate limit diário (custo + antiabuso)

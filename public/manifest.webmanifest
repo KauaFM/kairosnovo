@@ -1,0 +1,35 @@
+{
+  "name": "ORVAX — Sistema de Controle Pessoal",
+  "short_name": "ORVAX",
+  "description": "Sistema de controle pessoal anti-procrastinação: hábitos, agenda, capital, nutrição e evolução.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050507",
+  "theme_color": "#050507",
+  "categories": ["productivity", "lifestyle", "health"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

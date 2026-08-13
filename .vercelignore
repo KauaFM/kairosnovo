@@ -1,0 +1,8 @@
+# O deploy da Vercel só precisa do app web. Sem isto, cada publicação
+# sobe o projeto Android inteiro (gradle wrapper, splashes, mipmaps) à toa.
+android/
+supabase/
+docs/
+dist/
+*.md
+!README.md

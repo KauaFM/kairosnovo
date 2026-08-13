@@ -22,6 +22,7 @@ const FitCalGate = lazy(() => import('./features/fitcal/pages/FitCalGate'));
 import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';
+import InstallPrompt from './components/InstallPrompt';
 import { DialogHost } from './lib/dialog';
 import { sendMentorMessage } from './services/mentorAgent';
 import { supabase } from './lib/supabase';
@@ -349,6 +350,9 @@ export default function App() {
 
             {/* Banner global de conexão */}
             <OfflineBanner />
+
+            {/* Convite para instalar o app (some no APK e quando já instalado) */}
+            <InstallPrompt />
 
             {/* Diálogos do design system (substitui alert/confirm nativos) */}
             <DialogHost />
