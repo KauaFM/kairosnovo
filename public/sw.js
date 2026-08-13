@@ -17,7 +17,10 @@
  *     sessão daria dado velho e vazamento entre contas.
  * ============================================================ */
 
-const VERSION = 'orvax-v1';
+// Suba este número quando um arquivo NÃO versionado por hash mudar
+// (ícones, manifesto). Mudar o conteúdo deste arquivo é o que faz o
+// navegador detectar a atualização e apagar os caches antigos.
+const VERSION = 'orvax-v2';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 
