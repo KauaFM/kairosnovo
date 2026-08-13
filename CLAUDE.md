@@ -6,7 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ORVAX** — anti-procrastination personal control system ("Sistema de Controle Pessoal") built in Portuguese BR for Brazilian users. Mobile-first React app (428px max-width). Futuristic black-and-white theme throughout — no colors outside that palette.
 
-**Full stack:** React + Vite + Tailwind · Supabase (auth, DB, storage, Edge Functions) · GPT-4o-mini via Edge Functions (mentor-chat, analyze-food, xp-engine, dimension-coach) · Capacitor 7 (Android) · Stripe **somente na Landing Page** (fora do app)
+**Full stack:** React + Vite + Tailwind · Supabase (auth, DB, storage, Edge Functions) · GPT-4o-mini via Edge Functions (mentor-chat, analyze-food, xp-engine, dimension-coach) · Capacitor 8 (Android, em espera) · Stripe **somente na Landing Page** (fora do app)
+
+## 📲 DISTRIBUIÇÃO: app instalável pelo navegador (2026-08-12)
+
+O ORVAX **não é distribuído por loja**. É um app instalável (PWA): a pessoa
+abre `app.orvaxapp.com.br`, adiciona à tela inicial e passa a ter ícone
+próprio, tela cheia e funcionamento offline. A Play Store não foi
+abandonada (o AAB e o keystore continuam prontos), só deixou de ser o
+caminho de lançamento — por isso a regra comercial abaixo continua valendo
+integralmente.
+
+- `public/manifest.webmanifest` + `public/sw.js` + `public/icons/`.
+- **O service worker é rede-primeiro na navegação** e cache-primeiro só em
+  `/assets/*` (nome com hash = imutável). Nunca intercepta outra origem —
+  cachear resposta do Supabase vazaria sessão entre contas. Não mexa nessa
+  estratégia sem entender que ela é o que impede o usuário de ficar preso
+  numa versão velha.
+- `src/lib/installPrompt.js` registra `beforeinstallprompt` **fora do React**:
+  o Chrome dispara antes do primeiro render e um `useEffect` perde o evento.
+- Deploy: `npx vercel --prod --yes --scope kauas-projects-7c59a39f` (não há
+  deploy automático por git). `vercel.json` **não aceita** chave `"//"`.
 
 ## ⚠️ ARQUITETURA COMERCIAL — o app NÃO vende (2026-07-24)
 
@@ -91,12 +111,18 @@ Edge Function requires Supabase service role key and OpenAI key set via `supabas
 
 Stripe keys will also be required when payment flows are implemented.
 
-## Current Priorities (as of 2026-03-28)
+## Current Priorities (as of 2026-08-12)
 
-1. **FitCal** — expand Brazilian foods database (currently empty, blocking food diary)
-2. **Blog dinâmico** — Supabase-backed posts with admin + public views
-3. **Mentor ↔ WhatsApp bridge** — connect in-app Atlas/Aurora to the n8n WhatsApp agent
-4. **Auditoria completa** — full frontend and backend audit
+1. **DNS do app** — registro `A` de `app` → `76.76.21.21` no registro.br. Até
+   lá o app só responde em `orvax-app.vercel.app` e o link do `/obrigado` da
+   LP fica morto.
+2. **Deploy das Edge Functions** `nutri-coach`, `analyze-food` e
+   `stripe-webhook` — commitadas mas NÃO no ar. Enquanto isso, o gate do
+   plano Completo vale só na tela, não no servidor. ⚠️ O CLI e o MCP do
+   Supabase estão autenticados numa conta SEM o projeto `vnwehvaymxvkmibcikvi`.
+3. **Teste real de compra** ponta a ponta (comprar → e-mail → instalar → entrar
+   → reembolsar). Nunca foi feito.
+4. **FitCal** — base de alimentos rasa (153 `foods` + 304 `foods_v2`).
 
 ### VSCode / Deno
 
