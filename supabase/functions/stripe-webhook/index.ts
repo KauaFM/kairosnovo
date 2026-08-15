@@ -94,8 +94,10 @@ async function sendWelcomeEmail(to: string, tier: string, password: string | nul
         <strong>Dossiê → Conta → Trocar senha</strong> — aí ela deixa de ficar
         registrada neste e-mail.
       </p>` : `
-      <p><strong>1.</strong> Sua conta já está criada com este e-mail (<strong>${to}</strong>).
-      Abra o app e use "Esqueci minha senha" para definir seu acesso.</p>`}
+      <p><strong>1.</strong> Seu acesso está ativo na conta <strong>${to}</strong>.
+      Se você já tem senha, é só entrar com ela. Se não lembra ou nunca definiu,
+      use <strong>"Esqueci minha senha"</strong> na tela de login com este mesmo
+      e-mail — você define na hora.</p>`}
       <p><strong>2.</strong> Abra o ORVAX:</p>
       <p style="margin:18px 0">
         <a href="${APP_URL}" style="${btn}">Abrir o ORVAX</a>
@@ -204,10 +206,16 @@ async function syncSubscription(sub: any, sessionEmail?: string | null) {
   if (error) { console.error("webhook: update profile falhou:", error.message); return }
   console.log(`webhook: ${userId} -> ${sub.status}/${tier} (sub=${isSubscribed}, premium=${isPremium}, novo=${created})`)
 
-  // Conta recém-criada pela compra → e-mail com e-mail + senha e o link do app.
-  // Senha pronta em vez de link mágico: o link expira e vira ticket de suporte
-  // de quem só foi abrir o e-mail no dia seguinte.
-  if (created && email && active) {
+  // E-mail de acesso. Senha pronta em vez de link mágico: o link expira e
+  // vira ticket de suporte de quem só foi abrir o e-mail no dia seguinte.
+  //
+  // NÃO exigir `created` aqui é proposital. Antes só avisávamos quem tinha
+  // conta nova, e quem JÁ era cliente comprava e não recebia absolutamente
+  // nada — nem no upsell de Essencial→Completo, nem quando o Stripe reusa
+  // o mesmo customer e cai no perfil existente. A pessoa paga e fica sem
+  // confirmação nenhuma. Quando não há senha nova, o template manda usar
+  // "Esqueci minha senha", que funciona nos dois casos.
+  if (email && active) {
     await sendWelcomeEmail(email, tier, password)
   }
 }
