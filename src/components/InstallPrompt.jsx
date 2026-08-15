@@ -108,9 +108,14 @@ export default function InstallPrompt() {
     }[mode];
 
     return (
+        // z-110: a tela de login é um overlay em z-100, e em z-60 o convite
+        // ficava no DOM mas pintado por baixo dela — ou seja, só aparecia
+        // depois de entrar, que é justamente quando ele importa menos.
+        // Abaixo de 200 de propósito: lá vivem os diálogos e o vídeo de
+        // boas-vindas, e o convite não pode cobrir nenhum dos dois.
         <div
-            className="fixed left-1/2 -translate-x-1/2 w-full max-w-[428px] px-5 z-[60] pointer-events-none"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 116px)' }}
+            className="fixed left-1/2 -translate-x-1/2 w-full max-w-[428px] px-5 z-[110] pointer-events-none"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 140px)' }}
             role="dialog"
             aria-label={title}
         >
