@@ -19,13 +19,18 @@ import {
     isStandalone,
     isIOS,
     isNativeApp,
+    isDesktopChromium,
 } from '../lib/installPrompt';
 
 const DISMISS_KEY = 'orvax_install_dismissed';
 const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
-// Respira antes de aparecer: convite em cima do primeiro render é o
-// tipo de coisa que a pessoa fecha no reflexo, sem ler.
-const DELAY_MS = 4000;
+// Respira antes de aparecer — mas pouco. Na PRIMEIRA visita o Chrome só
+// considera o app instalável depois que o service worker ativa, então o
+// evento já chega atrasado; somar uma espera longa aqui fazia o convite
+// aparecer depois que a pessoa já tinha ido procurar no menu.
+const DELAY_MS = 1200;
+// Quanto esperar pelo evento antes de mostrar o caminho manual no desktop.
+const FALLBACK_MS = 7000;
 
 const wasDismissed = () => {
     try {
@@ -38,29 +43,43 @@ const wasDismissed = () => {
 
 export default function InstallPrompt() {
     const { t } = useLang();
-    const [mode, setMode] = useState(null); // null | 'prompt' | 'ios'
+    const [mode, setMode] = useState(null); // null | 'prompt' | 'ios' | 'desktop'
 
     useEffect(() => {
         if (isNativeApp() || isStandalone() || wasDismissed()) return;
 
         let timer;
-        const show = (m) => { timer = setTimeout(() => setMode(m), DELAY_MS); };
+        let fallback;
+        const show = (m) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => setMode(m), DELAY_MS);
+        };
 
         if (isIOS()) {
             show('ios');
             return () => clearTimeout(timer);
         }
 
-        // Android/desktop: só convida quando o navegador confirma que
-        // dá pra instalar. O evento pode ter chegado antes deste mount,
-        // por isso a checagem imediata além da inscrição.
+        // Android/desktop: o caminho bom é o diálogo nativo. O evento pode
+        // ter chegado antes deste mount, por isso a checagem imediata além
+        // da inscrição.
         if (getPrompt()) show('prompt');
         const unsub = subscribe((evt) => {
+            clearTimeout(fallback);
             if (evt) show('prompt');
             else { clearTimeout(timer); setMode(null); } // instalou
         });
 
-        return () => { clearTimeout(timer); unsub(); };
+        // Plano B: no computador o evento às vezes não vem. Em vez de não
+        // mostrar nada, ensina o caminho manual — mas só depois de dar um
+        // tempo justo para o diálogo nativo aparecer, que é melhor.
+        if (isDesktopChromium() && !getPrompt()) {
+            fallback = setTimeout(() => {
+                if (!getPrompt()) setMode('desktop');
+            }, FALLBACK_MS);
+        }
+
+        return () => { clearTimeout(timer); clearTimeout(fallback); unsub(); };
     }, []);
 
     const dismiss = useCallback(() => {
@@ -79,13 +98,21 @@ export default function InstallPrompt() {
     if (!mode) return null;
 
     const ios = mode === 'ios';
+    // 'prompt' tem botão (abre o diálogo nativo); os outros dois só ensinam.
+    const manual = mode !== 'prompt';
+    const title = ios ? t('common.install.iosTitle') : t('common.install.title');
+    const body = {
+        prompt: t('common.install.body'),
+        ios: t('common.install.iosBody'),
+        desktop: t('common.install.desktopBody'),
+    }[mode];
 
     return (
         <div
             className="fixed left-1/2 -translate-x-1/2 w-full max-w-[428px] px-5 z-[60] pointer-events-none"
             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 116px)' }}
             role="dialog"
-            aria-label={ios ? t('common.install.iosTitle') : t('common.install.title')}
+            aria-label={title}
         >
             <div
                 className="pointer-events-auto rounded-3xl border px-4 py-3.5 flex items-start gap-3 backdrop-blur-2xl"
@@ -105,13 +132,13 @@ export default function InstallPrompt() {
 
                 <div className="flex-1 min-w-0">
                     <p className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase leading-tight">
-                        {ios ? t('common.install.iosTitle') : t('common.install.title')}
+                        {title}
                     </p>
                     <p className="text-[12px] leading-snug mt-1 opacity-60">
-                        {ios ? t('common.install.iosBody') : t('common.install.body')}
+                        {body}
                     </p>
 
-                    {!ios && (
+                    {!manual && (
                         <button
                             type="button"
                             onClick={install}

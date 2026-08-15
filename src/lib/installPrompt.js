@@ -79,6 +79,26 @@ export function isIOS() {
     return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
 
+/**
+ * Chrome/Edge no computador.
+ *
+ * Serve para o plano B: no desktop o 'beforeinstallprompt' às vezes não
+ * dispara (ou demora demais), e a pessoa fica sem saber que dá para
+ * instalar — o ícone na barra de endereço passa despercebido. Nesses
+ * navegadores mostramos o caminho manual em vez de não mostrar nada.
+ */
+export function isDesktopChromium() {
+    if (typeof navigator === 'undefined') return false;
+    const uaData = navigator.userAgentData;
+    const mobile = uaData
+        ? uaData.mobile
+        : /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    if (mobile) return false;
+    const brands = uaData?.brands?.map((b) => b.brand).join(' ') || '';
+    if (/Chromium|Google Chrome|Microsoft Edge/i.test(brands)) return true;
+    return Boolean(window.chrome) && /Chrome|Edg/i.test(navigator.userAgent);
+}
+
 /** Rodando dentro do APK (Capacitor)? Lá já é um app instalado. */
 export function isNativeApp() {
     if (typeof window === 'undefined') return false;
