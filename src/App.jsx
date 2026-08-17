@@ -23,6 +23,8 @@ import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';
 import InstallPrompt from './components/InstallPrompt';
+import DemoBar from './components/DemoBar';
+import { demoPedida, iniciarDemo } from './lib/demoSession';
 import { DialogHost } from './lib/dialog';
 import { sendMentorMessage } from './services/mentorAgent';
 import { supabase } from './lib/supabase';
@@ -113,6 +115,10 @@ export default function App() {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 handleSupabaseLogin(session.user);
+            } else if (demoPedida()) {
+                // A LP mandou /?demo=1 — entra na conta de amostra. O
+                // SIGNED_IN logo abaixo assume dali, pelo caminho normal.
+                iniciarDemo().then((ok) => { if (!ok) setIsLoadingInit(false); });
             } else {
                 setIsLoadingInit(false);
             }
@@ -353,6 +359,9 @@ export default function App() {
 
             {/* Convite para instalar o app (some no APK e quando já instalado) */}
             <InstallPrompt />
+
+            {/* Contagem da amostra de 15 min (só existe em modo demo) */}
+            <DemoBar />
 
             {/* Diálogos do design system (substitui alert/confirm nativos) */}
             <DialogHost />
