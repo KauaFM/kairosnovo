@@ -1,19 +1,26 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { RitualRegistrarDia } from '../components/RitualRegistrarDia';
 import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import { OrvaxHeader, ScrollContainer } from '../../../components/BaseLayout';
 import { useLang } from '../../../i18n/LanguageContext';
 
 // ── Compass v1 — new metrics system ──
 import { CompassOverview } from '../compass/components/CompassOverview';
-import { PillarLayered } from '../compass/components/PillarLayered';
 import { useCompassPillar } from '../compass/hooks/useCompassData';
 import type { CompassPillarSlug } from '../compass/pillars';
 
-// ── Preserved modules ──
-import { CreationHub } from '../../lifeOs/components/creation/CreationHub';
 import { Plus, ClipboardList } from 'lucide-react';
+
+// Estes três não aparecem até a pessoa abrir um pilar ou um dos modais,
+// mas importados de forma estática eles entravam no carregamento da aba —
+// e o pacote dos pilares sozinho passa de 780 KB, mais que o app inteiro.
+// Era essa a demora ao abrir Métricas. Agora chegam sob demanda.
+const PillarLayered = lazy(() =>
+  import('../compass/components/PillarLayered').then((m) => ({ default: m.PillarLayered })));
+const CreationHub = lazy(() =>
+  import('../../lifeOs/components/creation/CreationHub').then((m) => ({ default: m.CreationHub })));
+const RitualRegistrarDia = lazy(() =>
+  import('../components/RitualRegistrarDia').then((m) => ({ default: m.RitualRegistrarDia })));
 
 interface MetricsPageProps {
   theme: string;
@@ -42,7 +49,17 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
     onModalChange?.(anyOverlayOpen);
   }, [anyOverlayOpen, onModalChange]);
 
-  const updateLogModal = useCallback((open: boolean) => setLogModal(open), []);
+  // Os modais pesados só são montados depois do primeiro uso: assim não
+  // pesam na abertura da aba. Uma vez montados, ficam — senão perderiam a
+  // animação de saída ao fechar.
+  const [ritualMontado, setRitualMontado] = useState(false);
+  const [criadorMontado, setCriadorMontado] = useState(false);
+  const abrirCriador = useCallback(() => { setCriadorMontado(true); setCreatorOpen(true); }, []);
+
+  const updateLogModal = useCallback((open: boolean) => {
+    if (open) setRitualMontado(true);
+    setLogModal(open);
+  }, []);
   const openPillar = useCallback((slug: CompassPillarSlug) => setActivePillar(slug), []);
   const closePillar = useCallback(() => setActivePillar(null), []);
 
@@ -72,7 +89,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
             <div className="min-h-screen text-zinc-900 dark:text-white pb-20">
               <CompassOverview
                 onOpenPillar={openPillar}
-                onOpenCreation={() => setCreatorOpen(true)}
+                onOpenCreation={abrirCriador}
               />
             </div>
           </motion.div>
@@ -80,10 +97,14 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
       </ScrollContainer>
 
       {/* ── Ritual "Registrar Dia" (VERITAS F3 — substitui o QuickLogEntry) ── */}
-      <RitualRegistrarDia
-        isOpen={logModal}
-        onClose={() => updateLogModal(false)}
-      />
+      {ritualMontado && (
+        <Suspense fallback={null}>
+          <RitualRegistrarDia
+            isOpen={logModal}
+            onClose={() => updateLogModal(false)}
+          />
+        </Suspense>
+      )}
 
       {/* ── Pillar Deep Dive Overlay (Compass PillarLayered) ── */}
       {activePillar && pillarData && (
@@ -95,7 +116,9 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
           }}
         >
           <ErrorBoundary fallbackTitle={t('lo.moduleErr', { p: activePillar })}>
-            <PillarLayered data={pillarData} onBack={closePillar} />
+            <Suspense fallback={null}>
+              <PillarLayered data={pillarData} onBack={closePillar} />
+            </Suspense>
           </ErrorBoundary>
         </div>
       )}
@@ -122,7 +145,7 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
 
         {/* Primary: Criar algo novo */}
         <button
-          onClick={() => setCreatorOpen(true)}
+          onClick={abrirCriador}
           className="group flex items-center gap-2 h-14 pr-5 pl-4 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border border-white/10 shadow-xl transition-all hover:scale-[1.04] active:scale-95"
           aria-label={t('lo.createNewAria')}
         >
@@ -133,11 +156,15 @@ export default function MetricsPage({ theme, toggleTheme, onModalChange }: Metri
         </button>
       </div>
 
-      <CreationHub
-        open={creatorOpen}
-        onClose={() => setCreatorOpen(false)}
-        onCreated={() => { /* realtime atualiza os cards */ }}
-      />
+      {criadorMontado && (
+        <Suspense fallback={null}>
+          <CreationHub
+            open={creatorOpen}
+            onClose={() => setCreatorOpen(false)}
+            onCreated={() => { /* realtime atualiza os cards */ }}
+          />
+        </Suspense>
+      )}
     </ErrorBoundary>
   );
 }
