@@ -346,6 +346,14 @@ Deno.serve(async (req: Request) => {
     if (authErr || !user) return json({ error: "Não autenticado." }, 401)
     const userId = user.id
 
+    // A conta de amostra da Landing Page é pública e sem cadastro: qualquer
+    // visitante entra nela. Liberar IA aqui seria pagar OpenAI por quem só
+    // está olhando a vitrine.
+    const { data: prof } = await admin.from("profiles").select("plan").eq("id", userId).maybeSingle()
+    if (String(prof?.plan ?? "").toLowerCase() === "demo") {
+        return json({ error: "O mentor de IA faz parte dos planos.", code: "demo_sem_ia" }, 403)
+    }
+
     let body: { message?: string }
     try { body = await req.json() } catch { return json({ error: "JSON inválido." }, 400) }
     const text = (body.message || "").trim()

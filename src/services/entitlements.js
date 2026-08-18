@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 // 'demo' é a amostra de 15 minutos da Landing Page. Vale como 'completo'
 // para ENXERGAR (a pessoa precisa ver o produto inteiro para decidir),
 // mas fica de fora da IA — ver AI_FEATURES abaixo.
-export const TIER_RANK = { none: 0, demo: 2, essencial: 1, completo: 2 };
+export const TIER_RANK = { none: 0, demo: 1, essencial: 1, completo: 2 };
 
 // Qual plano MÍNIMO cada recurso exige. O que não estiver aqui exige
 // apenas um plano ativo (essencial). Amplie conforme for gateando mais.

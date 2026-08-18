@@ -136,6 +136,12 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authErr } = await userClient.auth.getUser()
   if (authErr || !user) return json({ error: "Não autenticado." }, 401)
 
+  // Amostra pública da LP não gasta IA — ver o mesmo bloqueio no mentor-chat.
+  const { data: prof } = await admin.from("profiles").select("plan").eq("id", user.id).maybeSingle()
+  if (String(prof?.plan ?? "").toLowerCase() === "demo") {
+    return json({ error: "O Conselho de IAs faz parte dos planos.", code: "demo_sem_ia" }, 403)
+  }
+
   let body: any = {}
   try { body = await req.json() } catch { /* corpo vazio ok */ }
   const force = body?.force === true
