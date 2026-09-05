@@ -13,6 +13,7 @@ import { isIncomeTx, isExpenseTx } from '../lib/txType';
 import { alertDialog } from '../lib/dialog';
 
 import { toLocalDateStr, monthLabelFromYYYYMM } from '../utils/dateUtils';
+import { inferirCategoria, inferirValor } from '../utils/categoryInference';
 import { useLang } from '../i18n/LanguageContext';
 import { useCompassPillar } from '../features/metrics/compass/hooks/useCompassData';
 import { PillarLayered } from '../features/metrics/compass/components/PillarLayered';
@@ -364,12 +365,46 @@ export default function CapitalViewNew({ onBack, theme }) {
     const [showAddForm, setShowAddForm] = useState(false);
     const [showGoalForm, setShowGoalForm] = useState(false);
     const [newGoal, setNewGoal] = useState({ name: '', target_amount: '', category: 'Outros' });
+    // 'LAZER' (maiúsculo) não é nenhuma das 7 categorias reais — quem não
+    // tocava no seletor salvava numa categoria fantasma, que aparecia como
+    // uma fatia separada de 'Lazer' no gráfico. O padrão agora é válido.
     const [newTx, setNewTx] = useState({
         description: '',
         amount: '',
         type: 'out',
-        category: 'LAZER'
+        category: 'Outros'
     });
+    // A categoria atual veio de palpite do app (e não da escolha da pessoa)?
+    // Enquanto for palpite, o app pode continuar corrigindo sozinho; assim
+    // que ela toca num botão, a escolha dela manda e o app para de mexer.
+    const [catSugerida, setCatSugerida] = useState(false);
+
+    // Enquanto a pessoa digita, o app deduz a categoria: primeiro pelo que
+    // ELA já classificou antes, depois por um dicionário de termos comuns.
+    // Sem chamada de IA — é instantâneo e não custa nada.
+    const handleDescricaoChange = (valor) => {
+        const proximo = { ...newTx, description: valor };
+        if (catSugerida || newTx.category === 'Outros') {
+            const palpite = inferirCategoria(valor, transactions);
+            if (palpite) {
+                proximo.category = palpite;
+                // "salário", "freela": além da categoria, é entrada de dinheiro
+                if (palpite === 'Receita') proximo.type = 'in';
+                setCatSugerida(true);
+            }
+        }
+        setNewTx(proximo);
+    };
+
+    // Valor de despesa que se repete (Netflix, aluguel). Só vira DICA no
+    // placeholder, nunca preenche sozinho: errar em silêncio num campo de
+    // dinheiro cria lançamento errado que ninguém percebe.
+    const valorRecorrente = inferirValor(newTx.description, transactions);
+
+    const limparFormTx = () => {
+        setNewTx({ description: '', amount: '', type: 'out', category: 'Outros' });
+        setCatSugerida(false);
+    };
 
     const handleAddTransaction = async (e) => {
         e.preventDefault();
@@ -385,7 +420,7 @@ export default function CapitalViewNew({ onBack, theme }) {
 
         if (res) {
             setShowAddForm(false);
-            setNewTx({ description: '', amount: '', type: 'out', category: 'LAZER' });
+            limparFormTx();
             // Refresh
             const data = await getTransactions(period);
             setTransactions(data);
@@ -760,7 +795,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                             placeholder={tr('capital.descPh')}
                                             className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono uppercase focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
                                             value={newTx.description}
-                                            onChange={e => setNewTx({...newTx, description: e.target.value})}
+                                            onChange={e => handleDescricaoChange(e.target.value)}
                                         />
                                     </div>
                                     <div className="flex gap-3">
@@ -768,7 +803,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                             <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.amount')}</label>
                                             <input 
                                                 type="number" 
-                                                placeholder="0,00"
+                                                placeholder={valorRecorrente ? valorRecorrente.toFixed(2).replace('.', ',') : '0,00'}
                                                 className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[11px] font-mono font-bold focus:outline-none focus:border-[#22c55e] dark:focus:border-[#22c55e] transition-colors"
                                                 value={newTx.amount}
                                                 onChange={e => setNewTx({...newTx, amount: e.target.value})}
@@ -794,13 +829,21 @@ export default function CapitalViewNew({ onBack, theme }) {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2 mt-1">
-                                        <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40 ml-1">{tr('capital.category')}</label>
+                                        <div className="flex items-center gap-2 ml-1">
+                                            <label className="text-[8px] font-mono font-bold uppercase tracking-widest opacity-40">{tr('capital.category')}</label>
+                                            {/* Deixa claro que foi o app que escolheu — e que dá pra trocar */}
+                                            {catSugerida && (
+                                                <span className="text-[8px] font-mono font-bold uppercase tracking-widest text-[#22c55e] opacity-90">
+                                                    {tr('capital.autoSuggested')}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex flex-wrap gap-2">
                                             {Object.keys(CATEGORIES_ICONS).map(cat => (
                                                 <button
                                                     key={cat}
                                                     type="button"
-                                                    onClick={(e) => { e.preventDefault(); setNewTx({...newTx, category: cat}); }}
+                                                    onClick={(e) => { e.preventDefault(); setNewTx({...newTx, category: cat}); setCatSugerida(false); }}
                                                     className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-xl transition-all duration-300 ${newTx.category === cat ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-md' : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
                                                 >
                                                     {catL(cat)}
@@ -811,7 +854,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                     <div className="flex gap-2 mt-3 pt-4 border-t border-zinc-200/50 dark:border-white/5">
                                         <button 
                                             type="button"
-                                            onClick={() => setShowAddForm(false)}
+                                            onClick={() => { setShowAddForm(false); limparFormTx(); }}
                                             className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 font-mono text-[10px] rounded-xl uppercase font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                                         >
                                             Cancelar
@@ -845,7 +888,7 @@ export default function CapitalViewNew({ onBack, theme }) {
                                                     <Icon size={15} color={color} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <span className="block text-[12px] font-mono font-bold truncate uppercase">{tx.description || catL(tx.category)}</span>
+                                                    <span className="block text-[12px] font-mono font-bold truncate uppercase">{tx.description || tx.name || catL(tx.category)}</span>
                                                     <span className="block text-[9px] font-mono opacity-35 uppercase tracking-wider">{catL(tx.category)} · {new Date(tx.date || tx.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
