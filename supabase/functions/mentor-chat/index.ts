@@ -178,9 +178,14 @@ async function executeTool(name: string, args: any, userId: string): Promise<str
                 return `Tarefa "${args.title}" criada para ${args.scheduled_date} às ${args.time_start}.`
             }
             case "add_transaction": {
+                // A coluna é `description`. Isto gravava `name`, que NÃO existe
+                // na tabela — então registrar gasto pelo mentor falhava sempre,
+                // desde que a ferramenta foi escrita. O modelo relatava o erro
+                // em texto, mas ainda chamava award_xp e a pessoa ganhava XP
+                // por um lançamento que nunca entrou.
                 const { error } = await admin.from("transactions").insert({
-                    user_id: userId, name: args.name, amount: args.amount,
-                    type: args.type, category: args.category, date: args.date,
+                    user_id: userId, description: args.name, amount: Math.abs(Number(args.amount)) || 0,
+                    type: args.type === "in" ? "in" : "out", category: args.category, date: args.date,
                 })
                 if (error) throw error
                 await logAction(userId, "add_transaction", args)
@@ -204,9 +209,12 @@ async function executeTool(name: string, args: any, userId: string): Promise<str
                 return `Estudo registrado: ${args.hours}h de ${args.subject}.`
             }
             case "award_xp": {
-                const { data } = await admin.rpc("add_xp_and_update_streak", {
+                // O erro do RPC era ignorado: se falhasse, a resposta ainda
+                // dizia "+X XP concedido" e a pessoa acreditava.
+                const { data, error } = await admin.rpc("add_xp_and_update_streak", {
                     p_user_id: userId, p_xp_amount: args.amount, p_reason: args.reason,
                 })
+                if (error) throw error
                 await logAction(userId, "award_xp", args)
                 if (data) return `+${args.amount} XP. Total: ${data.new_xp} XP. Rank: ${data.rank} (${data.rank_title}). Motivo: ${args.reason}`
                 return `+${args.amount} XP concedido. Motivo: ${args.reason}`
@@ -223,9 +231,11 @@ async function executeTool(name: string, args: any, userId: string): Promise<str
             }
             case "add_note": {
                 // App nativo: grava em user_notes (visível no Vault), não no legado modulos.
+                // user_notes NÃO tem coluna `title` — mandar title fazia toda
+                // nota criada pelo mentor falhar, do mesmo jeito silencioso
+                // que a transação acima.
                 const { error } = await admin.from("user_notes").insert({
                     user_id: userId,
-                    title: String(args.text).slice(0, 80),
                     content: args.text,
                 })
                 if (error) throw error
@@ -253,7 +263,11 @@ async function logAction(userId: string, actionType: string, actionData: any) {
 }
 
 async function buildTodaySummary(userId: string): Promise<string> {
-    const today = new Date().toISOString().split("T")[0]
+    // toISOString() dá a data em UTC: das 21h de Brasília em diante ela já
+    // virou o dia seguinte, e o resumo mostrava as tarefas de AMANHÃ dizendo
+    // que eram de hoje — justo no horário em que a pessoa fecha o dia.
+    // spToday() é o mesmo helper que a cota diária já usa.
+    const today = spToday()
     const [tasksRes, profileRes, metricsRes] = await Promise.all([
         admin.from("tasks").select("*").eq("user_id", userId).eq("scheduled_date", today),
         admin.from("profiles").select("*").eq("id", userId).single(),

@@ -65,16 +65,24 @@ export default function QuickCapture({ hidden = false }) {
         setResposta(null);
         try {
             const { reply, mode } = await sendMentorMessage(limpo, []);
+            // A Edge Function responde 200 mesmo quando a AÇÃO lá dentro
+            // falhou — ela só devolve o texto do mentor, sem resultado
+            // estruturado. Sem isto, um "houve um erro ao registrar" saía
+            // com check verde de sucesso. É heurística de texto porque é
+            // o único sinal que esse caminho oferece hoje.
+            const pareceFalha = /erro ao executar|não consegui|nao consegui|houve um erro|falhou|não foi possível|nao foi possivel/i.test(reply || '');
             // No caminho da Edge Function quem escreve é o servidor, então
             // nenhum evento do cliente disparou e as telas abertas ficariam
             // desatualizadas. No modo cliente o db.js já emitiu por conta.
-            if (mode === 'agent') {
+            if (mode === 'agent' && !pareceFalha) {
                 appEvents.emit({ type: 'TRANSACTION_CHANGED' });
                 appEvents.emit({ type: 'TASK_CHANGED' });
                 appEvents.emit({ type: 'HABIT_CHANGED' });
             }
-            setResposta({ ok: true, texto: reply });
-            setTexto('');
+            setResposta({ ok: !pareceFalha, texto: reply });
+            // Falhou: mantém o texto no campo para a pessoa poder tentar de
+            // novo sem redigitar.
+            if (!pareceFalha) setTexto('');
         } catch (err) {
             setResposta({ ok: false, texto: err?.message || t('quickCapture.genericError') });
         } finally {
