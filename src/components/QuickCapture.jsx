@@ -12,7 +12,7 @@
 // Aqui não tem regra de negócio nova — só a porta de entrada.
 // =============================================================
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, X, Loader2, Check, CornerDownLeft } from 'lucide-react';
+import { SquarePen, X, Loader2, Check, CornerDownLeft } from 'lucide-react';
 import { sendMentorMessage } from '../services/mentorAgent';
 import { hasFeature } from '../services/entitlements';
 import { appEvents } from '../lib/events';
@@ -88,20 +88,25 @@ export default function QuickCapture({ hidden = false }) {
         <>
             {/* ─── Botão recolhido ─────────────────────────────────
                 Fica à ESQUERDA porque os FABs de Métricas ocupam a
-                direita na mesma altura. */}
+                direita na mesma altura.
+
+                Tratamento SECUNDÁRIO (claro, com borda) de propósito:
+                círculo preto sólido é a linguagem da aba ativa no dock,
+                e o botão acabava lido como um segundo botão do mentor.
+                Isto aqui é utilitário, não navegação. */}
             <button
                 onClick={() => setAberto(true)}
                 aria-label={t('quickCapture.aria')}
                 className={[
                     'fixed left-4 z-[60] w-12 h-12 rounded-full flex items-center justify-center',
-                    'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900',
-                    'border border-white/10 shadow-xl transition-all duration-300',
-                    'hover:scale-105 active:scale-95',
+                    'bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-100',
+                    'border border-zinc-300 dark:border-white/15 shadow-md backdrop-blur-sm',
+                    'transition-all duration-300 hover:scale-105 active:scale-95',
                     (hidden || aberto) ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100',
                 ].join(' ')}
                 style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6.5rem)' }}
             >
-                <Sparkles size={18} strokeWidth={2.2} />
+                <SquarePen size={17} strokeWidth={2} />
             </button>
 
             {/* ─── Folha aberta ─────────────────────────────────── */}
