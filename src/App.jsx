@@ -23,6 +23,7 @@ import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';
 import InstallPrompt from './components/InstallPrompt';
+import QuickCapture from './components/QuickCapture';
 import DemoBar from './components/DemoBar';
 import { demoPedida, iniciarDemo } from './lib/demoSession';
 import { DialogHost } from './lib/dialog';
@@ -470,6 +471,11 @@ export default function App() {
                         isAnyModalOpen={isAnyModalOpen}
                         userRole={userRole}
                     />
+
+                    {/* Captura rápida: registrar por escrito, de qualquer aba.
+                        Some na aba do mentor (lá o chat já faz isso) e quando
+                        algum modal está aberto. */}
+                    <QuickCapture hidden={isAnyModalOpen || activeTab === 'focus'} />
                   </>
                   )}
                 </div>

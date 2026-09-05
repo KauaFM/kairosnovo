@@ -410,6 +410,15 @@ export const translations = {
       myHistory: 'MEU HISTORICO', personalBests: 'MARCAS PESSOAIS', recentWorkouts: 'TREINOS RECENTES',
       loading: 'CARREGANDO...', noWorkouts: 'Nenhum treino registrado ainda', tabMembers: 'MEMBROS',
     },
+    quickCapture: {
+      title: 'Captura rápida',
+      aria: 'Registrar algo rapidamente',
+      close: 'Fechar',
+      send: 'Enviar',
+      placeholder: 'gastei 40 no almoço...',
+      hint: 'Escreva do seu jeito · o mentor registra no lugar certo',
+      genericError: 'Não consegui registrar agora. Tente de novo.',
+    },
     mentorChat: {
       error: 'Falha ao falar com o mentor. Tente novamente.',
       innerMentor: 'Mentor Interior',
@@ -1148,6 +1157,15 @@ export const translations = {
       loadingChallenge: 'LOADING CHALLENGE...',
       myHistory: 'MY HISTORY', personalBests: 'PERSONAL BESTS', recentWorkouts: 'RECENT WORKOUTS',
       loading: 'LOADING...', noWorkouts: 'No workouts logged yet', tabMembers: 'MEMBERS',
+    },
+    quickCapture: {
+      title: 'Quick capture',
+      aria: 'Quickly log something',
+      close: 'Close',
+      send: 'Send',
+      placeholder: 'spent 40 on lunch...',
+      hint: 'Write it your way · the mentor files it in the right place',
+      genericError: "Couldn't log that right now. Try again.",
     },
     mentorChat: {
       error: 'Failed to reach the mentor. Please try again.',
