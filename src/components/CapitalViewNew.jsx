@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 import { isIncomeTx, isExpenseTx } from '../lib/txType';
 import { alertDialog } from '../lib/dialog';
 
-import { toLocalDateStr } from '../utils/dateUtils';
+import { toLocalDateStr, monthLabelFromYYYYMM } from '../utils/dateUtils';
 import { useLang } from '../i18n/LanguageContext';
 import { useCompassPillar } from '../features/metrics/compass/hooks/useCompassData';
 import { PillarLayered } from '../features/metrics/compass/components/PillarLayered';
@@ -515,8 +515,13 @@ export default function CapitalViewNew({ onBack, theme }) {
             // Fetch monthly summary for charts
             const monthly = await getMonthlyFinancialSummary(6);
             if (monthly && monthly.length > 0) {
+                // Antes: new Date(m.month + '-01') interpreta a string como
+                // meia-noite UTC; em Brasília (UTC-3) isso cai no dia anterior,
+                // e perto da virada do mês o gráfico mostrava o MÊS ERRADO
+                // (ex.: agosto rotulado como julho). monthLabelFromYYYYMM lê o
+                // número do mês direto da string, sem passar por Date nenhum.
                 setMonthlyData(monthly.map(m => ({
-                    month: new Date(m.month + '-01').toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short' }).replace('.', ''),
+                    month: monthLabelFromYYYYMM(m.month, lang),
                     value: Math.abs(m.net)
                 })));
             }

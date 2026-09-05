@@ -31,3 +31,26 @@ export const daysAgoLocalStr = (days) => {
     d.setDate(d.getDate() - days);
     return toLocalDateStr(d);
 };
+
+const NOMES_MES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const NOMES_MES_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Rótulo curto de mês (ex.: "ago") a partir de uma string "YYYY-MM".
+ *
+ * NÃO usa `new Date(str)`: um valor "YYYY-MM-01" sem hora é interpretado
+ * como meia-noite UTC, e toLocaleDateString devolve o mês no fuso LOCAL —
+ * em Brasília (UTC-3) isso empurra a data pro dia anterior, e perto da
+ * virada do mês o rótulo sai errado (mostra o mês passado). Ver o mesmo
+ * problema documentado no topo deste arquivo (BUG #11).
+ *
+ * @param {string} yyyyMm - "YYYY-MM"
+ * @param {'pt'|'en'} [lang]
+ * @returns {string}
+ */
+export const monthLabelFromYYYYMM = (yyyyMm, lang = 'pt') => {
+    const mes = parseInt(String(yyyyMm).slice(5, 7), 10);
+    if (!mes || mes < 1 || mes > 12) return '';
+    const nomes = lang === 'en' ? NOMES_MES_EN : NOMES_MES_PT;
+    return nomes[mes - 1];
+};

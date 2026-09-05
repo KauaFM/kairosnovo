@@ -9,6 +9,7 @@ import ScrollReveal from './ScrollReveal';
 import { getProfile, updateAvatar, getRankFromXP, getAllAchievements, getDashboard, checkAndUnlockAchievements } from '../services/db';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { supabase } from '../lib/supabase';
+import { compressImage } from '../utils/imageCompression';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 // Conquistas · badges reais
 import { AchievementBadges as OrvaxAchievementBadges } from '../features/achievements';
@@ -107,20 +108,33 @@ const Dossier = ({ theme, toggleTheme }) => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        // Validação de tamanho (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            alertDialog({ title: 'Imagem grande', message: t('dossier.imageTooLarge'), danger: true });
+        // Antes: o arquivo bruto subia direto pro Storage. Uma foto de iPhone
+        // (HEIC por padrão de fábrica) ficava salva como "avatar.jpg" com os
+        // bytes originais dentro — Chrome/Android/Firefox não decodificam
+        // HEIC, então a imagem quebrava em silêncio: sem erro, sem foto.
+        // Reaproveita a mesma compressão que já resolve isso no scanner do
+        // FitCal — passa por canvas, então sempre sai como JPEG de verdade,
+        // não importa o formato de entrada.
+        let compressed;
+        try {
+            compressed = await compressImage(file, { maxDimension: 512, quality: 0.8 });
+        } catch (err) {
+            console.error('[Avatar] compressão falhou:', err);
+            const foiHeic = /DECODE_FAILED/i.test(err?.message || '') && /hei[cf]/i.test(file.name || file.type || '');
+            alertDialog({
+                title: 'Não consegui usar essa foto',
+                message: foiHeic
+                    ? t('dossier.heicUnsupported')
+                    : t('dossier.imageUnreadable'),
+                danger: true,
+            });
             return;
         }
 
-        // Path sem prefixo "avatars/" (o bucket já é avatars) + extensão segura
-        const extRaw = file.name?.split('.').pop()?.toLowerCase() || 'jpg';
-        const ext = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extRaw) ? extRaw : 'jpg';
-        const path = `${session.user.id}/avatar.${ext}`;
-
+        const path = `${session.user.id}/avatar.jpg`;
         const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type || `image/${ext}` });
+            .upload(path, compressed.blob, { upsert: true, cacheControl: '3600', contentType: 'image/jpeg' });
 
         if (uploadError) {
             console.error('[Avatar] Upload error:', uploadError);

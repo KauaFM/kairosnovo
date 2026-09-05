@@ -576,6 +576,8 @@ export const translations = {
     dossier: {
       defaultName: 'Agente Orvax',
       imageTooLarge: 'Imagem muito grande. Máx 5MB.',
+      heicUnsupported: 'Essa foto está no formato do iPhone (HEIC) e este navegador não consegue abri-la. Tire a foto pela câmera daqui do app, ou troque em Ajustes → Câmera → Formatos para "Mais Compatível".',
+      imageUnreadable: 'Não consegui ler essa imagem. Tente outra foto.',
       uploadFail: 'Falha ao subir foto: {msg}. Verifique se o bucket "avatars" existe e está público.',
       centralRegistry: 'Registro Central',
       changePhoto: 'Alterar',
@@ -1312,6 +1314,8 @@ export const translations = {
     dossier: {
       defaultName: 'Orvax Agent',
       imageTooLarge: 'Image too large. Max 5MB.',
+      heicUnsupported: 'This photo is in iPhone format (HEIC) and this browser can\'t open it. Take the photo with the camera here in the app, or switch to Settings → Camera → Formats → "Most Compatible".',
+      imageUnreadable: 'Couldn\'t read that image. Try another photo.',
       uploadFail: 'Failed to upload photo: {msg}. Check that the "avatars" bucket exists and is public.',
       centralRegistry: 'Central Registry',
       changePhoto: 'Change',
