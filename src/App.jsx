@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Menu, User, Sun, Moon, Loader2, X } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Nexus from './components/Nexus';
@@ -9,16 +9,20 @@ import Login from './components/Login/Login';
 import AccessGate from './components/AccessGate';
 import { getEntitlement, hasActivePlan } from './services/entitlements';
 import { useLang } from './i18n/LanguageContext';
+import { lazyComRecarga } from './lib/lazyComRecarga';
 
-// Abas pesadas · carregadas sob demanda (code-splitting) para o app abrir rápido
-const Vault = lazy(() => import('./components/Vault'));
-const Dossier = lazy(() => import('./components/Dossier'));
-const MentorAssistant = lazy(() => import('./components/MentorAssistant'));
-const Blog = lazy(() => import('./components/Blog'));
-const MetricsPage = lazy(() => import('./features/metrics/pages/MetricsPage'));
-const AdminBlog = lazy(() => import('./components/AdminBlog'));
-const GymRatsHome = lazy(() => import('./features/gymrats/pages/GymRatsHome'));
-const FitCalGate = lazy(() => import('./features/fitcal/pages/FitCalGate'));
+// Abas pesadas · carregadas sob demanda (code-splitting) para o app abrir rápido.
+// lazyComRecarga em vez de lazy: depois de uma publicação nova, quem estava com
+// o app aberto aponta para pedaços que não existem mais no servidor, e a aba
+// quebrava a tela inteira com "Erro Crítico ORVAX". Agora recarrega uma vez.
+const Vault = lazyComRecarga(() => import('./components/Vault'));
+const Dossier = lazyComRecarga(() => import('./components/Dossier'));
+const MentorAssistant = lazyComRecarga(() => import('./components/MentorAssistant'));
+const Blog = lazyComRecarga(() => import('./components/Blog'));
+const MetricsPage = lazyComRecarga(() => import('./features/metrics/pages/MetricsPage'));
+const AdminBlog = lazyComRecarga(() => import('./components/AdminBlog'));
+const GymRatsHome = lazyComRecarga(() => import('./features/gymrats/pages/GymRatsHome'));
+const FitCalGate = lazyComRecarga(() => import('./features/fitcal/pages/FitCalGate'));
 import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';

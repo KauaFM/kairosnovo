@@ -34,7 +34,20 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ORVAX Error Boundary]', error, errorInfo);
   }
 
+  /** O erro é "pedaço do app sumiu depois de uma publicação nova"? */
+  private ehErroDeChunk(): boolean {
+    const msg = String(this.state.error?.message || '');
+    return /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|dynamically imported module/i.test(msg);
+  }
+
   handleRetry = () => {
+    // Quando o pedaço não existe mais no servidor, limpar o estado só faz o
+    // import falhar de novo — a pessoa fica presa no erro. Nesse caso a única
+    // saída real é buscar o index.html novo, com os nomes de arquivo certos.
+    if (this.ehErroDeChunk()) {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
@@ -55,9 +68,15 @@ export class ErrorBoundary extends Component<Props, State> {
 
           {/* Error detail */}
           <p className="text-[9px] font-mono text-neutral-400 dark:text-white/20 text-center leading-relaxed mb-1 max-w-[280px]">
-            {en ? 'An unexpected error occurred in this component.' : 'Um erro inesperado ocorreu neste componente.'}
+            {this.ehErroDeChunk()
+              ? (en
+                ? 'A new version was published. Reload to continue.'
+                : 'Saiu uma versão nova do app. É só recarregar para continuar.')
+              : (en
+                ? 'An unexpected error occurred in this component.'
+                : 'Um erro inesperado ocorreu neste componente.')}
           </p>
-          {this.state.error && (
+          {this.state.error && !this.ehErroDeChunk() && (
             <code className="text-[8px] font-mono text-neutral-300 dark:text-white/12 text-center mb-5 max-w-[300px] break-all">
               {this.state.error.message?.slice(0, 120)}
             </code>
@@ -69,7 +88,9 @@ export class ErrorBoundary extends Component<Props, State> {
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 dark:border-white/[0.06] text-[9px] font-mono font-bold uppercase tracking-wider text-neutral-500 dark:text-white/35 transition-all hover:border-neutral-400 dark:hover:border-white/15 hover:bg-neutral-50 dark:hover:bg-white/[0.02] active:scale-[0.97]"
           >
             <RefreshCw size={12} />
-            {en ? 'Try Again' : 'Tentar Novamente'}
+            {this.ehErroDeChunk()
+              ? (en ? 'Reload' : 'Recarregar')
+              : (en ? 'Try Again' : 'Tentar Novamente')}
           </button>
         </div>
       );

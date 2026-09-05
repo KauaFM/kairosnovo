@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
+import { lazyComRecarga } from '../../../lib/lazyComRecarga';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import { OrvaxHeader, ScrollContainer } from '../../../components/BaseLayout';
@@ -15,11 +16,13 @@ import { Plus, ClipboardList } from 'lucide-react';
 // mas importados de forma estática eles entravam no carregamento da aba —
 // e o pacote dos pilares sozinho passa de 780 KB, mais que o app inteiro.
 // Era essa a demora ao abrir Métricas. Agora chegam sob demanda.
-const PillarLayered = lazy(() =>
+// lazyComRecarga: depois de uma publicação nova esses pedaços mudam de nome, e
+// quem estava com o app aberto quebrava a tela inteira ao abrir um pilar.
+const PillarLayered = lazyComRecarga(() =>
   import('../compass/components/PillarLayered').then((m) => ({ default: m.PillarLayered })));
-const CreationHub = lazy(() =>
+const CreationHub = lazyComRecarga(() =>
   import('../../lifeOs/components/creation/CreationHub').then((m) => ({ default: m.CreationHub })));
-const RitualRegistrarDia = lazy(() =>
+const RitualRegistrarDia = lazyComRecarga(() =>
   import('../components/RitualRegistrarDia').then((m) => ({ default: m.RitualRegistrarDia })));
 
 interface MetricsPageProps {
