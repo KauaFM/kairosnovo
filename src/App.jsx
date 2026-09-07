@@ -438,7 +438,7 @@ export default function App() {
                             <MetricsPage theme={theme} toggleTheme={toggleTheme} onModalChange={setIsAnyModalOpen} />
                         </TabWrapper>
                         <TabWrapper active={activeTab === 'focus'}>
-                            <OrvaxCentro theme={theme} toggleTheme={toggleTheme} irPara={setActiveTab} />
+                            <OrvaxCentro irPara={setActiveTab} />
                         </TabWrapper>
                         {userRole === 'admin' && (
                             <TabWrapper active={activeTab === 'admin'}>
