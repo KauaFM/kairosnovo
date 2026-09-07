@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, TrendingUp, TrendingDown, CheckCircle2, Target, BarChart3, Clock } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import type { PillarData } from '../types';
 import { EmptyState } from './EmptyState';
 import { CountUp } from '../viz/CountUp';
@@ -39,39 +39,68 @@ const InsightBox = ({ text, type = 'neutral' }: { text: string, type?: 'alert' |
 
 const RealLineChart = ({ data, color }: { data: any[], color: string }) => {
   if (!data || data.length === 0) return <div className="h-32 bg-slate-50 dark:bg-zinc-800/40 rounded-xl" />;
-  
-  // Custom Dot to highlight the last point (Premium Rule)
+
+  // O gráfico era só uma FORMA: linha sem um único número. Dava para
+  // ver que subiu ou desceu, nunca quanto nem de onde. Estes valores
+  // já estavam na série — só não eram mostrados.
+  const valores = data.map((d) => Number(d.value) || 0);
+  const atual = valores[valores.length - 1];
+  const inicial = valores[0];
+  const maximo = Math.max(...valores);
+  const minimo = Math.min(...valores);
+  const variacao = inicial !== 0 ? Math.round(((atual - inicial) / Math.abs(inicial)) * 100) : 0;
+
   const CustomDot = (props: any) => {
     const { cx, cy, index } = props;
     if (index === data.length - 1) {
-      return (
-        <circle cx={cx} cy={cy} r={4} fill={color} stroke="white" strokeWidth={2} />
-      );
+      return <circle cx={cx} cy={cy} r={4} fill={color} stroke="white" strokeWidth={2} />;
     }
     return null;
   };
 
   return (
-    <div className="w-full h-40 mt-4">
-      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-          <Line 
-            type="monotone" 
-            dataKey="value" 
-            stroke={color} 
-            strokeWidth={3} 
-            dot={<CustomDot />} 
-            isAnimationActive={true}
-            animationDuration={1500}
-            animationEasing="ease-out"
-          />
-          <Tooltip 
-            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-            itemStyle={{ color: '#0f172a', fontWeight: 'bold' }}
-            labelStyle={{ display: 'none' }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div>
+      <div className="flex items-end justify-between mt-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[26px] font-extrabold tracking-tighter text-slate-900 dark:text-zinc-100 leading-none">
+            {atual.toLocaleString('pt-BR')}
+          </span>
+          {variacao !== 0 && (
+            <span className={`text-[11px] font-bold ${variacao > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              {variacao > 0 ? '↗' : '↘'} {Math.abs(variacao)}%
+            </span>
+          )}
+        </div>
+        <div className="flex gap-4">
+          <MiniStat rotulo="Pico" valor={maximo.toLocaleString('pt-BR')} />
+          <MiniStat rotulo="Mínimo" valor={minimo.toLocaleString('pt-BR')} />
+        </div>
+      </div>
+
+      <div className="w-full h-32 mt-2">
+        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <AreaChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 4 }}>
+            {/* Área sob a linha: dá peso visual à tendência, como nas
+                referências. Uma linha de 3px sozinha some no cartão. */}
+            <defs>
+              <linearGradient id="grad-evo" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <Area
+              type="monotone" dataKey="value" stroke={color} strokeWidth={2.5}
+              fill="url(#grad-evo)" dot={<CustomDot />}
+              isAnimationActive animationDuration={1200} animationEasing="ease-out"
+            />
+            <Tooltip
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+              itemStyle={{ color: '#0f172a', fontWeight: 'bold' }}
+              labelStyle={{ display: 'none' }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
@@ -120,30 +149,51 @@ const RealDonutChart = ({ data, colors, isFinance }: { data: any[], colors: stri
   );
 };
 
-// Heatmap using real data.weekHeat
+// Mapa de execução por hora do dia.
 const RealHeatmap = ({ data, color }: { data: any[], color: string }) => {
   if (!data || data.length === 0) return <div className="h-24 bg-slate-50 dark:bg-zinc-800/40 rounded-xl" />;
-  
-  // Create a 7x24 grid
+
+  // O quadriculado mostrava QUE existe um padrão, mas obrigava a
+  // pessoa a achar a coluna mais escura com o olho e adivinhar a
+  // hora pelas três legendas. O pico já estava no dado; agora é dito
+  // em palavras — é a informação mais acionável desta tela, porque
+  // dá para agendar em cima dela.
+  let iPico = 0;
+  data.forEach((c, i) => { if ((c.intensity || 0) > (data[iPico].intensity || 0)) iPico = i; });
+  const horaPico = iPico % 24;
+  const temPadrao = (data[iPico]?.intensity || 0) > 0;
+
+  const faixa = horaPico < 6 ? 'madrugada' : horaPico < 12 ? 'manhã' : horaPico < 18 ? 'tarde' : 'noite';
+
   return (
     <div className="mt-4">
-      <div className="grid grid-cols-24 gap-[2px] w-full" style={{ gridTemplateColumns: 'repeat(24, minmax(0, 1fr))' }}>
+      <div className="grid gap-[2px] w-full" style={{ gridTemplateColumns: 'repeat(24, minmax(0, 1fr))' }}>
         {data.map((cell, i) => (
-          <div 
-            key={i} 
-            className="w-full aspect-square rounded-[2px]" 
-            style={{ 
-              backgroundColor: color, 
+          <div
+            key={i}
+            className="w-full aspect-square rounded-[2px] transition-all"
+            style={{
+              backgroundColor: color,
               opacity: cell.intensity === 0 ? 0.05 : 0.2 + (cell.intensity * 0.8),
-            }} 
+              // A coluna do pico ganha um anel: sem destaque, achar a
+              // mais escura entre 24 quadrados é trabalho do usuário.
+              outline: temPadrao && i === iPico ? `1.5px solid ${color}` : 'none',
+              outlineOffset: '1.5px',
+            }}
           />
         ))}
       </div>
-      <div className="flex justify-between text-[10px] font-semibold text-slate-400 dark:text-zinc-500 mt-2 uppercase tracking-wider">
-        <span>00h</span>
-        <span>12h</span>
-        <span>23h</span>
+      <div className="flex justify-between text-[9px] font-semibold text-slate-400 dark:text-zinc-500 mt-2.5 uppercase tracking-wider">
+        <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span>
       </div>
+
+      {temPadrao && (
+        <p className="text-[11.5px] text-slate-600 dark:text-zinc-400 mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 leading-relaxed">
+          Seu horário mais forte é por volta das{' '}
+          <strong className="text-slate-900 dark:text-zinc-100">{String(horaPico).padStart(2, '0')}h</strong>
+          {' '}— de {faixa}. Agendar o que é difícil nessa janela costuma render mais.
+        </p>
+      )}
     </div>
   );
 };
@@ -171,21 +221,62 @@ const MiniKpi = ({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?
   </div>
 );
 
-const HorizontalRanking = ({ items, color, isFinance }: { items: {label: string, value: number, raw?: string}[], color: string, isFinance?: boolean }) => (
-  <div className="flex flex-col gap-4 mt-4">
-    {items.map((item, i) => (
-      <div key={i} className="flex flex-col gap-2">
-        <div className="flex justify-between text-xs font-semibold">
-          <span className="text-slate-600 dark:text-zinc-400">{item.label}</span>
-          <span className="text-slate-900 dark:text-zinc-100">{item.raw ? item.raw : `${item.value}/100`}</span>
-        </div>
-        <div className="w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, item.value)}%`, backgroundColor: color }} />
-        </div>
-      </div>
-    ))}
-  </div>
-);
+// Ranking dos eixos do pilar.
+//
+// Antes vinha na ordem em que o pilar declara os eixos, todas as
+// barras com o mesmo peso visual. Ou seja: era uma LISTA, não um
+// ranking — para saber quem está na frente era preciso comparar
+// barra por barra.
+//
+// Agora vem ordenado, numerado, e as pontas são marcadas: o topo em
+// destaque e o último com o rótulo do que precisa de atenção. É o
+// padrão de "skill tracker" das referências, e responde de imediato
+// a pergunta que a pessoa realmente tem: onde eu ataco primeiro?
+const HorizontalRanking = ({ items, color, isFinance }: { items: { label: string, value: number, raw?: string }[], color: string, isFinance?: boolean }) => {
+  const ordenados = [...items].sort((a, b) => b.value - a.value);
+  const ultimo = ordenados.length - 1;
+
+  return (
+    <div className="flex flex-col gap-3.5 mt-4">
+      {ordenados.map((item, i) => {
+        const ehTopo = i === 0;
+        const ehUltimo = i === ultimo && ordenados.length > 2;
+        return (
+          <div key={i} className="flex items-center gap-3">
+            <span className="w-4 shrink-0 text-[10px] font-mono font-bold text-slate-300 dark:text-zinc-700 text-right">
+              {i + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-baseline gap-2 mb-1.5">
+                <span className={`text-[12px] truncate ${ehTopo ? 'font-bold text-slate-900 dark:text-zinc-100' : 'font-semibold text-slate-600 dark:text-zinc-400'}`}>
+                  {item.label}
+                </span>
+                <div className="flex items-baseline gap-1.5 shrink-0">
+                  {ehUltimo && (
+                    <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 dark:text-zinc-600">
+                      atenção
+                    </span>
+                  )}
+                  <span className="text-[12px] font-bold text-slate-900 dark:text-zinc-100">
+                    {item.raw ? item.raw : item.value}
+                  </span>
+                </div>
+              </div>
+              <div className="w-full h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{
+                    width: `${Math.min(100, item.value)}%`,
+                    backgroundColor: color,
+                    opacity: ehTopo ? 1 : 0.45,
+                  }} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 // ── MAIN COMPONENT ──
 
