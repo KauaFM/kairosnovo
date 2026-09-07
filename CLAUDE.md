@@ -2,6 +2,32 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 TEM USUÁRIO REAL EM PRODUÇÃO — nunca publique por conta própria (2026-09-05)
+
+O ORVAX já é usado por gente de verdade. Publicar direto em produção sem
+o dono aprovar não é agilidade, é risco em cima de usuário pagante.
+
+**Fluxo obrigatório:**
+
+1. Trabalhe na branch `dev`. A `main` é produção — não commite nela.
+2. Verifique no `localhost` (`npm run dev` ou o preview do Claude Code).
+3. Para o dono revisar, publique uma PRÉ-VISUALIZAÇÃO:
+   `npx vercel --yes --scope kauas-projects-7c59a39f`  ← SEM `--prod`
+   Sai numa URL própria, atrás do login da Vercel (302 para quem não é
+   da equipe), então nenhum usuário real alcança.
+4. **Só depois do "pode subir"** explícito: merge `dev` → `main` e
+   `npx vercel --prod --yes --scope kauas-projects-7c59a39f`.
+
+**Nunca rode `--prod` sem aprovação explícita naquela conversa.** Aprovação
+de uma vez não vale para a próxima.
+
+**O banco NÃO tem separação.** Existe um único projeto Supabase, então
+todo SQL rodado atinge usuário real na hora — não há ambiente de teste de
+banco. Por isso: migration é sempre proposta em arquivo, explicada, e
+QUEM RODA É O DONO. Nunca aplique schema por conta própria, e prefira
+mudança aditiva e reversível (coluna nova nullable) a destrutiva.
+Um segundo projeto Supabase de staging resolveria — ainda não existe.
+
 ## Project Overview
 
 **ORVAX** — anti-procrastination personal control system ("Sistema de Controle Pessoal") built in Portuguese BR for Brazilian users. Mobile-first React app (428px max-width). Futuristic black-and-white theme throughout — no colors outside that palette.

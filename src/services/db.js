@@ -157,6 +157,21 @@ export const updateTaskState = async (taskId, state) => {
     return result;
 };
 
+// Atualização genérica de tarefa (data, horário, título...). O
+// updateTaskState acima só mexe no estado; a presença do ORVAX precisa
+// remarcar tarefas de dia ao reorganizar a agenda.
+// Mesmo filtro user_id das demais: defesa em profundidade além do RLS.
+export const updateTask = async (taskId, patch) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const result = await supabase.from('tasks')
+        .update(patch)
+        .eq('id', taskId)
+        .eq('user_id', session.user.id);
+    if (!result.error) appEvents.emit({ type: 'TASK_CHANGED' });
+    return result;
+};
+
 // [BUG #2 + #9 FIX] deleteTask agora filtra por user_id
 // Requer política RLS DELETE na tabela tasks — ver SQL do relatório QA
 export const deleteTask = async (taskId) => {

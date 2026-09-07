@@ -3,7 +3,6 @@ import { Menu, User, Sun, Moon, Loader2, X } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Nexus from './components/Nexus';
 import Navigation from './components/Navigation';
-import MentorModal from './components/MentorModal';
 import { XpToastLayer } from './features/lifeOs/components/XpToastLayer';
 import Login from './components/Login/Login';
 import AccessGate from './components/AccessGate';
@@ -17,7 +16,11 @@ import { lazyComRecarga } from './lib/lazyComRecarga';
 // quebrava a tela inteira com "Erro Crítico ORVAX". Agora recarrega uma vez.
 const Vault = lazyComRecarga(() => import('./components/Vault'));
 const Dossier = lazyComRecarga(() => import('./components/Dossier'));
-const MentorAssistant = lazyComRecarga(() => import('./components/MentorAssistant'));
+// O botão central da dock (Navigation.jsx → setActiveTab('focus')) abria
+// o MentorAssistant: lista de balões + campo de texto, estética de
+// mensageiro. Agora abre o Centro do ORVAX — Simbiose, contexto e ação
+// primeiro; a conversa virou camada secundária lá dentro.
+const OrvaxCentro = lazyComRecarga(() => import('./features/orvax/components/OrvaxCentro'));
 const Blog = lazyComRecarga(() => import('./components/Blog'));
 const MetricsPage = lazyComRecarga(() => import('./features/metrics/pages/MetricsPage'));
 const AdminBlog = lazyComRecarga(() => import('./components/AdminBlog'));
@@ -27,7 +30,7 @@ import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';
 import InstallPrompt from './components/InstallPrompt';
-import QuickCapture from './components/QuickCapture';
+import OrvaxPresence from './features/orvax/components/OrvaxPresence';
 import DemoBar from './components/DemoBar';
 import { demoPedida, iniciarDemo } from './lib/demoSession';
 import { DialogHost } from './lib/dialog';
@@ -237,15 +240,12 @@ export default function App() {
         return () => { alive = false; if (ch) supabase.removeChannel(ch); };
     }, [isAuthenticated, checkAccess]);
 
-    // --- MENTOR STATES ---
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [userInput, setUserInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [mentorReply, setMentorReply] = useState('');
+    // Os estados do antigo MentorModal (isModalOpen, userInput, isLoading,
+    // mentorReply) saíram junto com ele. Ficavam aqui influenciando
+    // classes do layout mesmo depois de o modal não abrir mais.
 
     // Overlays de nível-App entram na pilha do botão VOLTAR
     useBackHandler(showBlog, useCallback(() => setShowBlog(false), []));
-    useBackHandler(isModalOpen, useCallback(() => setIsModalOpen(false), []));
 
     // Toggle Theme
     const toggleTheme = () => {
@@ -260,21 +260,6 @@ export default function App() {
 
     // --- DATA STATES ---
     const [vaultHabits] = useState([]);
-
-    // Mentor rápido (overlay do Nexus) → mesma Edge Function mentor-chat
-    // do assistente central. A chave da IA vive SÓ no servidor.
-    const handleProcess = async () => {
-        setIsLoading(true);
-        setMentorReply('');
-        try {
-            const res = await sendMentorMessage(userInput);
-            setMentorReply(res?.reply || t('lo.neuralErr'));
-        } catch (error) {
-            setMentorReply(t('lo.neuralErr'));
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const handleSupabaseLogin = async (user) => {
         setIsAuthenticated(true);
@@ -382,16 +367,11 @@ export default function App() {
                 <WelcomeVideo onComplete={handleWelcomeComplete} />
             )}
 
-            {/* Mentor AI Modal */}
-            <MentorModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                userInput={userInput}
-                setUserInput={setUserInput}
-                handleInteraction={handleProcess}
-                isLoading={isLoading}
-                mentorReply={mentorReply}
-            />
+            {/* O MentorModal saiu da interface: era a segunda experiência de
+                IA do app, com aparência própria, competindo com a aba
+                central. O componente continua no repositório (ainda não
+                apagado, para não quebrar nada sem necessidade), mas nada o
+                monta — toda entrada de IA passa pelo Centro do ORVAX. */}
 
             {/* Timeline de Notícias (realocada da aba central → overlay) */}
             {showBlog && (
@@ -412,9 +392,9 @@ export default function App() {
                 </div>
             )}
 
-            <div className={`min-h-screen font-sans flex justify-center overflow-hidden overflow-x-hidden relative selection:bg-[var(--text-main)] selection:text-[var(--bg-color)] transition-colors duration-700 ${isModalOpen ? 'bg-white text-black' : 'bg-[var(--bg-color)] text-[var(--text-main)]'} ${(!isAuthenticated || showWelcomeVideo) ? 'hidden' : 'flex'}`}>
+            <div className={`min-h-screen font-sans flex justify-center overflow-hidden overflow-x-hidden relative selection:bg-[var(--text-main)] selection:text-[var(--bg-color)] transition-colors duration-700 bg-[var(--bg-color)] text-[var(--text-main)] ${(!isAuthenticated || showWelcomeVideo) ? 'hidden' : 'flex'}`}>
                 {/* Global Background (Schematic Grid) */}
-                {!isModalOpen && <div className="absolute inset-0 bg-schematic pointer-events-none z-0"></div>}
+                <div className="absolute inset-0 bg-schematic pointer-events-none z-0"></div>
 
                 {/* Background System Event Notifier */}
                 <EventNotifier />
@@ -440,7 +420,7 @@ export default function App() {
                     <div className="flex-1 relative">
                         <Suspense fallback={<TabLoader />}>
                         <TabWrapper active={activeTab === 'nexus'}>
-                            <Nexus theme={theme} toggleTheme={toggleTheme} onOpenMentor={() => setIsModalOpen(true)} onOpenBlog={() => setShowBlog(true)} />
+                            <Nexus theme={theme} toggleTheme={toggleTheme} onOpenBlog={() => setShowBlog(true)} />
                         </TabWrapper>
                         <TabWrapper active={activeTab === 'vault'}>
                             <Vault habits={vaultHabits} theme={theme} toggleTheme={toggleTheme} />
@@ -458,7 +438,7 @@ export default function App() {
                             <MetricsPage theme={theme} toggleTheme={toggleTheme} onModalChange={setIsAnyModalOpen} />
                         </TabWrapper>
                         <TabWrapper active={activeTab === 'focus'}>
-                            <MentorAssistant theme={theme} toggleTheme={toggleTheme} />
+                            <OrvaxCentro irPara={setActiveTab} />
                         </TabWrapper>
                         {userRole === 'admin' && (
                             <TabWrapper active={activeTab === 'admin'}>
@@ -469,17 +449,32 @@ export default function App() {
                     </div>
 
                     {/* NAVIGATION DOCK (Horizontal) */}
+                    {/* O Centro do ORVAX é imersivo: dentro dele o dock
+                        some junto com todo o resto. Quem entra ali está
+                        com o mentor, não navegando o app — e o próprio
+                        Centro oferece a saída. */}
                     <Navigation
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
-                        isAnyModalOpen={isAnyModalOpen}
+                        isAnyModalOpen={isAnyModalOpen || activeTab === 'focus'}
                         userRole={userRole}
                     />
 
                     {/* Captura rápida: registrar por escrito, de qualquer aba.
                         Some na aba do mentor (lá o chat já faz isso) e quando
                         algum modal está aberto. */}
-                    <QuickCapture hidden={isAnyModalOpen || activeTab === 'focus'} />
+                    {/* A captura rápida saiu: o atalho do ORVAX cobre o
+                        que ela fazia, e dois botões flutuantes no mesmo
+                        canto competiam entre si. O componente continua no
+                        repositório; nada mais o monta. */}
+
+                    {/* Presença do ORVAX: observa os dados reais e só aparece
+                        quando há algo que valha interromper. O silêncio é o
+                        estado padrão — ver engine/policy.js. */}
+                    <OrvaxPresence
+                        oculto={isAnyModalOpen || activeTab === 'focus'}
+                        irPara={setActiveTab}
+                    />
                   </>
                   )}
                 </div>

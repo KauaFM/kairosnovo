@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useCompassGlobal } from '../hooks/useCompassData';
-import { Loader2, TrendingUp, TrendingDown, Activity, Heart, Brain, Wallet, Briefcase, Users, Zap, Compass, Crosshair, Coffee, Sunrise, UtensilsCrossed, User } from 'lucide-react';
+import { Loader2, Activity, Heart, Brain, Wallet, Briefcase, Users, Compass, Crosshair, Coffee, Sunrise, UtensilsCrossed, User } from 'lucide-react';
 import { RadarGlobal } from '../viz/RadarGlobal';
-import { Sparkline } from '../viz/Sparkline';
+import { YearHeatmap } from '../viz/YearHeatmap';
 import { COMPASS_PILLARS, type CompassPillarSlug } from '../pillars';
 import { buildPillarData } from '../adapters/pillarDataAdapter';
 import { CouncilCard } from './CouncilCard';
@@ -44,6 +44,48 @@ const SectionHeader = ({ title, subtitle }: { title: string, subtitle?: string }
   </div>
 );
 
+// Indicador compacto da faixa do topo. Número grande, rótulo pequeno,
+// e um detalhe opcional (variação ou barra) — nada além disso: numa
+// faixa de quatro, qualquer enfeite vira ruído.
+const Kpi = ({ rotulo, valor, sufixo, nota, barra }: { rotulo: string; valor: number; sufixo?: string; nota?: string | null; barra?: number }) => (
+  <div className="rounded-[18px] border border-zinc-200/50 dark:border-zinc-800/60 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl px-2.5 py-3 flex flex-col items-center">
+    <span className="text-[7px] font-mono tracking-[0.15em] uppercase font-bold opacity-30 mb-1.5 text-center leading-tight">{rotulo}</span>
+    <div className="flex items-baseline gap-0.5">
+      <span className="text-[19px] font-extrabold tracking-tighter text-zinc-900 dark:text-white leading-none">{valor}</span>
+      {sufixo && <span className="text-[8px] font-bold text-zinc-400">{sufixo}</span>}
+    </div>
+    {nota && <span className="text-[8px] font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1">{nota}</span>}
+    {barra !== undefined && (
+      <div className="w-full h-[3px] rounded-full bg-zinc-100 dark:bg-zinc-800 mt-2 overflow-hidden">
+        <div className="h-full rounded-full bg-zinc-900 dark:bg-white" style={{ width: `${barra}%` }} />
+      </div>
+    )}
+  </div>
+);
+
+// Anel de progresso. Em uma grade de 12, o anel é o que permite
+// comparar sem ler: a quantidade de traço preenchido é percebida de
+// relance, enquanto 12 números exigem leitura um a um.
+const Anel = ({ pct, children, tamanho = 54 }: { pct: number; children: React.ReactNode; tamanho?: number }) => {
+  const r = (tamanho - 5) / 2;
+  const perimetro = 2 * Math.PI * r;
+  const preenchido = Math.max(0, Math.min(100, pct)) / 100;
+  return (
+    <div className="relative shrink-0" style={{ width: tamanho, height: tamanho }}>
+      <svg width={tamanho} height={tamanho} className="absolute inset-0 -rotate-90">
+        <circle cx={tamanho / 2} cy={tamanho / 2} r={r} fill="none" strokeWidth="2.5"
+          className="stroke-zinc-100 dark:stroke-zinc-800" />
+        <circle cx={tamanho / 2} cy={tamanho / 2} r={r} fill="none" strokeWidth="2.5" strokeLinecap="round"
+          className="stroke-zinc-900 dark:stroke-white transition-all duration-1000"
+          strokeDasharray={perimetro}
+          strokeDashoffset={perimetro * (1 - preenchido)}
+          style={{ opacity: preenchido > 0 ? 0.85 : 0.12 }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">{children}</div>
+    </div>
+  );
+};
+
 const getPillarIcon = (slug: string) => {
   const iconProps = { className: "w-3.5 h-3.5", strokeWidth: 2.2 };
   switch (slug) {
@@ -76,19 +118,6 @@ const formatPillarScore = (score: number, unit: string) => {
     return score.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   return score.toLocaleString('pt-BR');
-};
-
-const getScoreFontSize = (scoreStr: string, unit: string) => {
-  const len = scoreStr.length;
-  if (unit === 'R$') {
-    if (len > 12) return 'text-[1rem]';
-    if (len > 9) return 'text-[1.25rem]';
-    if (len > 7) return 'text-[1.5rem]';
-    return 'text-[1.85rem]';
-  }
-  if (len > 6) return 'text-[1.5rem]';
-  if (len > 4) return 'text-[1.8rem]';
-  return 'text-[2.25rem]';
 };
 
 // ── MAIN COMPONENT ──
@@ -135,36 +164,37 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
           subtitle={t('compass.vitalSync')} 
         />
 
-        {/* TOP CARDS */}
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="p-4 flex flex-col justify-between min-h-[130px]">
-            <div className="flex items-center justify-between opacity-30">
-              <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">{t('compass.xpTotal')}</span>
-              <Activity size={10} />
-            </div>
-            <div className="mt-2 mb-1">
-              <span className="text-3xl font-extrabold tracking-tighter text-zinc-900 dark:text-white">{m.xpTotal}</span>
-              <span className="text-[9px] font-mono text-zinc-400 font-bold ml-1">XP</span>
-            </div>
-            <div className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-100/50 dark:border-emerald-900/40 w-fit">
-              +{m.xpWeek} {t('compass.week')}
-            </div>
-          </Card>
-
-          <Card className="p-4 flex flex-col justify-between min-h-[130px]">
-            <div className="flex items-center justify-between opacity-30">
-              <span className="text-[8px] font-mono tracking-[0.2em] uppercase font-bold">{t('compass.consistency')}</span>
-              <Zap size={10} />
-            </div>
-            <div className="mt-2 mb-1">
-              <span className="text-3xl font-extrabold tracking-tighter text-zinc-900 dark:text-white">{m.consistency}</span>
-              <span className="text-sm font-bold text-zinc-300 dark:text-zinc-600 ml-1">%</span>
-            </div>
-            <div className="mt-auto h-1 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full">
-              <div className="h-full bg-zinc-900 dark:bg-white rounded-full" style={{ width: `${m.consistency}%` }} />
-            </div>
-          </Card>
+        {/* ─── FAIXA DE INDICADORES ─────────────────────────────
+            Eram dois cartões grandes com dois números. Viraram quatro
+            indicadores densos numa faixa só: o mesmo espaço passa a
+            responder "como estou" de relance, e sobra altura para o
+            que precisa de área (radar e heatmap). */}
+        <div className="grid grid-cols-4 gap-2">
+          <Kpi rotulo={t('compass.xpTotal')} valor={m.xpTotal} sufixo="XP" nota={m.xpWeek > 0 ? `+${m.xpWeek}` : null} />
+          <Kpi rotulo={t('compass.consistency')} valor={m.consistency} sufixo="%" barra={m.consistency} />
+          <Kpi rotulo="Sequência" valor={m.streak} sufixo="d" />
+          <Kpi rotulo="Score" valor={Math.round(m.scoreAvg)} nota={m.delta7 !== 0 ? `${m.delta7 > 0 ? '↗' : '↘'}${Math.abs(m.delta7)}` : null} />
         </div>
+
+        {/* ─── CONSTÂNCIA NO ANO ────────────────────────────────
+            Este heatmap e os dados dele (yearMap) já existiam no
+            projeto e NUNCA eram renderizados. Consistência é um
+            comportamento ao longo do tempo — um quadriculado de um ano
+            mostra isso de um jeito que a porcentagem sozinha não
+            consegue: dá para ver ONDE você falhou, não só quanto. */}
+        {m.yearMap?.length > 0 && (
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[9px] font-mono tracking-[0.28em] uppercase font-bold opacity-40">
+                Constância
+              </span>
+              <span className="text-[9px] font-mono uppercase tracking-wider opacity-30">
+                {m.activeDays} dias ativos
+              </span>
+            </div>
+            <YearHeatmap cells={m.yearMap} />
+          </Card>
+        )}
 
         {/* RADAR CHART CARD - Matching Image 2 Aesthetic */}
         <Card className="flex flex-col items-center pt-10 pb-12 px-1 bg-white/60 dark:bg-zinc-900/50">
@@ -200,58 +230,65 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
              <div className="h-[0.5px] flex-1 bg-zinc-200 dark:bg-zinc-800" />
           </div>
           
-          <div className="grid grid-cols-2 gap-3">
+          {/* Eram 12 cartões em grade de 2 colunas: seis fileiras de
+              rolagem, e comparar duas dimensões exigia procurar. Como
+              LINHAS, as 12 cabem quase de uma vez e a leitura é
+              vertical — o olho desce a coluna de números e enxerga
+              quem está para trás sem precisar caçar.
+
+              Cada linha mantém tudo que o cartão tinha: ícone, nome,
+              número, variação e a tendência (agora como barra, que
+              compara melhor entre linhas do que 12 sparklines soltas). */}
+          {/* Cartões com ANEL de progresso. As linhas finas que testei
+              antes eram compactas mas mudas: um traço de 1px não dá
+              noção de quanto falta. O anel dá — e em uma grade de 12, é
+              o que permite varrer a tela sem ler número por número.
+
+              Finanças não tem anel: R$ não é uma fração de 100, e
+              inventar um teto para desenhar o círculo seria mentira
+              visual. Ali o número fala sozinho. */}
+          <div className="grid grid-cols-3 gap-2.5">
             {pillarCards.map(({ slug, data: d }) => {
               const unit = getPillarUnit(slug);
               const isPositive = d.delta7 >= 0;
-              const spark = (d.sparkline && d.sparkline.length > 0) ? d.sparkline : [];
-              const scoreStr = formatPillarScore(d.score, unit);
-              const scoreFontSize = getScoreFontSize(scoreStr, unit);
+              const escalar = unit === 'pts' || unit === '%';
+              const pct = escalar ? Math.max(0, Math.min(100, d.score)) : (d.hasRealData ? 100 : 0);
 
               return (
                 <button
                   key={slug}
                   onClick={() => onOpenPillar(slug)}
-                  className="group relative overflow-hidden bg-white dark:bg-zinc-900/60 rounded-[24px] p-4 border border-zinc-200/50 dark:border-zinc-800/60 shadow-sm flex flex-col items-center text-center transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] min-h-[170px]"
+                  className="group relative rounded-[20px] p-3 border border-zinc-200/50 dark:border-zinc-800/60 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl flex flex-col items-center gap-2 transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.97]"
                 >
-                  <div className="flex flex-col items-center gap-2 mb-4 w-full">
-                    <div className="w-8 h-8 rounded-xl border border-zinc-50 dark:border-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 bg-zinc-50/30 dark:bg-zinc-800/30 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-zinc-900 transition-colors">
-                      {getPillarIcon(slug)}
-                    </div>
-                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em] px-1 leading-tight">
-                      {d.config.name}
-                    </span>
-                  </div>
-                  
-                  <div className="mt-auto w-full">
-                    <div className="flex flex-col items-center justify-center mb-1">
-                      <div className="flex items-baseline gap-0.5 max-w-full">
-                        {unit === 'R$' && <span className="text-[10px] font-bold text-zinc-400">R$</span>}
-                        <span className={`${scoreFontSize} font-extrabold tracking-tighter text-zinc-900 dark:text-white leading-none`}>
-                          {scoreStr}
-                        </span>
-                        {unit !== 'R$' && <span className="text-[10px] font-bold text-zinc-400 ml-0.5">{unit}</span>}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-center min-h-[16px]">
-                      {d.hasRealData && d.delta7 !== 0 ? (
-                        <div className={`flex items-center gap-0.5 px-1 rounded text-[8px] font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40'}`}>
-                          {isPositive ? '↗' : '↘'} {Math.abs(d.delta7)}%
-                        </div>
-                      ) : (
-                        <span className="text-[8px] font-mono text-zinc-200 dark:text-zinc-700 uppercase tracking-widest font-bold">
-                          {slug === 'finance' ? 'sync' : 'log'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  <Anel pct={pct}>
+                    {escalar ? (
+                      <span className="text-[15px] font-extrabold tracking-tighter text-zinc-900 dark:text-white leading-none">
+                        {Math.round(d.score)}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                        {getPillarIcon(slug)}
+                      </span>
+                    )}
+                  </Anel>
 
-                  {spark.length > 0 && (
-                    <div className="w-full h-6 mt-3 opacity-10 group-hover:opacity-30 transition-all duration-500">
-                      <Sparkline data={spark} height={24} color="#18181b" />
-                    </div>
-                  )}
+                  <span className="text-[9px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-[0.1em] text-center leading-tight line-clamp-2">
+                    {d.config.name}
+                  </span>
+
+                  {/* Altura reservada mesmo sem variação: sem isso os
+                      cartões da grade ficam com alturas diferentes. */}
+                  <span className="text-[8px] font-mono font-bold h-3 leading-3">
+                    {d.hasRealData && d.delta7 !== 0 ? (
+                      <span className={isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                        {isPositive ? '↗' : '↘'}{Math.abs(d.delta7)}%
+                      </span>
+                    ) : (
+                      <span className="text-zinc-300 dark:text-zinc-700">
+                        {unit === 'R$' && d.hasRealData ? formatPillarScore(d.score, unit) : '—'}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}
