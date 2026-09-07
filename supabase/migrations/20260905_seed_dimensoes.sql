@@ -9,15 +9,14 @@
 --
 -- ⚠️ LEIA ANTES DE RODAR
 --
--- 1. Isto grava na sua conta REAL, no banco de PRODUÇÃO. Não existe
---    ambiente de teste de banco neste projeto.
+-- 1. Alvo: a conta de DEMONSTRAÇÃO (esteticabrasilia712@gmail.com),
+--    não a sua. Seu histórico real fica intocado.
 --
--- 2. É HISTÓRICO INVENTADO. Depois de rodar, seus gráficos vão
---    mostrar uma constância que não aconteceu. Serve para ver o
---    Compass funcionando; não serve como registro seu.
+-- 2. É histórico inventado, e é esse o objetivo: a conta de
+--    demonstração existe para mostrar o produto cheio.
 --
--- 3. XP: se houver gatilho de XP sobre habit_logs, seu XP vai subir
---    junto. Confira o número antes e depois se isso importar.
+-- 3. XP: gatilhos sobre habit_logs podem elevar o XP da conta de
+--    demonstração — o que aqui é desejável, não efeito colateral.
 --
 -- 4. TUDO É REVERSÍVEL. Todo hábito criado aqui leva a marca
 --    "[seed]" na coluna `cue`, e o rodapé traz o comando que apaga
@@ -31,7 +30,7 @@
 BEGIN;
 
 WITH alvo AS (
-    SELECT id AS user_id FROM auth.users WHERE email = 'kkfelipemacedo@gmail.com'
+    SELECT id AS user_id FROM auth.users WHERE email = 'esteticabrasilia712@gmail.com'
 ),
 -- Um hábito por pilar. Os `pillar` abaixo são exatamente as chaves
 -- que o HABIT_PILLAR_TO_COMPASS reconhece — errar a chave faria o
@@ -67,7 +66,7 @@ WHERE NOT EXISTS (
 -- Sendo determinístico, rodar duas vezes gera os MESMOS dias — e o
 -- NOT EXISTS abaixo impede duplicata.
 WITH alvo AS (
-    SELECT id AS user_id FROM auth.users WHERE email = 'kkfelipemacedo@gmail.com'
+    SELECT id AS user_id FROM auth.users WHERE email = 'esteticabrasilia712@gmail.com'
 ),
 habitos AS (
     SELECT h.id, h.user_id, h.pillar
@@ -108,7 +107,7 @@ SELECT h.pillar,
        COUNT(l.id) AS registros_90d
 FROM public.habits h
 LEFT JOIN public.habit_logs l ON l.habit_id = h.id
-WHERE h.user_id = (SELECT id FROM auth.users WHERE email = 'kkfelipemacedo@gmail.com')
+WHERE h.user_id = (SELECT id FROM auth.users WHERE email = 'esteticabrasilia712@gmail.com')
   AND h.cue LIKE '[seed]%'
 GROUP BY h.pillar, h.title
 ORDER BY h.pillar;
@@ -121,13 +120,13 @@ ORDER BY h.pillar;
 --       SELECT id FROM public.habits
 --       WHERE cue LIKE '[seed]%'
 --         AND user_id = (SELECT id FROM auth.users
---                        WHERE email = 'kkfelipemacedo@gmail.com')
+--                        WHERE email = 'esteticabrasilia712@gmail.com')
 --   );
 --
 --   DELETE FROM public.habits
 --   WHERE cue LIKE '[seed]%'
 --     AND user_id = (SELECT id FROM auth.users
---                    WHERE email = 'kkfelipemacedo@gmail.com');
+--                    WHERE email = 'esteticabrasilia712@gmail.com');
 --
 -- (o XP eventualmente concedido pelos gatilhos NÃO volta sozinho)
 -- =============================================================
