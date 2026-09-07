@@ -60,7 +60,7 @@ const WorkoutCard = ({ workout, currentUserId, onDelete }) => {
         </div>
         <div className="flex-1 min-w-0">
           <span className="text-[11px] font-bold tracking-wide block truncate">
-            {workout.profiles?.username || 'Anon'}
+            {workout.profiles?.username || 'Participante'}
           </span>
           <span className="text-[9px] font-mono opacity-40">{timeAgo(workout.created_at)}</span>
         </div>
@@ -122,7 +122,7 @@ const WorkoutCard = ({ workout, currentUserId, onDelete }) => {
                 )}
               </div>
               <div>
-                <span className="text-[10px] font-bold">{c.profiles?.username}</span>
+                <span className="text-[10px] font-bold">{c.profiles?.username || 'Participante'}</span>
                 <p className="text-[11px] opacity-70">{c.body}</p>
               </div>
             </div>

@@ -27,7 +27,7 @@ export async function checkIn(challengeId, userId, workoutData, scoringType, sco
       points,
       ...workoutData,
     })
-    .select(`*, profiles(username, avatar_url)`)
+    .select(`*, profiles(username:full_name, avatar_url)`)
     .single();
   if (error) throw error;
   return data;
@@ -36,7 +36,7 @@ export async function checkIn(challengeId, userId, workoutData, scoringType, sco
 export async function getWorkouts(challengeId, limit = 30) {
   const { data } = await supabase
     .from('workouts')
-    .select(`*, profiles(username, avatar_url)`)
+    .select(`*, profiles(username:full_name, avatar_url)`)
     .eq('challenge_id', challengeId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -84,7 +84,7 @@ export async function toggleReaction(workoutId, userId, emoji = '👍') {
 export async function getReactions(workoutId) {
   const { data } = await supabase
     .from('workout_reactions')
-    .select('*, profiles(username)')
+    .select('*, profiles(username:full_name)')
     .eq('workout_id', workoutId);
   return data ?? [];
 }
@@ -93,7 +93,7 @@ export async function addComment(workoutId, userId, body) {
   const { data } = await supabase
     .from('workout_comments')
     .insert({ workout_id: workoutId, user_id: userId, body })
-    .select('*, profiles(username, avatar_url)')
+    .select('*, profiles(username:full_name, avatar_url)')
     .single();
   return data;
 }
@@ -101,25 +101,35 @@ export async function addComment(workoutId, userId, body) {
 export async function getComments(workoutId) {
   const { data } = await supabase
     .from('workout_comments')
-    .select('*, profiles(username, avatar_url)')
+    .select('*, profiles(username:full_name, avatar_url)')
     .eq('workout_id', workoutId)
     .order('created_at', { ascending: true });
   return data ?? [];
 }
 
 export async function getLeaderboard(challengeId) {
-  const { data } = await supabase
+  // Era `profiles!inner(...)`: com join INTERNO, quem não tem perfil
+  // legível some do ranking inteiro — o placar ficava vazio em vez de
+  // incompleto. Embed normal traz a linha mesmo sem o perfil.
+  const { data, error } = await supabase
     .from('workouts')
-    .select(`user_id, points, profiles!inner(username, avatar_url)`)
+    .select(`user_id, points, profiles(username:full_name, avatar_url)`)
     .eq('challenge_id', challengeId);
+
+  if (error) {
+    console.error('[arena] ranking falhou:', error.message);
+    return [];
+  }
 
   const leaderboard = {};
   data?.forEach((w) => {
     if (!leaderboard[w.user_id]) {
       leaderboard[w.user_id] = {
         userId: w.user_id,
-        username: w.profiles.username,
-        avatar: w.profiles.avatar_url,
+        // Sem perfil legível ainda dá para pontuar: o placar mostra
+        // "Participante" em vez de sumir com a pessoa.
+        username: w.profiles?.username || 'Participante',
+        avatar: w.profiles?.avatar_url || null,
         points: 0,
         workouts: 0,
       };

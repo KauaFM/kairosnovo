@@ -10,7 +10,7 @@ export async function sendMessage(challengeId, userId, body) {
 export async function getMessages(challengeId, limit = 50) {
   const { data } = await supabase
     .from('messages')
-    .select('*, profiles(username, avatar_url)')
+    .select('*, profiles(username:full_name, avatar_url)')
     .eq('challenge_id', challengeId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -31,7 +31,7 @@ export function subscribeToChat(challengeId, onMessage) {
       async (payload) => {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('username, avatar_url')
+          .select('username:full_name, avatar_url')
           .eq('id', payload.new.user_id)
           .single();
         onMessage({ ...payload.new, profiles: profile });

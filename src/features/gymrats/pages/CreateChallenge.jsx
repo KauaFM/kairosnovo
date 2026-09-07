@@ -4,6 +4,7 @@ import { ArrowLeft, Zap } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { createChallenge } from '../services/challengeService';
 import ScoringConfig from '../components/ScoringConfig';
+import { MODELOS_DESAFIO } from '../utils/formatters';
 
 import { toLocalDateStr } from '../../../utils/dateUtils';
 
@@ -19,9 +20,52 @@ const CreateChallenge = ({ onBack, onCreated }) => {
   const [endsAt, setEndsAt] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [modelo, setModelo] = useState(null);
+  const [modeloDica, setModeloDica] = useState('');
+
+  // Preenche, mas não tranca: tudo continua editável depois. Modelo
+  // que vira formulário somente-leitura só troca uma limitação por
+  // outra.
+  const aplicarModelo = (m) => {
+    setModelo(m.id);
+    setModeloDica(m.dica || '');
+    if (m.nome) setName(m.nome);
+    if (m.descricao) setDescription(m.descricao);
+    setScoringType(m.scoring_type);
+    setScoringConfig(m.scoring_config || {});
+    setError('');
+  };
+
+  // `new Date('2026-09-05')` é meia-noite UTC — em Brasília, 21h do
+  // dia 4. Era o mesmo bug de fuso do gráfico financeiro, e aqui
+  // custava caro: o desafio começava 3h antes e, pior, TERMINAVA às
+  // 21h do dia anterior ao escolhido, encurtando-o em um dia inteiro.
+  // Montando a data por partes, ela nasce no fuso local.
+  const inicioDoDiaLocal = (yyyyMmDd) => {
+    const [a, m, d] = yyyyMmDd.split('-').map(Number);
+    return new Date(a, m - 1, d, 0, 0, 0, 0);
+  };
+  const fimDoDiaLocal = (yyyyMmDd) => {
+    const [a, m, d] = yyyyMmDd.split('-').map(Number);
+    // 23:59:59 do dia escolhido: quem marca "termina dia 30" espera
+    // ter o dia 30 inteiro.
+    return new Date(a, m - 1, d, 23, 59, 59, 999);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError(t('arena.errName')); return; }
+
+    // Validações que faltavam — dava para criar um desafio que
+    // termina antes de começar, ou com 0 participantes.
+    if (endsAt && fimDoDiaLocal(endsAt) <= inicioDoDiaLocal(startsAt)) {
+      setError('A data de fim precisa ser depois da de início.');
+      return;
+    }
+    if (maxParticipants && parseInt(maxParticipants, 10) < 2) {
+      setError('Um desafio precisa de pelo menos 2 participantes.');
+      return;
+    }
+
     setSubmitting(true);
     setError('');
     try {
@@ -35,9 +79,9 @@ const CreateChallenge = ({ onBack, onCreated }) => {
           scoring_type: scoringType,
           scoring_config: scoringConfig,
           allow_teams: allowTeams,
-          max_participants: maxParticipants ? parseInt(maxParticipants) : null,
-          starts_at: new Date(startsAt).toISOString(),
-          ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+          max_participants: maxParticipants ? parseInt(maxParticipants, 10) : null,
+          starts_at: inicioDoDiaLocal(startsAt).toISOString(),
+          ends_at: endsAt ? fimDoDiaLocal(endsAt).toISOString() : null,
         },
         session.user.id
       );
@@ -54,6 +98,19 @@ const CreateChallenge = ({ onBack, onCreated }) => {
   };
 
   const inputClass = "w-full text-[12px] font-mono bg-transparent border rounded-sm px-3 py-2.5 outline-none transition-all focus:border-[#22c55e]/50";
+
+  // Data por extenso, montada por partes pelo mesmo motivo das
+  // outras: toLocaleDateString sobre `new Date('YYYY-MM-DD')` mostra
+  // o dia anterior em Brasília.
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const formatarDia = (yyyyMmDd) => {
+    if (!yyyyMmDd) return '';
+    const [, m, d] = yyyyMmDd.split('-').map(Number);
+    return `${d} de ${MESES[m - 1]}`;
+  };
+  const duracaoEmDias = endsAt
+    ? Math.max(1, Math.round((inicioDoDiaLocal(endsAt) - inicioDoDiaLocal(startsAt)) / 86400000) + 1)
+    : null;
 
   return (
     <div className="space-y-5">
@@ -73,6 +130,40 @@ const CreateChallenge = ({ onBack, onCreated }) => {
           {error}
         </div>
       )}
+
+      {/* MODELOS — a criação começava num formulário em branco com
+          pontuação só de academia. Quem queria clube do livro tinha
+          que traduzir "1 livro por mês" para "pontos por treino"
+          sozinho. Um toque aqui preenche tudo e mostra que a Arena
+          serve para qualquer coisa repetível. */}
+      <div>
+        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-2">COMECE POR UM MODELO</label>
+        <div className="grid grid-cols-3 gap-2">
+          {MODELOS_DESAFIO.map((m) => {
+            const ativo = modelo === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => aplicarModelo(m)}
+                className="rounded-sm border px-2 py-2.5 flex flex-col items-center gap-1 transition-all active:scale-[0.97]"
+                style={{
+                  borderColor: ativo ? '#22c55e' : 'var(--border-color)',
+                  backgroundColor: ativo ? 'rgba(34,197,94,0.08)' : 'var(--glass-bg)',
+                }}
+              >
+                <span className="text-[15px] leading-none">{m.icone}</span>
+                <span className="text-[8.5px] font-mono tracking-wider text-center leading-tight"
+                  style={{ opacity: ativo ? 1 : 0.55 }}>
+                  {m.titulo}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {modeloDica && (
+          <p className="text-[10px] font-mono opacity-40 mt-2">{modeloDica}</p>
+        )}
+      </div>
 
       {/* Name */}
       <div>
@@ -156,6 +247,27 @@ const CreateChallenge = ({ onBack, onCreated }) => {
         config={scoringConfig}
         setConfig={setScoringConfig}
       />
+
+      {/* Resumo — antes era só o botão: a pessoa configurava seis
+          campos e apertava sem ver o que ia nascer. Datas em
+          português, duração calculada, e o que ficou em aberto dito
+          com todas as letras. */}
+      {name.trim() && (
+        <div className="rounded-sm border px-3 py-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}>
+          <span className="text-[8px] font-mono uppercase tracking-[0.25em] opacity-40 block mb-2">
+            O que vai ser criado
+          </span>
+          <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-main)' }}>
+            <strong>{name.trim()}</strong>, começando {formatarDia(startsAt)}
+            {endsAt ? ` e terminando ${formatarDia(endsAt)} (${duracaoEmDias} ${duracaoEmDias === 1 ? 'dia' : 'dias'})` : ', sem data de fim'}.
+            {' '}{maxParticipants ? `Até ${maxParticipants} participantes` : 'Sem limite de participantes'}
+            {allowTeams ? ', em equipes' : ', individual'}.
+          </p>
+          <p className="text-[10px] font-mono opacity-40 mt-2">
+            Você entra como admin e recebe um código para convidar.
+          </p>
+        </div>
+      )}
 
       {/* Submit */}
       <button
