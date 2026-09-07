@@ -420,11 +420,7 @@ export default function App() {
                     <div className="flex-1 relative">
                         <Suspense fallback={<TabLoader />}>
                         <TabWrapper active={activeTab === 'nexus'}>
-                            {/* Antes isto abria o MentorModal — uma SEGUNDA
-                                superfície de IA, com estética própria,
-                                competindo com a aba central. Agora os dois
-                                caminhos levam ao mesmo lugar: o Centro. */}
-                            <Nexus theme={theme} toggleTheme={toggleTheme} onOpenMentor={() => setActiveTab('focus')} onOpenBlog={() => setShowBlog(true)} />
+                            <Nexus theme={theme} toggleTheme={toggleTheme} onOpenBlog={() => setShowBlog(true)} />
                         </TabWrapper>
                         <TabWrapper active={activeTab === 'vault'}>
                             <Vault habits={vaultHabits} theme={theme} toggleTheme={toggleTheme} />

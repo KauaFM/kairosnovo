@@ -22,16 +22,21 @@
 //  · Sequência e semana, mas como linha densa, não como card
 //    grande: é referência, não protagonista.
 //
-// O que entrou:
+// A composição final, em ordem de prioridade:
 //
-//  · AGORA — um único foco, vindo do MESMO motor de sinais que
-//    alimenta as intervenções do ORVAX (features/orvax/engine).
-//    Um cérebro só, duas superfícies: o que o mentor te diria ao
-//    ser aberto é o que o Home destaca sozinho. Sem isso, seriam
-//    dois sistemas dando conselhos diferentes na mesma tela.
+//   1. IDENTIDADE — marca, lema e a frase que muda
+//   2. TIMELINE   — o destino de conteúdo, com peso de destino
+//   3. HOJE       — sequência, progresso e semana, em linha densa
+//   4. EXECUÇÃO   — PendingTodayPanel, onde a pessoa age
+//
+// Cheguei a colocar aqui um bloco AGORA, com a intervenção de maior
+// peso vinda do motor de sinais. Saiu a pedido do dono, e nada se
+// perdeu: a mesma intervenção continua chegando pela presença do
+// ORVAX no canto e pelo Centro. O Home ficou sendo sobre o DIA da
+// pessoa; a análise tem lugar próprio.
 // =============================================================
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Flame, Newspaper, ChevronRight, Loader2 } from 'lucide-react';
+import { Flame, Newspaper, ChevronRight } from 'lucide-react';
 import { getProfile, getWeekActivity } from '../services/db';
 import ScrollReveal from './ScrollReveal';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
@@ -39,19 +44,9 @@ import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import PendingTodayPanel from './lifeOs/PendingTodayPanel';
 import { useLang } from '../i18n/LanguageContext';
 import { coletarSinais } from '../features/orvax/engine/signals';
-import { avaliarRegras } from '../features/orvax/engine/rules';
-import { executarAcao } from '../features/orvax/engine/actions';
 import { appEvents } from '../lib/events';
 
-/** Saudação real pela hora — não "Olá!", que serve para qualquer momento. */
-function saudacao(hora) {
-    if (hora < 5) return 'Boa madrugada';
-    if (hora < 12) return 'Bom dia';
-    if (hora < 18) return 'Boa tarde';
-    return 'Boa noite';
-}
-
-const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
+const Nexus = ({ theme, toggleTheme, onOpenBlog }) => {
     const { t } = useLang();
 
     // Frase rotativa da abertura. Eu tinha removido por achar genérica —
@@ -65,11 +60,10 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
          
     }, [quotes.length]);
 
+    // Os sinais alimentam a linha HOJE. O bloco AGORA saiu do Home a
+    // pedido do dono — a entrega de intervenção segue pela presença do
+    // ORVAX no canto e pelo Centro, então nada se perdeu.
     const [sinais, setSinais] = useState(null);
-    const [foco, setFoco] = useState(null);        // a intervenção de maior peso
-    const [carregando, setCarregando] = useState(true);
-    const [executando, setExecutando] = useState(null);
-    const [feito, setFeito] = useState(null);
     const [stats, setStats] = useState({ streak: null, semana: [false, false, false, false, false, false, false] });
 
     const unsubscribeRef = useRef([]);
@@ -79,7 +73,6 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
         try {
             const s = await coletarSinais();
             setSinais(s);
-            setFoco(s ? (avaliarRegras(s)[0] || null) : null);
             const [perfil, semana] = await Promise.all([
                 getProfile().catch(() => null),
                 getWeekActivity().catch(() => []),
@@ -90,8 +83,6 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
             });
         } catch (e) {
             console.warn('[nexus] carga falhou:', e?.message);
-        } finally {
-            setCarregando(false);
         }
     }, []);
 
@@ -110,19 +101,6 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const agir = async (acao) => {
-        setExecutando(acao.tipo);
-        try {
-            const r = await executarAcao(acao, sinais, {});
-            if (r?.mensagem) setFeito(r.mensagem);
-            if (acao.tipo === 'dispensar') setFoco(null);
-            await carregar();
-        } finally {
-            setExecutando(null);
-        }
-    };
-
-    const hora = new Date().getHours();
     const tarefas = sinais?.tarefas;
     const habitosFeitos = sinais?.habitos?.filter((h) => h.feitoHoje).length ?? 0;
     const habitosTotal = sinais?.habitos?.length ?? 0;
@@ -148,56 +126,78 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                     }}
                 />
 
-                {/* ─── ABERTURA ─── intocada, como o dono pediu ──── */}
-                <div className="mb-8 flex flex-col items-center justify-center relative w-full mt-4 z-10">
-                    <div className="flex items-center gap-2 mb-4">
+                {/* ─── ABERTURA ────────────────────────────────────
+                    O problema desta área era hierarquia, não tamanho:
+                    duas frases motivacionais empilhadas, ambas centradas
+                    e em peso parecido, disputando o mesmo papel. Quando
+                    tudo grita, nada é ouvido.
+
+                    A solução foi dar PAPÉIS diferentes em vez de tamanhos
+                    diferentes: o lema é fixo e ancora a tela; a frase
+                    rotativa é a voz que muda, e ganha um registro próprio
+                    (alinhada à esquerda, com um traço vertical) para se
+                    ler como outra coisa — não como um segundo título. */}
+                <div className="mb-9 flex flex-col items-center relative w-full mt-4 z-10 px-7">
+                    <div className="flex items-center gap-2 mb-5">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" style={{ boxShadow: '0 0 6px rgba(34,197,94,0.5)' }}></div>
                         <span className="text-[8px] font-mono tracking-[0.35em] uppercase font-bold text-[#22c55e] opacity-60">
                             {t('nexus.monitoringActive')}
                         </span>
                     </div>
 
-                    <h2 className="text-[18px] font-outfit font-black tracking-tight text-center max-w-[85%] leading-relaxed mb-4 opacity-85">
+                    {/* O lema — a âncora. Maior e mais firme que tudo. */}
+                    <h2 className="text-[22px] font-outfit font-black tracking-tight text-center leading-[1.25] mb-8"
+                        style={{ color: 'var(--text-main)' }}>
                         {t('nexus.watching1')} <br />{t('nexus.watching2')}
                     </h2>
 
-                    {/* A frase ganhou corpo. Antes era 8px com 30% de
-                        opacidade — do tamanho de um rodapé, então ninguém
-                        lia. Se ela existe para motivar, precisa ser vista;
-                        se não merece ser vista, não deveria existir. */}
-                    <div className="w-full px-8 mt-3 mb-1 flex items-center justify-center" style={{ minHeight: 52 }}>
-                        <p
-                            key={quoteIndex}
-                            className="text-[15px] font-outfit font-bold text-center leading-snug animate-fade-in-up"
-                            style={{ color: 'var(--text-main)', opacity: 0.75 }}
-                        >
-                            {quotes[quoteIndex]}
-                        </p>
+                    {/* A voz que muda. Traço vertical + alinhamento à
+                        esquerda: o olho entende na hora que é outra
+                        natureza de texto, sem precisar de rótulo. */}
+                    <div className="w-full flex items-stretch gap-3.5" style={{ minHeight: 54 }}>
+                        <div className="w-[2px] rounded-full shrink-0"
+                            style={{ backgroundColor: 'var(--text-main)', opacity: 0.18 }} />
+                        <div className="flex-1 flex items-center">
+                            <p
+                                key={quoteIndex}
+                                className="text-[15px] font-outfit font-medium leading-snug animate-fade-in-up"
+                                style={{ color: 'var(--text-main)', opacity: 0.7 }}
+                            >
+                                {quotes[quoteIndex]}
+                            </p>
+                        </div>
                     </div>
 
-                    {/* Marcador de qual frase está no ar — dá ritmo e mostra
-                        que há mais, sem gastar uma palavra a mais. */}
-                    <div className="flex items-center gap-1.5 mb-7">
+                    {/* Marcadores alinhados ao mesmo eixo do traço. */}
+                    <div className="w-full flex items-center gap-1.5 mt-3.5 mb-8 pl-[14px]">
                         {quotes.map((_, i) => (
                             <span
                                 key={i}
                                 className="rounded-full transition-all duration-500"
                                 style={{
-                                    width: i === quoteIndex ? 14 : 4,
+                                    width: i === quoteIndex ? 16 : 4,
                                     height: 3,
                                     backgroundColor: 'var(--text-main)',
-                                    opacity: i === quoteIndex ? 0.5 : 0.15,
+                                    opacity: i === quoteIndex ? 0.45 : 0.13,
                                 }}
                             />
                         ))}
                     </div>
 
-                    {/* Timeline: era uma pílula apagada de 9px que sumia na
-                        tela. Virou um bloco de largura inteira, com a
-                        hierarquia de quem quer ser tocado. */}
+                </div>
+
+                {/* ─── TIMELINE ─────────────────────────────────────
+                    Era uma pílula apagada de 9px que sumia na tela; virou
+                    bloco com a hierarquia de quem quer ser tocado.
+
+                    Fica FORA do bloco de identidade e no mesmo px-5 das
+                    seções de baixo: é um destino, não parte da abertura —
+                    e dentro do px-7 da abertura o subtítulo quebrava em
+                    duas linhas por falta de largura. */}
+                <ScrollReveal delay={0.05} className="px-5 mb-7 relative z-10">
                     <button
                         onClick={() => onOpenBlog?.()}
-                        className="w-[calc(100%-2.5rem)] rounded-[20px] border px-5 py-4 flex items-center gap-4 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full rounded-[20px] border px-5 py-4 flex items-center gap-4 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
                     >
                         <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
@@ -209,90 +209,13 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                                 style={{ color: 'var(--text-main)' }}>
                                 {t('nexus.newsTimeline')}
                             </span>
-                            <span className="block text-[10px] font-mono uppercase tracking-wider opacity-35 mt-0.5"
+                            <span className="block text-[10px] font-mono uppercase tracking-wider opacity-35 mt-0.5 whitespace-nowrap"
                                 style={{ color: 'var(--text-main)' }}>
                                 {t('nexus.newsSub')}
                             </span>
                         </div>
                         <ChevronRight size={18} className="opacity-30 shrink-0" style={{ color: 'var(--text-main)' }} />
                     </button>
-                </div>
-
-                {/* A saudação some quando não há dado a acrescentar: uma
-                    linha que só diz "Bom dia" é enfeite ocupando altura. */}
-                {pct !== null && (
-                    <div className="px-6 mb-3 relative z-10">
-                        <span className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35" style={{ color: 'var(--text-main)' }}>
-                            {saudacao(hora)} · {feitosDoDia}/{totalDoDia} de hoje
-                        </span>
-                    </div>
-                )}
-
-                {/* ─── AGORA ─── o único destaque da tela ────────── */}
-                <ScrollReveal delay={0.05} className="px-5 mb-7 relative z-10">
-                    <div
-                        className="rounded-[24px] border p-5"
-                        style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
-                    >
-                        <span className="block text-[8px] font-mono font-bold uppercase tracking-[0.3em] opacity-30 mb-3"
-                            style={{ color: 'var(--text-main)' }}>
-                            Agora
-                        </span>
-
-                        {carregando ? (
-                            <div className="flex items-center gap-2 py-1">
-                                <Loader2 size={14} className="animate-spin opacity-30" />
-                                <span className="text-[12px] opacity-35" style={{ color: 'var(--text-main)' }}>lendo seus dados</span>
-                            </div>
-                        ) : feito ? (
-                            <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-main)' }}>{feito}</p>
-                        ) : foco ? (
-                            // Só o SINAL e a AÇÃO. O parágrafo com o
-                            // raciocínio saiu daqui e vive no Centro: no
-                            // Home ele empurrava tudo o mais para baixo e
-                            // exigia leitura antes de qualquer decisão.
-                            <>
-                                <h2 className="text-[17px] font-bold leading-snug mb-4" style={{ color: 'var(--text-main)' }}>
-                                    {foco.titulo}
-                                </h2>
-                                {(() => {
-                                    const a = foco.acoes.find((x) => x.primaria) || foco.acoes.find((x) => x.tipo !== 'dispensar');
-                                    return a ? (
-                                        <button
-                                            onClick={() => agir(a)}
-                                            disabled={!!executando}
-                                            className="w-full h-11 rounded-xl text-[11px] font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
-                                        >
-                                            {executando === a.tipo && <Loader2 size={13} className="animate-spin" />}
-                                            {a.rotulo}
-                                        </button>
-                                    ) : null;
-                                })()}
-                                <button
-                                    onClick={() => onOpenMentor?.()}
-                                    className="w-full mt-2 h-9 text-[10px] font-mono uppercase tracking-[0.2em] opacity-40 transition-opacity hover:opacity-70"
-                                    style={{ color: 'var(--text-main)' }}
-                                >
-                                    Por quê?
-                                </button>
-                            </>
-                        ) : (
-                            // Nada a apontar — e ele diz isso em uma linha,
-                            // sem inventar urgência para parecer útil.
-                            <>
-                                <h2 className="text-[17px] font-bold leading-snug mb-4" style={{ color: 'var(--text-main)' }}>
-                                    Nada exigindo sua atenção.
-                                </h2>
-                                <button
-                                    onClick={() => onOpenMentor?.()}
-                                    className="w-full h-11 rounded-xl border text-[11px] font-mono font-bold uppercase tracking-wider transition-all active:scale-[0.98]"
-                                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
-                                >
-                                    Falar com o ORVAX
-                                </button>
-                            </>
-                        )}
-                    </div>
                 </ScrollReveal>
 
                 {/* ─── HOJE ─── linha densa, não card grande ─────── */}
