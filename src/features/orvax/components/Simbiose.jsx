@@ -21,7 +21,7 @@ import React, { useMemo } from 'react';
 
 // Os nove estados. Mantido aqui como documentação da criatura —
 // não exportado, para não quebrar o fast-refresh do componente.
-// eslint-disable-next-line no-unused-vars
+ 
 const ESTADOS = [
     'IDLE',       // observando — respiração quase imperceptível
     'LISTENING',  // a pessoa interage: ele se aproxima
