@@ -7,6 +7,8 @@ import { CountUp } from '../viz/CountUp';
 import { YearHeatmap } from '../viz/YearHeatmap';
 import { MultiYearLine } from '../viz/MultiYearLine';
 import { useLang } from '../../../../i18n/LanguageContext';
+import AnaliseProfunda from '../../components/AnaliseProfunda';
+import { useDimensaoBruta } from '../../hooks/useDimensaoBruta';
 
 interface Props {
   data: PillarData;
@@ -282,6 +284,11 @@ const HorizontalRanking = ({ items, color, isFinance }: { items: { label: string
 
 export function PillarLayered({ data, onBack, hideNav }: Props) {
   const { t } = useLang();
+  // Antes do early return de isEmpty: hook depois de return condicional
+  // quebra as regras do React (a ordem das chamadas mudaria entre
+  // renders). O hook trata sozinho o caso de não haver dado.
+  const bruto = useDimensaoBruta(data.config.slug);
+
   if (data.isEmpty) {
     return (
       <div className={`bg-[#F8FAFC] dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 relative ${hideNav ? 'h-full' : 'min-h-screen'}`}>
@@ -396,7 +403,18 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         )}
       </section>
 
-      {/* 2. CONTEXTO E PADRÕES OCULTOS - DADOS REAIS */}
+      {/* 2. ANÁLISE PROFUNDA — comparação de períodos, sequências,
+          padrões de horário e de semana, extremos e a composição do
+          número (drill-down por hábito). Tudo derivado de dado real
+          pelo motor em features/metrics/engine; quando falta base, os
+          blocos dizem isso em vez de desenhar gráfico vazio. */}
+      {bruto.pronto && (
+        <section className="max-w-xl mx-auto px-5 mb-2">
+          <AnaliseProfunda habitos={bruto.habitos} logs={bruto.logs} cor={color} />
+        </section>
+      )}
+
+      {/* 3. CONTEXTO E PADRÕES OCULTOS - DADOS REAIS */}
       <section className="max-w-xl mx-auto px-5 space-y-6">
         
         {/* CICLO DE VIDA (12 MESES) */}
