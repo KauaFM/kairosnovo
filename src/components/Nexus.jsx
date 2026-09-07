@@ -161,32 +161,72 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                         {t('nexus.watching1')} <br />{t('nexus.watching2')}
                     </h2>
 
-                    <div className="h-6 flex items-center justify-center overflow-hidden w-full px-6">
-                        <p key={quoteIndex} className="text-[8px] font-mono opacity-30 tracking-[0.25em] text-center uppercase animate-fade-in-up">
-                            &quot; {quotes[quoteIndex]} &quot;
+                    {/* A frase ganhou corpo. Antes era 8px com 30% de
+                        opacidade — do tamanho de um rodapé, então ninguém
+                        lia. Se ela existe para motivar, precisa ser vista;
+                        se não merece ser vista, não deveria existir. */}
+                    <div className="w-full px-8 mt-3 mb-1 flex items-center justify-center" style={{ minHeight: 52 }}>
+                        <p
+                            key={quoteIndex}
+                            className="text-[15px] font-outfit font-bold text-center leading-snug animate-fade-in-up"
+                            style={{ color: 'var(--text-main)', opacity: 0.75 }}
+                        >
+                            {quotes[quoteIndex]}
                         </p>
                     </div>
 
+                    {/* Marcador de qual frase está no ar — dá ritmo e mostra
+                        que há mais, sem gastar uma palavra a mais. */}
+                    <div className="flex items-center gap-1.5 mb-7">
+                        {quotes.map((_, i) => (
+                            <span
+                                key={i}
+                                className="rounded-full transition-all duration-500"
+                                style={{
+                                    width: i === quoteIndex ? 14 : 4,
+                                    height: 3,
+                                    backgroundColor: 'var(--text-main)',
+                                    opacity: i === quoteIndex ? 0.5 : 0.15,
+                                }}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Timeline: era uma pílula apagada de 9px que sumia na
+                        tela. Virou um bloco de largura inteira, com a
+                        hierarquia de quem quer ser tocado. */}
                     <button
                         onClick={() => onOpenBlog?.()}
-                        className="mt-5 flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:scale-[1.03] active:scale-95"
+                        className="w-[calc(100%-2.5rem)] rounded-[20px] border px-5 py-4 flex items-center gap-4 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
                     >
-                        <Newspaper size={13} className="opacity-50" />
-                        <span className="text-[9px] font-mono font-bold tracking-[0.2em] uppercase opacity-50">{t('nexus.newsTimeline')}</span>
-                        <ChevronRight size={12} className="opacity-30" />
+                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: 'var(--text-main)' }}>
+                            <Newspaper size={17} style={{ color: 'var(--bg-color)' }} />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <span className="block text-[13px] font-outfit font-bold leading-tight"
+                                style={{ color: 'var(--text-main)' }}>
+                                {t('nexus.newsTimeline')}
+                            </span>
+                            <span className="block text-[10px] font-mono uppercase tracking-wider opacity-35 mt-0.5"
+                                style={{ color: 'var(--text-main)' }}>
+                                {t('nexus.newsSub')}
+                            </span>
+                        </div>
+                        <ChevronRight size={18} className="opacity-30 shrink-0" style={{ color: 'var(--text-main)' }} />
                     </button>
                 </div>
 
-                {/* Daqui para baixo é o que eu podia melhorar: o dia da
-                    pessoa, e não mais a marca. A saudação vem junto do
-                    AGORA para não repetir um segundo cabeçalho. */}
-                <div className="px-6 mb-3 relative z-10">
-                    <span className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35" style={{ color: 'var(--text-main)' }}>
-                        {saudacao(hora)}
-                        {pct !== null && ` · ${feitosDoDia}/${totalDoDia} de hoje`}
-                    </span>
-                </div>
+                {/* A saudação some quando não há dado a acrescentar: uma
+                    linha que só diz "Bom dia" é enfeite ocupando altura. */}
+                {pct !== null && (
+                    <div className="px-6 mb-3 relative z-10">
+                        <span className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35" style={{ color: 'var(--text-main)' }}>
+                            {saudacao(hora)} · {feitosDoDia}/{totalDoDia} de hoje
+                        </span>
+                    </div>
+                )}
 
                 {/* ─── AGORA ─── o único destaque da tela ────────── */}
                 <ScrollReveal delay={0.05} className="px-5 mb-7 relative z-10">
@@ -207,45 +247,45 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                         ) : feito ? (
                             <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text-main)' }}>{feito}</p>
                         ) : foco ? (
+                            // Só o SINAL e a AÇÃO. O parágrafo com o
+                            // raciocínio saiu daqui e vive no Centro: no
+                            // Home ele empurrava tudo o mais para baixo e
+                            // exigia leitura antes de qualquer decisão.
                             <>
-                                <h2 className="text-[16px] font-bold leading-snug mb-1.5" style={{ color: 'var(--text-main)' }}>
+                                <h2 className="text-[17px] font-bold leading-snug mb-4" style={{ color: 'var(--text-main)' }}>
                                     {foco.titulo}
                                 </h2>
-                                <p className="text-[12.5px] leading-relaxed opacity-60 mb-4" style={{ color: 'var(--text-main)' }}>
-                                    {foco.corpo}
-                                </p>
-                                <div className="flex flex-col gap-2">
-                                    {foco.acoes.filter((a) => a.tipo !== 'dispensar').slice(0, 2).map((a) => (
+                                {(() => {
+                                    const a = foco.acoes.find((x) => x.primaria) || foco.acoes.find((x) => x.tipo !== 'dispensar');
+                                    return a ? (
                                         <button
-                                            key={a.tipo + a.rotulo}
                                             onClick={() => agir(a)}
                                             disabled={!!executando}
-                                            className={[
-                                                'w-full h-10 rounded-xl text-[11px] font-mono font-bold uppercase tracking-wider',
-                                                'flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40',
-                                                a.primaria ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'border',
-                                            ].join(' ')}
-                                            style={a.primaria ? undefined : { borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                                            className="w-full h-11 rounded-xl text-[11px] font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
                                         >
                                             {executando === a.tipo && <Loader2 size={13} className="animate-spin" />}
                                             {a.rotulo}
                                         </button>
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            // Nada a apontar. Diz isso e oferece o mentor —
-                            // sem inventar urgência para parecer útil.
-                            <>
-                                <h2 className="text-[16px] font-bold leading-snug mb-1.5" style={{ color: 'var(--text-main)' }}>
-                                    Nada exigindo sua atenção.
-                                </h2>
-                                <p className="text-[12.5px] leading-relaxed opacity-60 mb-4" style={{ color: 'var(--text-main)' }}>
-                                    Olhei seus dados e não encontrei nada fora do lugar. Siga com o que já está na lista.
-                                </p>
+                                    ) : null;
+                                })()}
                                 <button
                                     onClick={() => onOpenMentor?.()}
-                                    className="w-full h-10 rounded-xl border text-[11px] font-mono font-bold uppercase tracking-wider transition-all active:scale-[0.98]"
+                                    className="w-full mt-2 h-9 text-[10px] font-mono uppercase tracking-[0.2em] opacity-40 transition-opacity hover:opacity-70"
+                                    style={{ color: 'var(--text-main)' }}
+                                >
+                                    Por quê?
+                                </button>
+                            </>
+                        ) : (
+                            // Nada a apontar — e ele diz isso em uma linha,
+                            // sem inventar urgência para parecer útil.
+                            <>
+                                <h2 className="text-[17px] font-bold leading-snug mb-4" style={{ color: 'var(--text-main)' }}>
+                                    Nada exigindo sua atenção.
+                                </h2>
+                                <button
+                                    onClick={() => onOpenMentor?.()}
+                                    className="w-full h-11 rounded-xl border text-[11px] font-mono font-bold uppercase tracking-wider transition-all active:scale-[0.98]"
                                     style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
                                 >
                                     Falar com o ORVAX
