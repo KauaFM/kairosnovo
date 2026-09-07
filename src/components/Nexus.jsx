@@ -37,17 +37,18 @@
 // =============================================================
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Flame, Newspaper, ChevronRight } from 'lucide-react';
-import { getProfile, getWeekActivity } from '../services/db';
+import { getProfile, getWeekActivity, getBlogPosts } from '../services/db';
 import ScrollReveal from './ScrollReveal';
 import { ScrollContainer, OrvaxHeader } from './BaseLayout';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import PendingTodayPanel from './lifeOs/PendingTodayPanel';
 import { useLang } from '../i18n/LanguageContext';
+import { monthLabelFromYYYYMM } from '../utils/dateUtils';
 import { coletarSinais } from '../features/orvax/engine/signals';
 import { appEvents } from '../lib/events';
 
 const Nexus = ({ theme, toggleTheme, onOpenBlog }) => {
-    const { t } = useLang();
+    const { t, lang } = useLang();
 
     // Frase rotativa da abertura. Eu tinha removido por achar genérica —
     // era decisão minha sobre identidade do produto, que não me cabia.
@@ -65,6 +66,9 @@ const Nexus = ({ theme, toggleTheme, onOpenBlog }) => {
     // ORVAX no canto e pelo Centro, então nada se perdeu.
     const [sinais, setSinais] = useState(null);
     const [stats, setStats] = useState({ streak: null, semana: [false, false, false, false, false, false, false] });
+    // A manchete mais recente. Falha em silêncio de propósito: o cartão
+    // funciona sem ela, e um erro do blog não pode derrubar o Home.
+    const [ultimoPost, setUltimoPost] = useState(null);
 
     const unsubscribeRef = useRef([]);
     const { subscribeToOrvaxAgenda } = useRealtimeSync();
@@ -73,10 +77,12 @@ const Nexus = ({ theme, toggleTheme, onOpenBlog }) => {
         try {
             const s = await coletarSinais();
             setSinais(s);
-            const [perfil, semana] = await Promise.all([
+            const [perfil, semana, posts] = await Promise.all([
                 getProfile().catch(() => null),
                 getWeekActivity().catch(() => []),
+                getBlogPosts().catch(() => []),
             ]);
+            setUltimoPost(posts?.[0] || null);
             setStats({
                 streak: perfil?.streak_days ?? 0,
                 semana: semana?.length === 7 ? semana : [false, false, false, false, false, false, false],
@@ -192,34 +198,49 @@ const Nexus = ({ theme, toggleTheme, onOpenBlog }) => {
                 </div>
 
                 {/* ─── TIMELINE ─────────────────────────────────────
-                    Era uma pílula apagada de 9px que sumia na tela; virou
-                    bloco com a hierarquia de quem quer ser tocado.
+                    Era um botão genérico — ícone, rótulo, seta —
+                    indistinguível de uma linha de configurações. O
+                    problema não era o estilo: é que ele não dizia NADA
+                    sobre o que havia do outro lado, então não dava
+                    vontade de tocar.
 
-                    Fica FORA do bloco de identidade e no mesmo px-5 das
-                    seções de baixo: é um destino, não parte da abertura —
-                    e dentro do px-7 da abertura o subtítulo quebrava em
-                    duas linhas por falta de largura. */}
+                    Agora mostra a manchete real do post mais recente. O
+                    conteúdo é o convite; o cartão é só a moldura. Sem
+                    post publicado, ele volta ao rótulo — sem inventar
+                    matéria que não existe. */}
                 <ScrollReveal delay={0.05} className="px-5 mb-7 relative z-10">
                     <button
                         onClick={() => onOpenBlog?.()}
-                        className="w-full rounded-[20px] border px-5 py-4 flex items-center gap-4 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full rounded-[22px] border overflow-hidden text-left transition-all hover:scale-[1.015] active:scale-[0.985] group"
                         style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
                     >
-                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: 'var(--text-main)' }}>
-                            <Newspaper size={17} style={{ color: 'var(--bg-color)' }} />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <span className="block text-[13px] font-outfit font-bold leading-tight"
+                        {/* Faixa superior: de onde vem */}
+                        <div className="flex items-center gap-2 px-5 pt-4 pb-2.5">
+                            <Newspaper size={12} className="opacity-40 shrink-0" style={{ color: 'var(--text-main)' }} />
+                            <span className="text-[9px] font-mono font-bold uppercase tracking-[0.24em] opacity-40"
                                 style={{ color: 'var(--text-main)' }}>
                                 {t('nexus.newsTimeline')}
                             </span>
-                            <span className="block text-[10px] font-mono uppercase tracking-wider opacity-35 mt-0.5 whitespace-nowrap"
+                            {ultimoPost && (
+                                <span className="ml-auto text-[9px] font-mono uppercase tracking-wider opacity-25"
+                                    style={{ color: 'var(--text-main)' }}>
+                                    {monthLabelFromYYYYMM(String(ultimoPost.created_at).slice(0, 7), lang)}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* A manchete — o que realmente convence a tocar */}
+                        <div className="px-5 pb-4">
+                            <p className="text-[16px] font-outfit font-bold leading-[1.3] mb-2.5"
                                 style={{ color: 'var(--text-main)' }}>
-                                {t('nexus.newsSub')}
+                                {ultimoPost?.title || t('nexus.newsSub')}
+                            </p>
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-[0.18em] opacity-50"
+                                style={{ color: 'var(--text-main)' }}>
+                                {ultimoPost ? t('nexus.newsRead') : t('nexus.newsOpen')}
+                                <ChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
                             </span>
                         </div>
-                        <ChevronRight size={18} className="opacity-30 shrink-0" style={{ color: 'var(--text-main)' }} />
                     </button>
                 </ScrollReveal>
 
