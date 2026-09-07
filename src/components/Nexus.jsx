@@ -145,31 +145,36 @@ const Nexus = ({ theme, toggleTheme, onOpenBlog }) => {
                         </span>
                     </div>
 
-                    {/* O lema — a âncora. Maior e mais firme que tudo. */}
-                    <h2 className="text-[22px] font-outfit font-black tracking-tight text-center leading-[1.25] mb-8"
-                        style={{ color: 'var(--text-main)' }}>
-                        {t('nexus.watching1')} <br />{t('nexus.watching2')}
-                    </h2>
+                    {/* AS FRASES, no lugar de honra — e com a tipografia
+                        que já estava aqui: mesma fonte, mesmo tamanho,
+                        mesmo peso. Só o conteúdo passou a mudar.
 
-                    {/* A voz que muda. Traço vertical + alinhamento à
-                        esquerda: o olho entende na hora que é outra
-                        natureza de texto, sem precisar de rótulo. */}
-                    <div className="w-full flex items-stretch gap-3.5" style={{ minHeight: 54 }}>
-                        <div className="w-[2px] rounded-full shrink-0"
-                            style={{ backgroundColor: 'var(--text-main)', opacity: 0.18 }} />
-                        <div className="flex-1 flex items-center">
-                            <p
-                                key={quoteIndex}
-                                className="text-[15px] font-outfit font-medium leading-snug animate-fade-in-up"
-                                style={{ color: 'var(--text-main)', opacity: 0.7 }}
-                            >
-                                {quotes[quoteIndex]}
-                            </p>
-                        </div>
+                        Antes havia duas mensagens motivacionais nesta
+                        área: o lema fixo aqui, e as frases rotativas
+                        logo abaixo, disputando o mesmo papel. Uma só
+                        ocupa o lugar das duas.
+
+                        minHeight fixo porque as frases têm comprimentos
+                        muito diferentes: "1% todo dia." ocupa 27px e a
+                        mais longa ocupa 82px (medido). Sem ele, a tela
+                        inteira pula a cada troca de frase.
+
+                        92 e não 84: com 84 a frase mais longa passava
+                        raspando, com 2px de folga — qualquer frase nova
+                        um pouco maior voltaria a empurrar o layout. */}
+                    <div className="w-full flex items-center justify-center mb-6" style={{ minHeight: 92 }}>
+                        <h2
+                            key={quoteIndex}
+                            className="text-[22px] font-outfit font-black tracking-tight text-center leading-[1.25] animate-fade-in-up"
+                            style={{ color: 'var(--text-main)' }}
+                        >
+                            {quotes[quoteIndex]}
+                        </h2>
                     </div>
 
-                    {/* Marcadores alinhados ao mesmo eixo do traço. */}
-                    <div className="w-full flex items-center gap-1.5 mt-3.5 mb-8 pl-[14px]">
+                    {/* Marcadores: mostram que há mais frases e qual está
+                        no ar, sem gastar uma palavra. */}
+                    <div className="flex items-center justify-center gap-1.5 mb-8">
                         {quotes.map((_, i) => (
                             <span
                                 key={i}
