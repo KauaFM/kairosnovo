@@ -10,11 +10,28 @@ export async function createChallenge(data, userId) {
     .single();
   if (error) throw error;
 
-  await supabase.from('challenge_members').insert({
+  // O erro deste insert era IGNORADO — e é o insert mais importante
+  // dos dois. As políticas de workouts e messages exigem ser membro
+  // do desafio; se o dono não entrar na lista, ele cria a sala, abre
+  // a sala, e encontra feed e chat vazios para sempre, sem nenhum
+  // aviso de que algo falhou.
+  const { error: erroMembro } = await supabase.from('challenge_members').insert({
     challenge_id: challenge.id,
     user_id: userId,
     role: 'admin',
   });
+
+  if (erroMembro) {
+    // Desafio sem dono é lixo: ninguém consegue usar e ele fica
+    // ocupando o código. Desfaz para não deixar rastro quebrado.
+    await supabase.from('challenges').delete().eq('id', challenge.id).eq('owner_id', userId);
+    throw new Error(
+      erroMembro.code === '23503'
+        ? 'Seu perfil ainda não está pronto. Recarregue o app e tente de novo.'
+        : `Criei o desafio mas não consegui te adicionar nele (${erroMembro.message}). Nada foi salvo.`
+    );
+  }
+
   return challenge;
 }
 
