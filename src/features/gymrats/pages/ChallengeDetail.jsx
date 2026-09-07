@@ -131,8 +131,12 @@ const ChallengeDetail = ({ challengeId, onBack }) => {
                     <div className="w-full h-full bg-current opacity-10" />
                   )}
                 </div>
-                <span className="text-[11px] font-bold tracking-wide flex-1 truncate">
-                  {m.profiles?.username}
+                {/* Sem perfil legível o nome vinha VAZIO — a linha
+                    aparecia como uma tira em branco, pior que dizer
+                    que não sabe. Ver 20260905_arena_perfis_colegas.sql */}
+                <span className="text-[11px] font-bold tracking-wide flex-1 truncate"
+                  style={{ opacity: m.profiles?.username ? 1 : 0.45 }}>
+                  {m.profiles?.username || 'Participante'}
                 </span>
                 {m.role !== 'member' && (
                   <span className="text-[8px] font-mono tracking-widest opacity-50 px-1.5 py-0.5 rounded-sm border"

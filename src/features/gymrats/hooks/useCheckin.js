@@ -28,7 +28,7 @@ export function useCheckin(challengeId) {
     const channel = subscribeToFeed(challengeId, async (newWorkout) => {
       const { data } = await supabase
         .from('profiles')
-        .select('username, avatar_url')
+        .select('username:full_name, avatar_url')
         .eq('id', newWorkout.user_id)
         .maybeSingle();
       setWorkouts((prev) => [{ ...newWorkout, profiles: data }, ...prev]);

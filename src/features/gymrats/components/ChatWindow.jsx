@@ -62,7 +62,7 @@ const ChatWindow = ({ challengeId, userId }) => {
               <div className={`max-w-[75%] ${isMe ? 'text-right' : ''}`}>
                 {!isMe && (
                   <span className="text-[9px] font-mono opacity-40 block mb-0.5">
-                    {msg.profiles?.username}
+                    {msg.profiles?.username || 'Participante'}
                   </span>
                 )}
                 <div

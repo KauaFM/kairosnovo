@@ -89,13 +89,21 @@ export async function getChallengeDetail(challengeId) {
 }
 
 export async function getChallengeMembers(challengeId) {
-  const { data } = await supabase
+  // O erro era descartado aqui, e `?? []` transformava qualquer falha
+  // em "0 membros" — exatamente o sintoma que ninguém conseguia
+  // diagnosticar: a lista dizia 2, a sala dizia 0, e nada no console.
+  const { data, error } = await supabase
     .from('challenge_members')
     .select(`
       *,
-      profiles(id, username, avatar_url)
+      profiles(id, username:full_name, avatar_url)
     `)
     .eq('challenge_id', challengeId);
+
+  if (error) {
+    console.error('[arena] membros falhou:', error.message);
+    return [];
+  }
   return data ?? [];
 }
 

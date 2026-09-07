@@ -4,6 +4,7 @@ import { ArrowLeft, Zap } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { createChallenge } from '../services/challengeService';
 import ScoringConfig from '../components/ScoringConfig';
+import { MODELOS_DESAFIO } from '../utils/formatters';
 
 import { toLocalDateStr } from '../../../utils/dateUtils';
 
@@ -19,6 +20,21 @@ const CreateChallenge = ({ onBack, onCreated }) => {
   const [endsAt, setEndsAt] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [modelo, setModelo] = useState(null);
+  const [modeloDica, setModeloDica] = useState('');
+
+  // Preenche, mas não tranca: tudo continua editável depois. Modelo
+  // que vira formulário somente-leitura só troca uma limitação por
+  // outra.
+  const aplicarModelo = (m) => {
+    setModelo(m.id);
+    setModeloDica(m.dica || '');
+    if (m.nome) setName(m.nome);
+    if (m.descricao) setDescription(m.descricao);
+    setScoringType(m.scoring_type);
+    setScoringConfig(m.scoring_config || {});
+    setError('');
+  };
 
   // `new Date('2026-09-05')` é meia-noite UTC — em Brasília, 21h do
   // dia 4. Era o mesmo bug de fuso do gráfico financeiro, e aqui
@@ -114,6 +130,40 @@ const CreateChallenge = ({ onBack, onCreated }) => {
           {error}
         </div>
       )}
+
+      {/* MODELOS — a criação começava num formulário em branco com
+          pontuação só de academia. Quem queria clube do livro tinha
+          que traduzir "1 livro por mês" para "pontos por treino"
+          sozinho. Um toque aqui preenche tudo e mostra que a Arena
+          serve para qualquer coisa repetível. */}
+      <div>
+        <label className="text-[9px] font-mono opacity-50 tracking-wider block mb-2">COMECE POR UM MODELO</label>
+        <div className="grid grid-cols-3 gap-2">
+          {MODELOS_DESAFIO.map((m) => {
+            const ativo = modelo === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => aplicarModelo(m)}
+                className="rounded-sm border px-2 py-2.5 flex flex-col items-center gap-1 transition-all active:scale-[0.97]"
+                style={{
+                  borderColor: ativo ? '#22c55e' : 'var(--border-color)',
+                  backgroundColor: ativo ? 'rgba(34,197,94,0.08)' : 'var(--glass-bg)',
+                }}
+              >
+                <span className="text-[15px] leading-none">{m.icone}</span>
+                <span className="text-[8.5px] font-mono tracking-wider text-center leading-tight"
+                  style={{ opacity: ativo ? 1 : 0.55 }}>
+                  {m.titulo}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {modeloDica && (
+          <p className="text-[10px] font-mono opacity-40 mt-2">{modeloDica}</p>
+        )}
+      </div>
 
       {/* Name */}
       <div>
