@@ -108,8 +108,13 @@ export function useVoz({ aoFinalizar, lang = 'pt-BR' } = {}) {
             // ou cancelou); só o resto merece virar mensagem.
             if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
                 setErro(AJUDA_BLOQUEADO);
+            } else if (e.error === 'network') {
+                // O reconhecimento do Chrome manda o áudio para um
+                // servidor: sem internet ele falha, e "tente de novo"
+                // faria a pessoa repetir para sempre.
+                setErro('O reconhecimento de voz precisa de internet. Verifique sua conexão.');
             } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
-                setErro('Não consegui ouvir agora. Tente de novo.');
+                setErro(`Não consegui ouvir agora (${e.error}). Tente de novo.`);
             }
             setOuvindo(false);
         };
@@ -117,7 +122,15 @@ export function useVoz({ aoFinalizar, lang = 'pt-BR' } = {}) {
         rec.onend = () => {
             setOuvindo(false);
             const texto = finalRef.current.trim();
-            if (texto) cbRef.current?.(texto);
+            if (texto) {
+                cbRef.current?.(texto);
+            } else {
+                // Antes isto era silêncio total: a pessoa falava, o
+                // microfone fechava e NADA acontecia — indistinguível de
+                // "o app está quebrado". Agora ela sabe que ele ouviu e
+                // não entendeu, que é uma informação diferente.
+                setErro('Não captei nada. Fale mais perto do microfone e tente de novo.');
+            }
             setParcial('');
         };
 
@@ -136,6 +149,13 @@ export function useVoz({ aoFinalizar, lang = 'pt-BR' } = {}) {
 
     return {
         suportado, ouvindo, preparando, parcial, erro,
-        iniciar, parar, limparErro: () => setErro(null),
+        iniciar, parar,
+        limparErro: () => setErro(null),
+        // Para a interface poder DIZER por que não dá, em vez de
+        // esconder o botão e deixar a pessoa achar que o app quebrou.
+        motivoIndisponivel: suportado
+            ? null
+            : 'Este navegador não reconhece fala. No Android, use o Chrome; no iPhone, o Safari. Você também pode ditar pelo teclado, no ícone de microfone dele.',
+        setErro,
     };
 }

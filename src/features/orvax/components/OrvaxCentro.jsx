@@ -150,7 +150,7 @@ export default function OrvaxCentro({ irPara }) {
 // Três gestos, e nada mais. O dock não existe aqui, então a SAÍDA
 // precisa estar sempre visível — imersão sem saída é armadilha.
 function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
-    const { suportado, ouvindo, preparando, parcial, erro, iniciar, parar, limparErro } = useVoz({ aoFinalizar: aoDitar });
+    const { suportado, ouvindo, preparando, parcial, erro, iniciar, parar, limparErro, motivoIndisponivel, setErro } = useVoz({ aoFinalizar: aoDitar });
 
     return (
         <div
@@ -195,12 +195,20 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
                     existe onde o navegador reconhece fala de verdade: um
                     microfone que não funciona faz a pessoa achar que o
                     problema é ela. */}
-                {suportado && (
+                {/* O botão SEMPRE aparece. Escondê-lo quando o navegador
+                    não reconhece fala deixava a pessoa sem microfone e
+                    sem explicação — ela conclui que o app está quebrado.
+                    Agora ele existe e, se não der, DIZ o motivo. */}
+                {(
                     <button
-                        onClick={ouvindo ? parar : iniciar}
+                        onClick={() => {
+                            if (!suportado) { setErro(motivoIndisponivel); return; }
+                            return ouvindo ? parar() : iniciar();
+                        }}
                         disabled={preparando}
                         aria-label={ouvindo ? 'Parar de ouvir' : 'Falar com o ORVAX'}
                         className="w-[70px] h-[70px] rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl relative bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
+                        style={{ opacity: suportado ? 1 : 0.45 }}
                     >
                         {ouvindo && (
                             <span className="absolute inset-0 rounded-full animate-ping"
