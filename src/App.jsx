@@ -28,6 +28,7 @@ import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';
 import InstallPrompt from './components/InstallPrompt';
 import QuickCapture from './components/QuickCapture';
+import OrvaxPresence from './features/orvax/components/OrvaxPresence';
 import DemoBar from './components/DemoBar';
 import { demoPedida, iniciarDemo } from './lib/demoSession';
 import { DialogHost } from './lib/dialog';
@@ -480,6 +481,14 @@ export default function App() {
                         Some na aba do mentor (lá o chat já faz isso) e quando
                         algum modal está aberto. */}
                     <QuickCapture hidden={isAnyModalOpen || activeTab === 'focus'} />
+
+                    {/* Presença do ORVAX: observa os dados reais e só aparece
+                        quando há algo que valha interromper. O silêncio é o
+                        estado padrão — ver engine/policy.js. */}
+                    <OrvaxPresence
+                        oculto={isAnyModalOpen}
+                        irPara={setActiveTab}
+                    />
                   </>
                   )}
                 </div>
