@@ -54,6 +54,17 @@ function saudacao(hora) {
 const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
     const { t } = useLang();
 
+    // Frase rotativa da abertura. Eu tinha removido por achar genérica —
+    // era decisão minha sobre identidade do produto, que não me cabia.
+    // O dono quis manter o bloco de abertura como está.
+    const [quoteIndex, setQuoteIndex] = useState(0);
+    const quotes = t('nexus.quotes');
+    useEffect(() => {
+        const i = setInterval(() => setQuoteIndex((p) => (p + 1) % quotes.length), 6000);
+        return () => clearInterval(i);
+         
+    }, [quotes.length]);
+
     const [sinais, setSinais] = useState(null);
     const [foco, setFoco] = useState(null);        // a intervenção de maior peso
     const [carregando, setCarregando] = useState(true);
@@ -120,11 +131,12 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
     const pct = totalDoDia > 0 ? Math.round((feitosDoDia / totalDoDia) * 100) : null;
 
     return (
-        <>
-            {/* Fora do ScrollContainer: o cabeçalho é fixo nas outras telas
-                (ver MetricsPage), e dentro ele rolava junto com o conteúdo. */}
-            <OrvaxHeader theme={theme} toggleTheme={toggleTheme} minimal />
-            <ScrollContainer>
+        <ScrollContainer>
+            {/* Cabeçalho COMPLETO (sem `minimal`) e DENTRO do container,
+                como no original: ele não é absoluto — é um bloco em fluxo
+                que reserva o próprio espaço com mb-14. Tirá-lo daqui fez
+                a marca ORVAX sobrepor o texto de abertura. */}
+            <OrvaxHeader theme={theme} toggleTheme={toggleTheme} />
             <div className="relative pb-10">
                 {/* Trama pontilhada — a única decoração que sobrou */}
                 <div
@@ -136,22 +148,44 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                     }}
                 />
 
-                {/* ─── Saudação ─────────────────────────────────── */}
-                <div className="px-6 pt-2 pb-7 relative z-10">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" style={{ boxShadow: '0 0 6px rgba(34,197,94,0.5)' }} />
+                {/* ─── ABERTURA ─── intocada, como o dono pediu ──── */}
+                <div className="mb-8 flex flex-col items-center justify-center relative w-full mt-4 z-10">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" style={{ boxShadow: '0 0 6px rgba(34,197,94,0.5)' }}></div>
                         <span className="text-[8px] font-mono tracking-[0.35em] uppercase font-bold text-[#22c55e] opacity-60">
                             {t('nexus.monitoringActive')}
                         </span>
                     </div>
-                    <h1 className="text-[26px] font-outfit font-black tracking-tight leading-none" style={{ color: 'var(--text-main)' }}>
-                        {saudacao(hora)}.
-                    </h1>
-                    {pct !== null && (
-                        <p className="text-[12px] mt-2 opacity-50" style={{ color: 'var(--text-main)' }}>
-                            {feitosDoDia} de {totalDoDia} {totalDoDia === 1 ? 'coisa' : 'coisas'} de hoje {feitosDoDia === 1 ? 'concluída' : 'concluídas'}.
+
+                    <h2 className="text-[18px] font-outfit font-black tracking-tight text-center max-w-[85%] leading-relaxed mb-4 opacity-85">
+                        {t('nexus.watching1')} <br />{t('nexus.watching2')}
+                    </h2>
+
+                    <div className="h-6 flex items-center justify-center overflow-hidden w-full px-6">
+                        <p key={quoteIndex} className="text-[8px] font-mono opacity-30 tracking-[0.25em] text-center uppercase animate-fade-in-up">
+                            &quot; {quotes[quoteIndex]} &quot;
                         </p>
-                    )}
+                    </div>
+
+                    <button
+                        onClick={() => onOpenBlog?.()}
+                        className="mt-5 flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:scale-[1.03] active:scale-95"
+                        style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
+                    >
+                        <Newspaper size={13} className="opacity-50" />
+                        <span className="text-[9px] font-mono font-bold tracking-[0.2em] uppercase opacity-50">{t('nexus.newsTimeline')}</span>
+                        <ChevronRight size={12} className="opacity-30" />
+                    </button>
+                </div>
+
+                {/* Daqui para baixo é o que eu podia melhorar: o dia da
+                    pessoa, e não mais a marca. A saudação vem junto do
+                    AGORA para não repetir um segundo cabeçalho. */}
+                <div className="px-6 mb-3 relative z-10">
+                    <span className="text-[11px] font-mono uppercase tracking-[0.2em] opacity-35" style={{ color: 'var(--text-main)' }}>
+                        {saudacao(hora)}
+                        {pct !== null && ` · ${feitosDoDia}/${totalDoDia} de hoje`}
+                    </span>
                 </div>
 
                 {/* ─── AGORA ─── o único destaque da tela ────────── */}
@@ -286,22 +320,8 @@ const Nexus = ({ theme, toggleTheme, onOpenMentor, onOpenBlog }) => {
                     <PendingTodayPanel />
                 </ScrollReveal>
 
-                {/* ─── Secundário ───────────────────────────────── */}
-                <div className="flex justify-center pb-4 relative z-10">
-                    <button
-                        onClick={() => onOpenBlog?.()}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:scale-[1.03] active:scale-95"
-                        style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--glass-bg)' }}
-                    >
-                        <Newspaper size={13} className="opacity-40" />
-                        <span className="text-[9px] font-mono font-bold tracking-[0.2em] uppercase opacity-40"
-                            style={{ color: 'var(--text-main)' }}>{t('nexus.newsTimeline')}</span>
-                        <ChevronRight size={12} className="opacity-25" />
-                    </button>
-                </div>
             </div>
-            </ScrollContainer>
-        </>
+        </ScrollContainer>
     );
 };
 
