@@ -13,6 +13,7 @@
 import { checkInHabit, updateHabit } from '../../../services/habits';
 import { updateTask } from '../../../services/db';
 import { appEvents } from '../../../lib/events';
+import { confirmDialog } from '../../../lib/dialog';
 import { toLocalDateStr } from '../../../utils/dateUtils';
 
 function amanha() {
@@ -51,10 +52,25 @@ export async function executarAcao(acao, sinais, ganchos = {}) {
         }
 
         case 'arquivar_habito': {
+            // A única ação daqui que FAZ ALGO SUMIR da vista da pessoa.
+            // O registro já a marcava como `confirmar: true`, mas este
+            // caminho não respeitava isso: um toque tirava o hábito da
+            // lista sem pergunta e sem desfazer fácil. Nada é apagado
+            // (o histórico continua no banco), mas some da tela — e
+            // sumir sem aviso é indistinguível de perder.
+            const confirmou = await confirmDialog({
+                title: 'Arquivar este hábito?',
+                message: `"${d.titulo}" sai da sua lista. O histórico dele não é apagado, mas ele deixa de aparecer no dia a dia.`,
+                confirmLabel: 'Arquivar',
+                cancelLabel: 'Manter',
+                danger: true,
+            });
+            if (!confirmou) return { ok: true, mensagem: null, fechar: false };
+
             const r = await updateHabit(d.habitId, { active: false });
             if (r?.error) return { ok: false, mensagem: `Não consegui arquivar: ${r.error.message}` };
             appEvents.emit({ type: 'HABIT_CHANGED' });
-            return { ok: true, mensagem: `"${d.titulo}" saiu da sua lista. Largar o que não serve mais é decisão, não desistência.` };
+            return { ok: true, mensagem: `"${d.titulo}" saiu da sua lista. O histórico ficou guardado.` };
         }
 
         case 'reorganizar_dia': {
@@ -64,6 +80,18 @@ export async function executarAcao(acao, sinais, ganchos = {}) {
             const manter = d.manter ?? 3;
             const aMover = (sinais?.tarefas?.listaPendentes || []).slice(manter);
             if (!aMover.length) return { ok: true, mensagem: 'Seu dia já está do tamanho certo.' };
+
+            // Diz QUANTAS antes de mexer. O botão é explícito, mas a
+            // pessoa não sabe o tamanho da mudança até ela acontecer —
+            // e mudança em lote sem número é o tipo de coisa que faz
+            // alguém achar que perdeu tarefa.
+            const confirmou = await confirmDialog({
+                title: `Mover ${aMover.length} ${aMover.length === 1 ? 'tarefa' : 'tarefas'} para amanhã?`,
+                message: `As ${manter} primeiras ficam para hoje. Nada é apagado — só muda de dia, e você pode trazer de volta na agenda.`,
+                confirmLabel: 'Reorganizar',
+                cancelLabel: 'Cancelar',
+            });
+            if (!confirmou) return { ok: true, mensagem: null, fechar: false };
 
             let movidas = 0;
             for (const t of aMover) {
