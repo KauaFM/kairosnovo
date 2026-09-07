@@ -148,6 +148,16 @@ const RealHeatmap = ({ data, color }: { data: any[], color: string }) => {
   );
 };
 
+// Recorte de apoio da faixa do hero. Rótulo pequeno, valor curto —
+// se o texto do eixo for longo, trunca em vez de quebrar o cartão.
+const MiniKpi = ({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) => (
+  <div className="rounded-2xl border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 px-3 py-2.5 text-center">
+    <span className="block text-[7px] font-mono uppercase tracking-[0.18em] text-slate-400 dark:text-zinc-600 font-bold mb-1">{rotulo}</span>
+    <span className="block text-[11px] font-bold text-slate-800 dark:text-zinc-200 truncate leading-tight">{valor}</span>
+    {nota && <span className="block text-[9px] font-mono text-slate-400 dark:text-zinc-600 mt-0.5">{nota}</span>}
+  </div>
+);
+
 const HorizontalRanking = ({ items, color, isFinance }: { items: {label: string, value: number, raw?: string}[], color: string, isFinance?: boolean }) => (
   <div className="flex flex-col gap-4 mt-4">
     {items.map((item, i) => (
@@ -203,6 +213,14 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
 
   // Prepare Real Donut Data
   const isFinance = data.config.slug === 'finance';
+
+  // Melhor e pior eixo do pilar, e quantos dias tiveram registro nos
+  // ultimos 90. Sao derivados do que ja vem em `data` — nenhuma
+  // consulta nova.
+  const eixos = [...(data.axesNow || [])].sort((a, b) => b.value - a.value);
+  const melhorEixo = eixos[0] || null;
+  const piorEixo = eixos.length > 1 ? eixos[eixos.length - 1] : null;
+  const diasAtivos = (data.yearDensity || []).slice(-90).filter((d) => (d.count || 0) > 0).length;
   const label1 = isFinance ? t('compass.income') : t('compass.productive');
   const label2 = isFinance ? t('compass.expense') : t('compass.distraction');
   const color2 = isFinance ? '#ef4444' : '#94a3b8';
@@ -226,36 +244,50 @@ export function PillarLayered({ data, onBack, hideNav }: Props) {
         </button>
       )}
 
-      {/* 1. HERO (ESTADO) - DADOS REAIS */}
-      <section className={`${hideNav ? 'pb-8 px-5 max-w-xl mx-auto' : 'pt-24 pb-8 px-5 max-w-xl mx-auto'}`}>
+      {/* 1. HERO — número + os indicadores que o contextualizam.
+          Antes era um número de 120px sozinho no meio da tela: bonito,
+          mas para saber se aquilo era bom ou ruim era preciso rolar
+          até algum gráfico. Agora o número vem acompanhado do que o
+          qualifica — variação, melhor eixo e consistência — na mesma
+          dobra, como nas referências de painel. */}
+      <section className={`${hideNav ? 'pb-6 px-5 max-w-xl mx-auto' : 'pt-24 pb-6 px-5 max-w-xl mx-auto'}`}>
         <div className="flex flex-col items-center text-center">
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-2 mb-5">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
             <h1 className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">{data.config.name}</h1>
           </div>
-          
+
           <div className="flex items-start justify-center">
-            {isFinance && <span className="text-4xl font-bold text-slate-400 dark:text-zinc-500 mt-4 mr-2">R$</span>}
-            <span 
-              className="font-bold tracking-tighter leading-none text-slate-900 dark:text-zinc-100" 
-              style={{ 
-                fontSize: 
-                  Math.abs(data.score) >= 1_000_000_000 ? '40px' :
-                  Math.abs(data.score) >= 1_000_000 ? '60px' :
-                  Math.abs(data.score) > 999 ? '80px' : '120px' 
+            {isFinance && <span className="text-2xl font-bold text-slate-400 dark:text-zinc-500 mt-3 mr-1.5">R$</span>}
+            <span
+              className="font-bold tracking-tighter leading-none text-slate-900 dark:text-zinc-100"
+              style={{
+                fontSize:
+                  Math.abs(data.score) >= 1_000_000_000 ? '34px' :
+                    Math.abs(data.score) >= 1_000_000 ? '46px' :
+                      Math.abs(data.score) > 999 ? '58px' : '76px'
               }}
             >
               <CountUp value={data.score} isFinance={isFinance} />
             </span>
           </div>
 
-          <div className={`mt-6 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold ${data.delta7 >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'}`}>
-            {data.delta7 >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+          <div className={`mt-4 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold ${data.delta7 >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'}`}>
+            {data.delta7 >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {data.delta7 >= 0 ? '+' : ''}{data.delta7}% vs semana
           </div>
 
           <InsightBox text={data.truth || data.todayInsight} type={insightType} />
         </div>
+
+        {/* Faixa de apoio: os três recortes que respondem "e daí?" */}
+        {(melhorEixo || piorEixo) && (
+          <div className="grid grid-cols-3 gap-2 mt-6">
+            <MiniKpi rotulo="Mais forte" valor={melhorEixo?.label ?? '—'} nota={melhorEixo ? `${Math.round(melhorEixo.value)}` : undefined} />
+            <MiniKpi rotulo="Mais fraco" valor={piorEixo?.label ?? '—'} nota={piorEixo ? `${Math.round(piorEixo.value)}` : undefined} />
+            <MiniKpi rotulo="Dias ativos" valor={String(diasAtivos)} nota="90d" />
+          </div>
+        )}
       </section>
 
       {/* 2. CONTEXTO E PADRÕES OCULTOS - DADOS REAIS */}

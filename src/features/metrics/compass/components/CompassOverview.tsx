@@ -63,6 +63,29 @@ const Kpi = ({ rotulo, valor, sufixo, nota, barra }: { rotulo: string; valor: nu
   </div>
 );
 
+// Anel de progresso. Em uma grade de 12, o anel é o que permite
+// comparar sem ler: a quantidade de traço preenchido é percebida de
+// relance, enquanto 12 números exigem leitura um a um.
+const Anel = ({ pct, children, tamanho = 54 }: { pct: number; children: React.ReactNode; tamanho?: number }) => {
+  const r = (tamanho - 5) / 2;
+  const perimetro = 2 * Math.PI * r;
+  const preenchido = Math.max(0, Math.min(100, pct)) / 100;
+  return (
+    <div className="relative shrink-0" style={{ width: tamanho, height: tamanho }}>
+      <svg width={tamanho} height={tamanho} className="absolute inset-0 -rotate-90">
+        <circle cx={tamanho / 2} cy={tamanho / 2} r={r} fill="none" strokeWidth="2.5"
+          className="stroke-zinc-100 dark:stroke-zinc-800" />
+        <circle cx={tamanho / 2} cy={tamanho / 2} r={r} fill="none" strokeWidth="2.5" strokeLinecap="round"
+          className="stroke-zinc-900 dark:stroke-white transition-all duration-1000"
+          strokeDasharray={perimetro}
+          strokeDashoffset={perimetro * (1 - preenchido)}
+          style={{ opacity: preenchido > 0 ? 0.85 : 0.12 }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">{children}</div>
+    </div>
+  );
+};
+
 const getPillarIcon = (slug: string) => {
   const iconProps = { className: "w-3.5 h-3.5", strokeWidth: 2.2 };
   switch (slug) {
@@ -216,60 +239,60 @@ export function CompassOverview({ onOpenPillar, onOpenCreation }: CompassOvervie
               Cada linha mantém tudo que o cartão tinha: ícone, nome,
               número, variação e a tendência (agora como barra, que
               compara melhor entre linhas do que 12 sparklines soltas). */}
-          <Card className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
+          {/* Cartões com ANEL de progresso. As linhas finas que testei
+              antes eram compactas mas mudas: um traço de 1px não dá
+              noção de quanto falta. O anel dá — e em uma grade de 12, é
+              o que permite varrer a tela sem ler número por número.
+
+              Finanças não tem anel: R$ não é uma fração de 100, e
+              inventar um teto para desenhar o círculo seria mentira
+              visual. Ali o número fala sozinho. */}
+          <div className="grid grid-cols-3 gap-2.5">
             {pillarCards.map(({ slug, data: d }) => {
               const unit = getPillarUnit(slug);
               const isPositive = d.delta7 >= 0;
-              const scoreStr = formatPillarScore(d.score, unit);
-              // Barra proporcional: score de 0-100 nos pilares
-              // comportamentais; nos outros só marca presença de dado.
-              const pct = unit === 'pts' || unit === '%'
-                ? Math.max(0, Math.min(100, d.score))
-                : (d.hasRealData ? 100 : 0);
+              const escalar = unit === 'pts' || unit === '%';
+              const pct = escalar ? Math.max(0, Math.min(100, d.score)) : (d.hasRealData ? 100 : 0);
 
               return (
                 <button
                   key={slug}
                   onClick={() => onOpenPillar(slug)}
-                  className="group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40 border-zinc-100 dark:border-zinc-800/60"
+                  className="group relative rounded-[20px] p-3 border border-zinc-200/50 dark:border-zinc-800/60 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl flex flex-col items-center gap-2 transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.97]"
                 >
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-800/50 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-zinc-900 transition-colors">
-                    {getPillarIcon(slug)}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2 mb-1.5">
-                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 truncate">
-                        {d.config.name}
+                  <Anel pct={pct}>
+                    {escalar ? (
+                      <span className="text-[15px] font-extrabold tracking-tighter text-zinc-900 dark:text-white leading-none">
+                        {Math.round(d.score)}
                       </span>
-                      <div className="flex items-baseline gap-1 shrink-0">
-                        {unit === 'R$' && <span className="text-[9px] font-bold text-zinc-400">R$</span>}
-                        <span className="text-[14px] font-extrabold tracking-tight text-zinc-900 dark:text-white leading-none">
-                          {scoreStr}
-                        </span>
-                        {unit !== 'R$' && <span className="text-[9px] font-bold text-zinc-400">{unit}</span>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                        <div className="h-full rounded-full bg-zinc-900 dark:bg-white transition-all duration-700"
-                          style={{ width: `${pct}%`, opacity: d.hasRealData ? 0.75 : 0.15 }} />
-                      </div>
-                      <span className="text-[8px] font-mono font-bold shrink-0 w-[34px] text-right"
-                        style={{ color: d.hasRealData && d.delta7 !== 0 ? undefined : 'transparent' }}>
-                        {d.hasRealData && d.delta7 !== 0 ? (
-                          <span className={isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
-                            {isPositive ? '↗' : '↘'}{Math.abs(d.delta7)}%
-                          </span>
-                        ) : '—'}
+                    ) : (
+                      <span className="text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                        {getPillarIcon(slug)}
                       </span>
-                    </div>
-                  </div>
+                    )}
+                  </Anel>
+
+                  <span className="text-[9px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-[0.1em] text-center leading-tight line-clamp-2">
+                    {d.config.name}
+                  </span>
+
+                  {/* Altura reservada mesmo sem variação: sem isso os
+                      cartões da grade ficam com alturas diferentes. */}
+                  <span className="text-[8px] font-mono font-bold h-3 leading-3">
+                    {d.hasRealData && d.delta7 !== 0 ? (
+                      <span className={isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                        {isPositive ? '↗' : '↘'}{Math.abs(d.delta7)}%
+                      </span>
+                    ) : (
+                      <span className="text-zinc-300 dark:text-zinc-700">
+                        {unit === 'R$' && d.hasRealData ? formatPillarScore(d.score, unit) : '—'}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}
-          </Card>
+          </div>
         </div>
 
         {/* FOOTER & SYSTEM COMMANDS */}
