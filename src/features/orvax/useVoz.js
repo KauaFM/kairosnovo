@@ -1,161 +1,249 @@
 // =============================================================
 // ORVAX — ditado por voz
 //
-// Usa a Web Speech API do navegador (SpeechRecognition), que
-// reconhece a fala no próprio navegador/aparelho. Não passa pela
-// nossa Edge Function nem gasta OpenAI: o que chega ao mentor é
-// texto, igual ao que a pessoa teria digitado.
+// ─── POR QUE ISTO FOI REESCRITO ──────────────────────────────
 //
-// ─── POR QUE O PROMPT DE PERMISSÃO NÃO APARECIA ──────────────
+// A primeira versão usava a Web Speech API. Ela é grátis e
+// instantânea, mas quebra exatamente onde o produto vive: no app
+// INSTALADO no celular ela frequentemente não existe, e quando a
+// permissão já foi negada não há barra de endereço nem cadeado para
+// reabrir. A pessoa fica sem microfone e sem caminho de volta —
+// foi literalmente o relato: "não tem como desativar o cadeado em
+// um app baixado no celular".
 //
-// O SpeechRecognition sozinho NÃO pede permissão de forma
-// confiável — em várias situações (PWA instalado, alguns Androids)
-// ele simplesmente falha calado, e a pessoa fica olhando para um
-// microfone que não faz nada. Quem provoca o pedido de verdade é
-// getUserMedia. Então pedimos o microfone por ele primeiro, e só
-// depois iniciamos o reconhecimento; o stream é fechado na hora,
-// porque queríamos a PERMISSÃO, não o áudio.
+// Agora o caminho principal é GRAVAR de verdade:
 //
-// E há o caso em que nenhum prompt vai aparecer nunca: quando a
-// pessoa já negou antes, o navegador não pergunta de novo. Aí o
-// único caminho é ela mudar nas configurações do site — e o app
-// precisa DIZER isso, em vez de ficar mudo. Silêncio aqui faz a
-// pessoa achar que o app está quebrado, ou que ela é que errou.
+//   getUserMedia + MediaRecorder ─▶ Edge Function transcribe-audio
+//                                    (Whisper, chave no servidor)
+//
+// Isso funciona em PWA instalado, porque getUserMedia é a API
+// padrão de mídia e pede permissão pelo diálogo NATIVO do sistema —
+// o mesmo de câmera. E a chave da OpenAI nunca entra no bundle,
+// respeitando a regra do projeto.
+//
+// A Web Speech continua como atalho quando existe: é instantânea e
+// não custa nada. Se falhar, cai para a gravação sem a pessoa
+// perceber.
 // =============================================================
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 
-function API() {
+function ApiFala() {
     if (typeof window === 'undefined') return null;
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
-const AJUDA_BLOQUEADO =
-    'O microfone está bloqueado para este site. Toque no cadeado (ou no ícone ao lado do endereço), permita o microfone e tente de novo.';
+/** Está rodando como app instalado (sem barra de endereço)? */
+export function ehAppInstalado() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia?.('(display-mode: standalone)').matches
+        || window.navigator.standalone === true
+        || !!window.Capacitor?.isNativePlatform?.();
+}
+
+/**
+ * Instrução de permissão que serve para o contexto REAL da pessoa.
+ * Mandar alguém "tocar no cadeado" dentro de um app instalado é
+ * mandar procurar algo que não existe ali.
+ */
+function comoLiberarMicrofone() {
+    if (ehAppInstalado()) {
+        const android = /android/i.test(navigator.userAgent);
+        return android
+            ? 'O microfone está bloqueado. Abra os Ajustes do celular → Apps → ORVAX → Permissões → Microfone → Permitir. Depois volte aqui.'
+            : 'O microfone está bloqueado. Abra os Ajustes do celular → ORVAX (ou Safari → Microfone) e permita o acesso. Depois volte aqui.';
+    }
+    return 'O microfone está bloqueado para este site. Toque no cadeado ao lado do endereço, permita o microfone e tente de novo.';
+}
+
+/** Formato que o navegador realmente sabe gravar. */
+function melhorFormato() {
+    if (typeof MediaRecorder === 'undefined') return null;
+    const opcoes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    return opcoes.find((t) => MediaRecorder.isTypeSupported?.(t)) || '';
+}
 
 export function useVoz({ aoFinalizar, lang = 'pt-BR' } = {}) {
-    const Rec = API();
-    const [suportado] = useState(!!Rec);
     const [ouvindo, setOuvindo] = useState(false);
-    const [preparando, setPreparando] = useState(false); // pedindo permissão
+    const [preparando, setPreparando] = useState(false);
+    const [transcrevendo, setTranscrevendo] = useState(false);
     const [parcial, setParcial] = useState('');
     const [erro, setErro] = useState(null);
-    const recRef = useRef(null);
+
+    const recFalaRef = useRef(null);
+    const gravadorRef = useRef(null);
+    const pedacosRef = useRef([]);
+    const streamRef = useRef(null);
     const finalRef = useRef('');
+    const usouFalaRef = useRef(false);
     const cbRef = useRef(aoFinalizar);
     useEffect(() => { cbRef.current = aoFinalizar; }, [aoFinalizar]);
 
-    const parar = useCallback(() => {
-        try { recRef.current?.stop(); } catch { /* já parado */ }
-        setOuvindo(false);
+    // Gravar é possível em qualquer lugar com microfone. Isto é o que
+    // torna o recurso disponível no app instalado.
+    const suportado = typeof navigator !== 'undefined'
+        && !!navigator.mediaDevices?.getUserMedia
+        && typeof MediaRecorder !== 'undefined';
+
+    const encerrarStream = useCallback(() => {
+        try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* ok */ }
+        streamRef.current = null;
     }, []);
 
-    /**
-     * Garante a permissão do microfone.
-     * @returns {Promise<'ok'|'bloqueado'|'indisponivel'>}
-     */
-    const garantirPermissao = useCallback(async () => {
-        if (!navigator.mediaDevices?.getUserMedia) return 'indisponivel';
+    // ── transcrição no servidor ───────────────────────────────
+    const transcrever = useCallback(async (blob) => {
+        setTranscrevendo(true);
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Só precisávamos do "sim". Manter o stream aberto deixaria o
-            // indicador de microfone aceso à toa e brigaria com o
-            // reconhecimento pelo mesmo dispositivo.
-            stream.getTracks().forEach((t) => t.stop());
-            return 'ok';
+            const form = new FormData();
+            const ext = (blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm');
+            form.append('file', blob, `ditado.${ext}`);
+
+            const { data, error } = await supabase.functions.invoke('transcribe-audio', { body: form });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
+            const texto = String(data?.text || '').trim();
+            if (texto) cbRef.current?.(texto);
+            else setErro('Não captei nada. Fale mais perto e tente de novo.');
         } catch (e) {
-            if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') return 'bloqueado';
-            return 'indisponivel';
+            const msg = String(e?.message || '');
+            setErro(
+                /Failed to send|fetch/i.test(msg)
+                    ? 'Sem conexão para transcrever. Tente de novo com internet.'
+                    // Enquanto a função não estiver publicada, o convite a
+                    // "tentar de novo" seria mentira: diz o que houve.
+                    : /not found|404/i.test(msg)
+                        ? 'A transcrição ainda não está ativa no servidor. Use o teclado por enquanto.'
+                        : msg || 'Não consegui transcrever agora.'
+            );
+        } finally {
+            setTranscrevendo(false);
+            setParcial('');
         }
+    }, []);
+
+    const parar = useCallback(() => {
+        setOuvindo(false);
+        try { recFalaRef.current?.stop(); } catch { /* ok */ }
+        try {
+            if (gravadorRef.current?.state === 'recording') gravadorRef.current.stop();
+        } catch { /* ok */ }
     }, []);
 
     const iniciar = useCallback(async () => {
-        if (!Rec || ouvindo || preparando) return;
+        if (ouvindo || preparando || transcrevendo) return;
         setErro(null);
         setParcial('');
         finalRef.current = '';
+        usouFalaRef.current = false;
+        pedacosRef.current = [];
 
-        // Se já foi negado antes, nenhum prompt vai aparecer — então
-        // explica o caminho em vez de tentar e falhar em silêncio.
-        try {
-            const st = await navigator.permissions?.query({ name: 'microphone' });
-            if (st?.state === 'denied') { setErro(AJUDA_BLOQUEADO); return; }
-        } catch { /* navegador sem Permissions API: segue e tenta */ }
+        if (!suportado) {
+            setErro('Este aparelho não tem microfone disponível para o app.');
+            return;
+        }
 
+        // getUserMedia é quem provoca o diálogo NATIVO de permissão —
+        // inclusive no app instalado. A Web Speech sozinha não pede de
+        // forma confiável, e era por isso que nada acontecia.
         setPreparando(true);
-        const permissao = await garantirPermissao();
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+        } catch (e) {
+            setPreparando(false);
+            setErro(
+                e?.name === 'NotAllowedError' || e?.name === 'SecurityError'
+                    ? comoLiberarMicrofone()
+                    : 'Não encontrei um microfone disponível.'
+            );
+            return;
+        }
         setPreparando(false);
 
-        if (permissao === 'bloqueado') { setErro(AJUDA_BLOQUEADO); return; }
-        if (permissao === 'indisponivel') { setErro('Não encontrei um microfone disponível.'); return; }
-
-        const rec = new Rec();
-        rec.lang = lang;
-        rec.continuous = false;
-        rec.interimResults = true; // mostra o texto se formando
-
-        rec.onresult = (e) => {
-            let interino = '';
-            for (let i = e.resultIndex; i < e.results.length; i++) {
-                const t = e.results[i][0].transcript;
-                if (e.results[i].isFinal) finalRef.current += t;
-                else interino += t;
-            }
-            setParcial(finalRef.current + interino);
-        };
-
-        rec.onerror = (e) => {
-            // 'no-speech' e 'aborted' são situações normais (não falou,
-            // ou cancelou); só o resto merece virar mensagem.
-            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-                setErro(AJUDA_BLOQUEADO);
-            } else if (e.error === 'network') {
-                // O reconhecimento do Chrome manda o áudio para um
-                // servidor: sem internet ele falha, e "tente de novo"
-                // faria a pessoa repetir para sempre.
-                setErro('O reconhecimento de voz precisa de internet. Verifique sua conexão.');
-            } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
-                setErro(`Não consegui ouvir agora (${e.error}). Tente de novo.`);
-            }
-            setOuvindo(false);
-        };
-
-        rec.onend = () => {
-            setOuvindo(false);
-            const texto = finalRef.current.trim();
-            if (texto) {
-                cbRef.current?.(texto);
-            } else {
-                // Antes isto era silêncio total: a pessoa falava, o
-                // microfone fechava e NADA acontecia — indistinguível de
-                // "o app está quebrado". Agora ela sabe que ele ouviu e
-                // não entendeu, que é uma informação diferente.
-                setErro('Não captei nada. Fale mais perto do microfone e tente de novo.');
-            }
-            setParcial('');
-        };
-
-        recRef.current = rec;
+        // ── Grava sempre. É o caminho que funciona em todo lugar ──
         try {
-            rec.start();
+            const mime = melhorFormato();
+            const gravador = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+            gravadorRef.current = gravador;
+            gravador.ondataavailable = (e) => { if (e.data?.size) pedacosRef.current.push(e.data); };
+            gravador.onstop = async () => {
+                encerrarStream();
+                // Se a Web Speech já entregou o texto, a gravação foi só
+                // seguro: não gasta transcrição à toa.
+                if (usouFalaRef.current && finalRef.current.trim()) return;
+                const blob = new Blob(pedacosRef.current, { type: mime || 'audio/webm' });
+                if (blob.size < 1200) { setErro('Não captei nada. Fale mais perto e tente de novo.'); return; }
+                await transcrever(blob);
+            };
+            gravador.start();
             setOuvindo(true);
         } catch {
-            setErro('Não consegui abrir o microfone.');
+            encerrarStream();
+            setErro('Não consegui gravar o áudio neste aparelho.');
+            return;
         }
-    }, [Rec, lang, ouvindo, preparando, garantirPermissao]);
 
-    // Deixar o reconhecimento vivo depois que a tela sai é vazamento de
-    // recurso — e o microfone continuaria aberto.
-    useEffect(() => () => { try { recRef.current?.abort(); } catch { /* ok */ } }, []);
+        // ── Atalho: se o navegador reconhece fala, usa e evita custo ──
+        const ApiF = ApiFala();
+        if (ApiF) {
+            try {
+                const rec = new ApiF();
+                rec.lang = lang;
+                rec.continuous = false;
+                rec.interimResults = true;
+                rec.onresult = (e) => {
+                    let interino = '';
+                    for (let i = e.resultIndex; i < e.results.length; i++) {
+                        const t = e.results[i][0].transcript;
+                        if (e.results[i].isFinal) finalRef.current += t;
+                        else interino += t;
+                    }
+                    setParcial(finalRef.current + interino);
+                };
+                rec.onend = () => {
+                    const texto = finalRef.current.trim();
+                    if (texto) {
+                        usouFalaRef.current = true;
+                        cbRef.current?.(texto);
+                        setParcial('');
+                    }
+                    // Sem texto: não faz nada. O gravador ainda está
+                    // rodando e a transcrição do servidor assume — é
+                    // esse encadeamento que faz funcionar onde a Web
+                    // Speech falha calada.
+                    parar();
+                };
+                // Falha da Web Speech é silenciosa de propósito: existe o
+                // caminho da gravação atrás dela. Avisar aqui assustaria
+                // a pessoa por algo que vai se resolver sozinho.
+                rec.onerror = () => { };
+                rec.start();
+                recFalaRef.current = rec;
+            } catch { /* sem atalho: segue só com gravação */ }
+        }
+    }, [ouvindo, preparando, transcrevendo, suportado, lang, transcrever, encerrarStream, parar]);
+
+    // Sair da tela com o microfone aberto é vazamento de recurso — e o
+    // indicador de gravação ficaria aceso no celular.
+    useEffect(() => () => {
+        try { recFalaRef.current?.abort(); } catch { /* ok */ }
+        try { if (gravadorRef.current?.state === 'recording') gravadorRef.current.stop(); } catch { /* ok */ }
+        encerrarStream();
+    }, [encerrarStream]);
 
     return {
-        suportado, ouvindo, preparando, parcial, erro,
-        iniciar, parar,
+        suportado,
+        ouvindo,
+        preparando,
+        transcrevendo,
+        parcial,
+        erro,
+        iniciar,
+        parar,
         limparErro: () => setErro(null),
-        // Para a interface poder DIZER por que não dá, em vez de
-        // esconder o botão e deixar a pessoa achar que o app quebrou.
-        motivoIndisponivel: suportado
-            ? null
-            : 'Este navegador não reconhece fala. No Android, use o Chrome; no iPhone, o Safari. Você também pode ditar pelo teclado, no ícone de microfone dele.',
         setErro,
+        motivoIndisponivel: suportado ? null : 'Este aparelho não expõe microfone para o app.',
     };
 }
