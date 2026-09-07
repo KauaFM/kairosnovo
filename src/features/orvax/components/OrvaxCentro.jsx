@@ -150,7 +150,7 @@ export default function OrvaxCentro({ irPara }) {
 // Três gestos, e nada mais. O dock não existe aqui, então a SAÍDA
 // precisa estar sempre visível — imersão sem saída é armadilha.
 function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
-    const { suportado, ouvindo, preparando, parcial, erro, iniciar, parar, limparErro, motivoIndisponivel, setErro } = useVoz({ aoFinalizar: aoDitar });
+    const { suportado, ouvindo, preparando, transcrevendo, parcial, erro, iniciar, parar, limparErro, motivoIndisponivel, setErro } = useVoz({ aoFinalizar: aoDitar });
 
     return (
         <div
@@ -159,11 +159,11 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
         >
             {/* O que ele está ouvindo, enquanto ouve — sem isso a pessoa
                 fala no escuro sem saber se está sendo captada. */}
-            {(ouvindo || parcial) && (
+            {(ouvindo || parcial || transcrevendo) && (
                 <div className="pointer-events-auto max-w-[300px] px-4 py-2.5 rounded-2xl border text-center"
                     style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-color)' }}>
                     <p className="text-[12px] leading-snug" style={{ color: 'var(--text-main)', opacity: parcial ? 0.85 : 0.4 }}>
-                        {parcial || 'ouvindo...'}
+                        {parcial || (transcrevendo ? 'entendendo o que você disse...' : 'ouvindo...')}
                     </p>
                 </div>
             )}
@@ -205,7 +205,7 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
                             if (!suportado) { setErro(motivoIndisponivel); return; }
                             return ouvindo ? parar() : iniciar();
                         }}
-                        disabled={preparando}
+                        disabled={preparando || transcrevendo}
                         aria-label={ouvindo ? 'Parar de ouvir' : 'Falar com o ORVAX'}
                         className="w-[70px] h-[70px] rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl relative bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
                         style={{ opacity: suportado ? 1 : 0.45 }}
@@ -214,7 +214,7 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
                             <span className="absolute inset-0 rounded-full animate-ping"
                                 style={{ backgroundColor: 'var(--text-main)', opacity: 0.25, animationDuration: '1.6s' }} />
                         )}
-                        {preparando ? <Loader2 size={22} className="animate-spin relative" />
+                        {(preparando || transcrevendo) ? <Loader2 size={22} className="animate-spin relative" />
                             : ouvindo ? <Square size={20} strokeWidth={2.4} className="relative" />
                                 : <Mic size={25} strokeWidth={1.7} className="relative" />}
                     </button>
@@ -271,7 +271,7 @@ function Conversa({ aoVoltar }) {
         }
     }, [texto, enviando, mensagens]);
 
-    const { suportado, ouvindo, parcial, iniciar, parar } = useVoz({ aoFinalizar: (t) => enviar(t) });
+    const { suportado, ouvindo, transcrevendo, parcial, iniciar, parar } = useVoz({ aoFinalizar: (t) => enviar(t) });
 
     useEffect(() => {
         let vivo = true;
@@ -352,7 +352,7 @@ function Conversa({ aoVoltar }) {
                 style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
                 {ouvindo && (
                     <p className="text-[11px] text-center mb-2 opacity-60" style={{ color: 'var(--text-main)' }}>
-                        {parcial || 'ouvindo...'}
+                        {parcial || (transcrevendo ? 'entendendo o que você disse...' : 'ouvindo...')}
                     </p>
                 )}
                 <div className="flex items-end gap-2 rounded-[24px] border px-4 py-2"
