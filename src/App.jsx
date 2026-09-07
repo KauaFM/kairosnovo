@@ -449,10 +449,14 @@ export default function App() {
                     </div>
 
                     {/* NAVIGATION DOCK (Horizontal) */}
+                    {/* O Centro do ORVAX é imersivo: dentro dele o dock
+                        some junto com todo o resto. Quem entra ali está
+                        com o mentor, não navegando o app — e o próprio
+                        Centro oferece a saída. */}
                     <Navigation
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
-                        isAnyModalOpen={isAnyModalOpen}
+                        isAnyModalOpen={isAnyModalOpen || activeTab === 'focus'}
                         userRole={userRole}
                     />
 
@@ -468,7 +472,7 @@ export default function App() {
                         quando há algo que valha interromper. O silêncio é o
                         estado padrão — ver engine/policy.js. */}
                     <OrvaxPresence
-                        oculto={isAnyModalOpen}
+                        oculto={isAnyModalOpen || activeTab === 'focus'}
                         irPara={setActiveTab}
                     />
                   </>

@@ -17,14 +17,15 @@
 // atender.
 // =============================================================
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, ArrowLeft, ArrowUp } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowUp, PenLine, Mic, Square, X } from 'lucide-react';
 import Simbiose from './Simbiose';
 import NucleoOrvax from './NucleoOrvax';
 import { coletarSinais } from '../engine/signals';
 import { avaliarRegras } from '../engine/rules';
 import { executarAcao } from '../engine/actions';
 import { sendMentorMessage, getMentorHistory } from '../../../services/mentorAgent';
-import { ScrollContainer, OrvaxHeader } from '../../../components/BaseLayout';
+import { ScrollContainer } from '../../../components/BaseLayout';
+import { useVoz } from '../useVoz';
 
 const ESTADO_POR_TIPO = {
     alerta: 'ATTENTION', recomendacao: 'SPEAKING', analise: 'ANALYZING',
@@ -98,9 +99,12 @@ export default function OrvaxCentro({ theme, toggleTheme, irPara }) {
 
     return (
         <>
-            <OrvaxHeader theme={theme} toggleTheme={toggleTheme} minimal />
+            {/* Sem OrvaxHeader: aqui não há marca, tema nem idioma. O
+                dock e os atalhos também somem (ver App.jsx). A tela
+                inteira é o encontro com o mentor, e a única saída é o
+                botão da barra de baixo. */}
             <ScrollContainer>
-                <div className="min-h-full flex flex-col items-center px-6 pt-6 pb-28 text-center">
+                <div className="min-h-full flex flex-col items-center px-6 pt-10 pb-40 text-center">
 
                     {/* ─── A SIMBIOSE ─── o primeiro e maior elemento */}
                     <div className="mt-6 mb-7">
@@ -167,18 +171,105 @@ export default function OrvaxCentro({ theme, toggleTheme, irPara }) {
                                         {r.rotulo}
                                     </button>
                                 ))}
-                                <button
-                                    onClick={() => setModo('conversa')}
-                                    className="w-full h-10 rounded-xl text-[11px] font-mono font-bold uppercase tracking-wider mt-1 transition-all active:scale-[0.98] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
-                                >
-                                    Conversar com o ORVAX
-                                </button>
                             </div>
                         </div>
                     )}
                 </div>
             </ScrollContainer>
+
+            {/* ─── BARRA ─── escrever · falar · sair ───────────────
+                Três gestos, e nada mais. O dock não existe aqui, então
+                esta barra é a única navegação — e a saída precisa estar
+                sempre visível, senão a imersão vira armadilha. */}
+            <BarraAcoes
+                aoEscrever={() => setModo('conversa')}
+                aoDitar={(texto) => {
+                    sessionStorage.setItem('orvax_pergunta_inicial', texto);
+                    setModo('conversa');
+                }}
+                aoSair={() => irPara?.('nexus')}
+            />
         </>
+    );
+}
+
+// ─── Barra de ações ───────────────────────────────────────────
+function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
+    const { suportado, ouvindo, parcial, erro, iniciar, parar, limparErro } = useVoz({ aoFinalizar: aoDitar });
+
+    return (
+        <div
+            className="absolute left-0 right-0 flex flex-col items-center gap-3 px-6 pointer-events-none"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.75rem)' }}
+        >
+            {/* O que ele está ouvindo, enquanto ouve. Sem isso a pessoa
+                fala no escuro e não sabe se está sendo captada. */}
+            {(ouvindo || parcial) && (
+                <div className="pointer-events-auto max-w-[300px] px-4 py-2 rounded-2xl border text-center"
+                    style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-color)' }}>
+                    <p className="text-[12px] leading-snug" style={{ color: 'var(--text-main)', opacity: parcial ? 0.85 : 0.4 }}>
+                        {parcial || 'ouvindo...'}
+                    </p>
+                </div>
+            )}
+
+            {erro && (
+                <button
+                    onClick={limparErro}
+                    className="pointer-events-auto px-4 py-2 rounded-2xl border text-[11px]"
+                    style={{ borderColor: 'rgba(239,68,68,0.4)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)' }}
+                >
+                    {erro}
+                </button>
+            )}
+
+            {/* Fundo sólido, não translúcido: a barra flutua sobre
+                conteúdo que rola, e com --glass-bg os botões de trás
+                vazavam através dela. */}
+            <div
+                className="pointer-events-auto flex items-center gap-3 rounded-full border px-3 py-2.5 shadow-2xl"
+                style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-color)' }}
+            >
+                {/* Escrever */}
+                <button
+                    onClick={aoEscrever}
+                    aria-label="Escrever para o ORVAX"
+                    className="w-12 h-12 rounded-full flex items-center justify-center border transition-all active:scale-95"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                >
+                    <PenLine size={18} strokeWidth={1.8} />
+                </button>
+
+                {/* Falar — o gesto principal, por isso é o maior.
+                    Só existe quando o navegador realmente reconhece fala:
+                    um microfone que não funciona faz a pessoa achar que o
+                    problema é ela. */}
+                {suportado && (
+                    <button
+                        onClick={ouvindo ? parar : iniciar}
+                        aria-label={ouvindo ? 'Parar de ouvir' : 'Falar com o ORVAX'}
+                        className="w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 relative"
+                    >
+                        {ouvindo && (
+                            <span className="absolute inset-0 rounded-full animate-ping"
+                                style={{ backgroundColor: 'var(--text-main)', opacity: 0.25, animationDuration: '1.6s' }} />
+                        )}
+                        {ouvindo ? <Square size={18} strokeWidth={2.4} className="relative" />
+                            : <Mic size={22} strokeWidth={1.8} className="relative" />}
+                    </button>
+                )}
+
+                {/* Sair */}
+                <button
+                    onClick={aoSair}
+                    aria-label="Sair do ORVAX"
+                    className="w-12 h-12 rounded-full flex items-center justify-center border transition-all active:scale-95"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-main)' }}
+                >
+                    <X size={18} strokeWidth={1.8} />
+                </button>
+            </div>
+        </div>
     );
 }
 
@@ -270,7 +361,8 @@ function Conversa({ aoVoltar, theme, toggleTheme }) {
 
     return (
         <>
-            <OrvaxHeader theme={theme} toggleTheme={toggleTheme} minimal />
+            {/* Imersivo também aqui: sem cabeçalho de marca/tema. A seta
+                de voltar abaixo já é a saída desta camada. */}
 
             {/* A Simbiose CONTINUA presente — reduzida, no topo, reagindo.
                 Precisa ser absoluta com fundo próprio: o ScrollContainer é
