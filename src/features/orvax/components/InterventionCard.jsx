@@ -11,7 +11,7 @@
 // =============================================================
 import React, { useState } from 'react';
 import { X, Loader2, Check } from 'lucide-react';
-import Simbiose from './Simbiose';
+import NucleoOrvax from './NucleoOrvax';
 
 const RUBRICA = {
     alerta: 'ORVAX detectou',
@@ -59,7 +59,7 @@ export default function InterventionCard({ intervencao, estado = 'SPEAKING', aoA
                     {/* Rubrica — diz de quem é a fala e de que tipo ela é */}
                     <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
                         <div className="flex items-center gap-2.5">
-                            <Simbiose estado={estadoAtual} tamanho={30} />
+                            <NucleoOrvax estado={estadoAtual} tamanho={30} />
                             <span className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] opacity-50">
                                 {RUBRICA[intervencao.tipo] || 'ORVAX'}
                             </span>

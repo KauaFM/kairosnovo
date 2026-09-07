@@ -30,7 +30,6 @@ import WelcomeVideo from './components/WelcomeVideo';
 import EventNotifier from './components/EventNotifier';
 import OfflineBanner from './components/OfflineBanner';
 import InstallPrompt from './components/InstallPrompt';
-import QuickCapture from './components/QuickCapture';
 import OrvaxPresence from './features/orvax/components/OrvaxPresence';
 import DemoBar from './components/DemoBar';
 import { demoPedida, iniciarDemo } from './lib/demoSession';
@@ -464,7 +463,10 @@ export default function App() {
                     {/* Captura rápida: registrar por escrito, de qualquer aba.
                         Some na aba do mentor (lá o chat já faz isso) e quando
                         algum modal está aberto. */}
-                    <QuickCapture hidden={isAnyModalOpen || activeTab === 'focus'} />
+                    {/* A captura rápida saiu: o atalho do ORVAX cobre o
+                        que ela fazia, e dois botões flutuantes no mesmo
+                        canto competiam entre si. O componente continua no
+                        repositório; nada mais o monta. */}
 
                     {/* Presença do ORVAX: observa os dados reais e só aparece
                         quando há algo que valha interromper. O silêncio é o

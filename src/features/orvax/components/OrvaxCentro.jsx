@@ -19,6 +19,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, ArrowLeft, ArrowUp } from 'lucide-react';
 import Simbiose from './Simbiose';
+import NucleoOrvax from './NucleoOrvax';
 import { coletarSinais } from '../engine/signals';
 import { avaliarRegras } from '../engine/rules';
 import { executarAcao } from '../engine/actions';
@@ -283,7 +284,7 @@ function Conversa({ aoVoltar, theme, toggleTheme }) {
                     className="w-8 h-8 rounded-full flex items-center justify-center opacity-45 hover:opacity-100 transition-opacity">
                     <ArrowLeft size={16} style={{ color: 'var(--text-main)' }} />
                 </button>
-                <Simbiose estado={enviando ? 'THINKING' : estado} tamanho={34} />
+                <NucleoOrvax estado={enviando ? 'THINKING' : estado} tamanho={34} />
                 <span className="text-[9px] font-mono font-bold uppercase tracking-[0.28em] opacity-40"
                     style={{ color: 'var(--text-main)' }}>ORVAX</span>
             </div>

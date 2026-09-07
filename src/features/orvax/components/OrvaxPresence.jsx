@@ -16,7 +16,7 @@ import { decidirIntervencao, registrarExibicao, registrarDispensa, registrarAcao
 import { executarAcao } from '../engine/actions';
 import { appEvents } from '../../../lib/events';
 import InterventionCard from './InterventionCard';
-import Simbiose from './Simbiose';
+import NucleoOrvax from './NucleoOrvax';
 
 // O tipo da intervenção define o estado da Simbiose. É assim que o
 // estado dela deixa de ser enfeite e passa a ser informação: dá pra
@@ -131,7 +131,7 @@ export default function OrvaxPresence({ oculto = false, irPara }) {
                     opacity: temAlgo ? 1 : 0.5,
                 }}
             >
-                <Simbiose estado={estado} tamanho={62} />
+                <NucleoOrvax estado={estado} tamanho={62} />
             </button>
 
             {aberto && intervencao && (
