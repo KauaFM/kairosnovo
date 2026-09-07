@@ -111,30 +111,33 @@ export default function OrvaxPresence({ oculto = false, irPara }) {
                 Com algo: ganha anel e para de pulsar — mudança de
                 estado que se lê de longe, sem texto. */}
             <button
-                onClick={() => temAlgo && setAberto((v) => !v)}
+                onClick={() => setAberto((v) => !v)}
                 onPointerEnter={() => !temAlgo && setEstado('LISTENING')}
                 onPointerLeave={() => !temAlgo && setEstado('IDLE')}
-                aria-label={temAlgo ? 'ORVAX tem algo para você' : 'ORVAX está acompanhando'}
-                disabled={!temAlgo}
+                aria-label={temAlgo ? 'ORVAX tem algo para você' : 'Falar com o ORVAX'}
                 className={[
-                    'fixed left-3 z-[62] flex items-center justify-center rounded-full',
+                    'fixed left-3 z-[62] flex items-center justify-center rounded-full cursor-pointer',
                     'transition-all duration-700',
-                    temAlgo ? 'cursor-pointer' : 'cursor-default',
                     aberto ? 'opacity-0 pointer-events-none' : 'opacity-100',
                 ].join(' ')}
                 style={{
-                    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10rem)',
-                    // Quando está só observando ele encolhe e desbota:
-                    // presente, mas sem pedir nada. Com algo a dizer,
-                    // ocupa o espaço inteiro.
-                    transform: temAlgo ? 'scale(1)' : 'scale(0.72)',
-                    opacity: temAlgo ? 1 : 0.5,
+                    // Mesma altura em que ficava a captura rápida: este
+                    // atalho absorveu a função dela, então herda o lugar.
+                    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6.5rem)',
+                    // Sem nada a dizer ele encolhe e desbota — presente,
+                    // mas sem pedir atenção. Continua clicável: quem quer
+                    // registrar algo não deveria depender de ele ter uma
+                    // intervenção pronta.
+                    transform: temAlgo ? 'scale(1)' : 'scale(0.8)',
+                    opacity: temAlgo ? 1 : 0.62,
                 }}
             >
                 <NucleoOrvax estado={estado} tamanho={62} />
             </button>
 
-            {aberto && intervencao && (
+            {/* O painel abre com ou sem intervenção: sem ela, é só a
+                captura. Era esse o papel do botão que saiu. */}
+            {aberto && (
                 <InterventionCard
                     intervencao={intervencao}
                     estado={estado}
