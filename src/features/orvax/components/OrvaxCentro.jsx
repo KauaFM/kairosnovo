@@ -150,7 +150,7 @@ export default function OrvaxCentro({ irPara }) {
 // Três gestos, e nada mais. O dock não existe aqui, então a SAÍDA
 // precisa estar sempre visível — imersão sem saída é armadilha.
 function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
-    const { suportado, ouvindo, parcial, erro, iniciar, parar, limparErro } = useVoz({ aoFinalizar: aoDitar });
+    const { suportado, ouvindo, preparando, parcial, erro, iniciar, parar, limparErro } = useVoz({ aoFinalizar: aoDitar });
 
     return (
         <div
@@ -168,12 +168,19 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
                 </div>
             )}
 
+            {/* O aviso de permissão precisa ser LEGÍVEL: quando o
+                microfone está bloqueado, esta mensagem é a única coisa
+                que separa a pessoa de achar que o app está quebrado. */}
             {erro && (
-                <button onClick={limparErro}
-                    className="pointer-events-auto px-4 py-2 rounded-2xl border text-[11px]"
-                    style={{ borderColor: 'rgba(239,68,68,0.4)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)' }}>
-                    {erro}
-                </button>
+                <div className="pointer-events-auto max-w-[300px] px-4 py-3 rounded-2xl border"
+                    style={{ borderColor: 'rgba(239,68,68,0.45)', backgroundColor: 'var(--bg-color)' }}>
+                    <p className="text-[12px] leading-relaxed mb-2" style={{ color: 'var(--text-main)' }}>{erro}</p>
+                    <button onClick={limparErro}
+                        className="text-[10px] font-mono uppercase tracking-[0.2em] opacity-50"
+                        style={{ color: 'var(--text-main)' }}>
+                        entendi
+                    </button>
+                </div>
             )}
 
             {/* Os três botões SOLTOS, sem cápsula em volta: amontoados
@@ -191,6 +198,7 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
                 {suportado && (
                     <button
                         onClick={ouvindo ? parar : iniciar}
+                        disabled={preparando}
                         aria-label={ouvindo ? 'Parar de ouvir' : 'Falar com o ORVAX'}
                         className="w-[70px] h-[70px] rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl relative bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
                     >
@@ -198,8 +206,9 @@ function BarraAcoes({ aoEscrever, aoDitar, aoSair }) {
                             <span className="absolute inset-0 rounded-full animate-ping"
                                 style={{ backgroundColor: 'var(--text-main)', opacity: 0.25, animationDuration: '1.6s' }} />
                         )}
-                        {ouvindo ? <Square size={20} strokeWidth={2.4} className="relative" />
-                            : <Mic size={25} strokeWidth={1.7} className="relative" />}
+                        {preparando ? <Loader2 size={22} className="animate-spin relative" />
+                            : ouvindo ? <Square size={20} strokeWidth={2.4} className="relative" />
+                                : <Mic size={25} strokeWidth={1.7} className="relative" />}
                     </button>
                 )}
 
